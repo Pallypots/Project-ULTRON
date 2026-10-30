@@ -24,6 +24,9 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 
 - ✅ **UL-009** spoken replies with a local natural voice (Kokoro), sentence streaming, barge-in, voice/speed/mode settings; real round trip in CI
 
+- ✅ **UL-010** tool registry with risk levels, policy engine, approvals (chat + Activity), kill switch, reminders/timers with scheduler,
+  missed-while-off handling, pop-ups/notifications/spoken reminders; tool calling for Ollama, Claude, OpenAI
+
 ## Next
 1. ⏳ **UL-010** tool policy registry (risk levels L0–L3, approval modal), clock + reminders with a real scheduler, audit integration
 3. ⏳ Voice benchmark on the owner's PC (time to transcript / first audio, interruption reliability)

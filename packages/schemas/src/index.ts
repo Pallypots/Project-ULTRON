@@ -10,6 +10,15 @@ export type MessageStatus = z.infer<typeof MessageStatus>;
 export const InputMode = z.enum(["text", "voice"]);
 export type InputMode = z.infer<typeof InputMode>;
 
+export const ToolEvent = z.object({
+  executionId: z.string(),
+  tool: z.string(),
+  summary: z.string(),
+  status: z.string(),
+  risk: z.number(),
+});
+export type ToolEvent = z.infer<typeof ToolEvent>;
+
 export const Message = z.object({
   id: z.string(),
   conversationId: z.string(),
@@ -21,6 +30,7 @@ export const Message = z.object({
   memoryIds: z.array(z.string()),
   sourceDeviceId: z.string().nullable(),
   inputMode: InputMode,
+  toolEvents: z.array(ToolEvent),
   createdAt: z.string(),
 });
 export type Message = z.infer<typeof Message>;
@@ -98,6 +108,7 @@ export type ChatEvent =
   | { type: "memory_saved"; memory: Memory }
   | { type: "memory_forgotten"; memory: Pick<Memory, "id" | "content"> }
   | { type: "memory_blocked"; reason: string }
+  | { type: "tool"; event: ToolEvent }
   | { type: "brain_changed"; provider: string; model: string; where: "local" | "cloud" | "test" }
   | { type: "delta"; text: string }
   | { type: "done"; message: Message }

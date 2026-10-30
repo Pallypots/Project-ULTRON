@@ -1,4 +1,7 @@
-import { buildSystemPrompt, detectIntent, ProviderError, type ChatTurn, type Persona } from "@ultron/agent-core";
+import { buildSystemPrompt, detectIntent, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
+import type { ToolEvent } from "@ultron/schemas";
+import { toEvent, type ActionRunner } from "./actions/runner.ts";
+import { TOOLS } from "./actions/tools.ts";
 import type { Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
 import { currentCapabilities } from "./capabilities.ts";
@@ -19,6 +22,28 @@ export interface ChatDeps {
   stt?: () => SttEngine;
   ttsEngine?: () => string;
   ollama?: OllamaManager;
+  actions?: ActionRunner;
+}
+
+const MAX_TOOL_ROUNDS = 4;
+const TOOL_SPECS = TOOLS.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
+
+async function* textOnly(it: AsyncIterable<string>): AsyncIterable<ProviderEvent> {
+  for await (const text of it) yield { type: "text", text };
+}
+
+/** Finds the upcoming reminder the owner most likely means. */
+function matchReminder<T extends { text: string }>(items: T[], query: string): T | null {
+  if (!query) return items.length === 1 ? items[0]! : null;
+  const words = query.toLowerCase().split(/\W+/).filter((w) => w.length > 2);
+  let best: T | null = null;
+  let bestScore = 0;
+  for (const r of items) {
+    const t = r.text.toLowerCase();
+    const score = words.filter((w) => t.includes(w)).length;
+    if (score > bestScore) [best, bestScore] = [r, score];
+  }
+  return best;
 }
 
 /** Tracks in-flight replies so the owner's stop button (and disconnects) can cancel them. */
@@ -45,7 +70,7 @@ export class ActiveStreams {
 }
 
 function historyFor(messages: Message[]): ChatTurn[] {
-  const turns: ChatTurn[] = [];
+  const turns: Extract<ChatTurn, { role: "user" | "assistant" }>[] = [];
   let chars = 0;
   for (const m of [...messages].reverse()) {
     if (m.role === "system" || !m.content.trim() || m.status === "error") continue;
@@ -86,9 +111,15 @@ export async function handleUserMessage(
   });
   emit({ type: "start", userMessage, assistantMessageId: assistant.id, provider: providerId, model: modelId });
 
+  const toolEvents: ToolEvent[] = [];
   const finish = (text: string, status: Message["status"], memoryIds: string[] = []) => {
-    const done = stores.conversations.updateMessage(assistant.id, { content: text, status, memoryIds })!;
+    const done = stores.conversations.updateMessage(assistant.id, { content: text, status, memoryIds, toolEvents })!;
     emit({ type: "done", message: done });
+  };
+  const recordTool = (e: ToolEvent) => {
+    toolEvents.push(e);
+    emit({ type: "tool", event: e });
+    stores.conversations.updateMessage(assistant.id, { toolEvents });
   };
 
   // Explicit memory commands are handled deterministically, so saving never depends on the model's mood.
@@ -133,6 +164,41 @@ export async function handleUserMessage(
     return finish(text, "complete");
   }
 
+  // Reminders and timers are parsed by code so they work with any brain, then go through the same action policy.
+  const timeIntent = intent.type === "chat" && deps.actions ? detectTimeIntent(content) : null;
+  if (timeIntent && deps.actions) {
+    let text: string;
+    if (timeIntent.type === "reminder") {
+      const minutes = (timeIntent.due.getTime() - Date.now()) / 60_000;
+      const { execution } = await deps.actions.propose("create_reminder", { text: timeIntent.text, minutes_from_now: Math.max(minutes, 0.01) }, { conversationId, requestedBy: "command" });
+      if (execution) recordTool(toEvent(execution));
+      text =
+        execution?.status === "succeeded"
+          ? `Reminder set: "${timeIntent.text}" ${timeIntent.label} (${timeIntent.due.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}). I'll pop it up and say it out loud.`
+          : execution?.status === "awaiting_approval"
+            ? `I've prepared a reminder for "${timeIntent.text}" ${timeIntent.label}. Approve it in the app to schedule it.`
+            : `I couldn't set that reminder: ${execution?.error ?? "unknown problem"}`;
+    } else if (timeIntent.type === "list_reminders") {
+      const items = stores.reminders.list().filter((r) => r.status === "scheduled" || r.status === "missed");
+      text = items.length
+        ? `You have ${items.length} reminder${items.length > 1 ? "s" : ""}:\n` +
+          items.map((r) => `• ${r.text}, ${new Date(r.dueAt).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}${r.status === "missed" ? " (missed while I was off)" : ""}`).join("\n")
+        : "You have no upcoming reminders.";
+    } else {
+      const upcoming = stores.reminders.upcoming();
+      const target = matchReminder(upcoming, timeIntent.query);
+      if (!target) {
+        text = upcoming.length ? `Which one? You have: ${upcoming.map((r) => `"${r.text}"`).join(", ")}.` : "You have no upcoming reminders to cancel.";
+      } else {
+        const { execution } = await deps.actions.propose("cancel_reminder", { reminder_id: target.id }, { conversationId, requestedBy: "command" });
+        if (execution) recordTool(toEvent(execution));
+        text = execution?.status === "succeeded" ? `Cancelled the reminder "${target.text}".` : `I couldn't cancel it: ${execution?.error ?? "needs your approval in the app"}`;
+      }
+    }
+    emit({ type: "delta", text });
+    return finish(text, "complete");
+  }
+
   if (intent.type === "switch_brain") {
     let installedLocal: string[] | null = null;
     if (deps.ollama && (await deps.ollama.version())) installedLocal = (await deps.ollama.models().catch(() => [])).map((m) => m.name);
@@ -168,24 +234,51 @@ export async function handleUserMessage(
   const memories = stores.memories.retrieveForPrompt(content);
   if (memories.length) emit({ type: "memories", memories: memories.map(brief) });
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
+  const provider = resolution.provider;
+  const useTools = Boolean(provider.streamWithTools && deps.actions);
   const system = buildSystemPrompt(deps.persona(), {
     capabilities,
+    toolsEnabled: useTools,
+    localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
   });
-  const history = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id));
+  const turns: ChatTurn[] = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id));
 
   let text = "";
   let lastFlush = Date.now();
   try {
-    for await (const chunk of resolution.provider.stream({ system, messages: history, memories, capabilities, signal: opts.signal })) {
-      if (opts.signal.aborted) break;
-      text += chunk;
-      emit({ type: "delta", text: chunk });
-      // Persist partial text periodically so a crash keeps what was already said.
-      if (Date.now() - lastFlush > 1000) {
-        stores.conversations.updateMessage(assistant.id, { content: text });
-        lastFlush = Date.now();
+    // Model ↔ tools loop, bounded so a confused model can't spin (cost and safety cap).
+    for (let round = 0; round <= MAX_TOOL_ROUNDS && !opts.signal.aborted; round++) {
+      const req = { system, messages: turns, memories, capabilities, signal: opts.signal };
+      const events = useTools && round < MAX_TOOL_ROUNDS ? provider.streamWithTools!({ ...req, tools: TOOL_SPECS }) : textOnly(provider.stream(req));
+      const calls: ToolCall[] = [];
+      let roundText = "";
+      for await (const ev of events) {
+        if (opts.signal.aborted) break;
+        if (ev.type === "tool_call") {
+          calls.push(ev.call);
+          continue;
+        }
+        text += ev.text;
+        roundText += ev.text;
+        emit({ type: "delta", text: ev.text });
+        // Persist partial text periodically so a crash keeps what was already said.
+        if (Date.now() - lastFlush > 1000) {
+          stores.conversations.updateMessage(assistant.id, { content: text });
+          lastFlush = Date.now();
+        }
+      }
+      if (!calls.length || opts.signal.aborted) break;
+      turns.push({ role: "assistant", content: roundText, toolCalls: calls });
+      for (const call of calls) {
+        const { execution, resultForModel } = await deps.actions!.propose(call.name, call.args, { conversationId, requestedBy: "model" });
+        if (execution) recordTool(toEvent(execution));
+        turns.push({ role: "tool", content: resultForModel, toolCallId: call.id, name: call.name });
+      }
+      if (text && !/\s$/.test(text)) {
+        text += " ";
+        emit({ type: "delta", text: " " });
       }
     }
     const used = memories.filter((m) => text.includes(m.id.slice(0, 8))).map((m) => m.id);

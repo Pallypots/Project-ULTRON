@@ -31,7 +31,7 @@ const ollamaUrl = await new Promise((resolve, reject) => {
 });
 
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_LOG_LEVEL: "warn" },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_LOG_LEVEL: "warn" },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {
@@ -215,6 +215,42 @@ try {
   await denied.getByText(/Microphone access is blocked|No microphone was found/).waitFor();
   await noMic.close();
   step("Blocked/missing microphone shows a plain-English fix");
+
+  // ---- Actions & reminders (UL-010) ----
+  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByRole("button", { name: "+ New conversation" }).click();
+  await page.getByText("Say hello, ask a question").waitFor();
+  const composer = page.getByLabel("Message ULTRON");
+  await composer.fill("set a timer for 3 seconds");
+  await composer.press("Enter");
+  await page.getByText(/Reminder set: "Your 3-second timer is done"/).waitFor();
+  await page.locator(".toast", { hasText: "Your 3-second timer is done" }).waitFor({ timeout: 15000 });
+  step("Timer set by voice-style command fires on time as a pop-up");
+  await page.locator(".toast").getByRole("button", { name: "Dismiss" }).first().click();
+
+  await composer.fill("open https://example.com/news");
+  await composer.press("Enter");
+  const chip = page.locator(".tool--awaiting_approval", { hasText: "Open example.com" });
+  await chip.waitFor();
+  await page.locator(".nav__item", { hasText: "Activity" }).locator(".badge").waitFor({ timeout: 8000 });
+  await page.screenshot({ path: join(shots, "11-approval-needed.png") });
+  await chip.getByRole("button", { name: "Approve" }).click();
+  await page.locator(".tool--succeeded", { hasText: "Open example.com" }).waitFor({ timeout: 8000 });
+  step("External action waits for Approve, then runs once (dry-run in tests)");
+
+  await page.getByRole("button", { name: "Reminders" }).click();
+  await page.locator(".reminder--past", { hasText: "3-second timer" }).waitFor();
+  await page.getByLabel("Reminder", { exact: true }).fill("Check the oven");
+  await page.getByRole("button", { name: "Add" }).click();
+  await page.locator(".reminder", { hasText: "Check the oven" }).waitFor();
+  await page.screenshot({ path: join(shots, "12-reminders.png") });
+  await page.locator(".reminder", { hasText: "Check the oven" }).getByRole("button", { name: "Cancel" }).click();
+  await page.locator(".reminder--past", { hasText: "Check the oven" }).waitFor();
+  step("Reminders page: fired timer listed; add and cancel a reminder");
+
+  await page.getByRole("button", { name: "Activity" }).click();
+  await page.locator("td", { hasText: "Open example.com" }).first().waitFor();
+  step("Activity lists actions with risk level and who asked");
 
   // ---- Local brain (UL-011) ----
   const brain = () => page.evaluate(() => document.documentElement.dataset.brain);

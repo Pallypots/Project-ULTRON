@@ -1,9 +1,24 @@
 import type { Capability, Memory } from "@ultron/schemas";
 
-export interface ChatTurn {
-  role: "user" | "assistant";
-  content: string;
+export interface ToolCall {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
 }
+
+export type ChatTurn =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string; toolCalls?: ToolCall[] }
+  | { role: "tool"; content: string; toolCallId: string; name: string };
+
+/** A tool the model may call. `parameters` is a JSON Schema object. */
+export interface ToolSpec {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+export type ProviderEvent = { type: "text"; text: string } | { type: "tool_call"; call: ToolCall };
 
 export interface ModelRequest {
   system: string;
@@ -20,7 +35,12 @@ export interface ModelProvider {
   readonly id: string;
   readonly model: string;
   stream(req: ModelRequest): AsyncIterable<string>;
+  /** Providers that can call tools implement this; text and tool calls arrive as events. */
+  streamWithTools?(req: ModelRequest & { tools: ToolSpec[] }): AsyncIterable<ProviderEvent>;
 }
+
+let callSeq = 0;
+export const newToolCallId = () => `call_${Date.now().toString(36)}_${(callSeq++).toString(36)}`;
 
 export class ProviderError extends Error {
   constructor(

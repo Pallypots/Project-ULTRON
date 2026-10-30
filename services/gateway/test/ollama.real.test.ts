@@ -41,5 +41,16 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Real local brain (${process.platform})::${summary}`);
     expect(text).toMatch(/paris/i);
     expect(text).not.toMatch(/<\/?think>/);
+
+    // Informational: does this small local model use tools? (Not a pass/fail gate; models vary.)
+    process.env.ULTRON_ACTIONS_DRY_RUN = "1";
+    const t2 = Date.now();
+    const act = await g.chat(id, "Please open https://example.com in my browser.");
+    const tools = act.filter((e) => e.type === "tool").map((e: any) => `${e.event.tool}:${e.event.status}`);
+    const toolSummary = `model=${MODEL} tools=${JSON.stringify(tools)} reply=${Date.now() - t2}ms text="${replyText(act).replace(/\s+/g, " ").slice(0, 160)}"`;
+    console.log(`[ollama-tools] ${toolSummary}`);
+    if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Local brain tool use (${process.platform})::${toolSummary}`);
+    // Whatever the model did, nothing external may have run without approval.
+    expect(tools.filter((t) => t.startsWith("open_website:") && t !== "open_website:awaiting_approval")).toEqual([]);
   }, 1_200_000);
 });

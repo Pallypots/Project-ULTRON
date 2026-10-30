@@ -83,4 +83,45 @@ export const MIGRATIONS: Migration[] = [
     up: `ALTER TABLE messages ADD COLUMN input_mode TEXT NOT NULL DEFAULT 'text' CHECK (input_mode IN ('text','voice'));`,
     down: `ALTER TABLE messages DROP COLUMN input_mode;`,
   },
+  {
+    version: 3,
+    name: "actions_and_reminders",
+    up: `
+      ALTER TABLE messages ADD COLUMN tool_events TEXT NOT NULL DEFAULT '[]';
+      CREATE TABLE tool_executions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL DEFAULT 'owner',
+        conversation_id TEXT,
+        tool TEXT NOT NULL,
+        input TEXT NOT NULL,
+        risk INTEGER NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('proposed','awaiting_approval','running','succeeded','failed','cancelled','denied','expired')),
+        requested_by TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        result TEXT,
+        error TEXT,
+        created_at TEXT NOT NULL,
+        decided_at TEXT,
+        finished_at TEXT
+      );
+      CREATE INDEX tool_exec_status ON tool_executions(status, created_at);
+      CREATE TABLE reminders (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL DEFAULT 'owner',
+        text TEXT NOT NULL,
+        due_at TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('scheduled','fired','missed','cancelled')),
+        source TEXT NOT NULL,
+        conversation_id TEXT,
+        created_at TEXT NOT NULL,
+        fired_at TEXT
+      );
+      CREATE INDEX reminders_due ON reminders(status, due_at);
+    `,
+    down: `
+      DROP TABLE reminders;
+      DROP TABLE tool_executions;
+      ALTER TABLE messages DROP COLUMN tool_events;
+    `,
+  },
 ];

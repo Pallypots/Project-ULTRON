@@ -13,6 +13,9 @@ import { ActiveStreams, handleUserMessage } from "./chat.ts";
 import { loadConfig, type GatewayConfig } from "./config.ts";
 import { isLocalProvider, readProviderSettings, resolveProvider, saveProviderSettings, SECRET_FOR } from "./providers.ts";
 import { detectHardware } from "./local-ai/hardware.ts";
+import { EventBus } from "./actions/events.ts";
+import { ActionRunner } from "./actions/runner.ts";
+import { ReminderScheduler } from "./actions/scheduler.ts";
 import { OllamaManager } from "./local-ai/ollama.ts";
 import { recommendModel } from "./local-ai/recommend.ts";
 import { z } from "zod";
@@ -21,7 +24,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.4.0";
+export const VERSION = "0.5.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -79,7 +82,15 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const tts = new TtsManager(config.dataDir, stores.preferences);
   const savedModels = stores.preferences.get<Record<string, { model: string; baseUrl: string }>>("provider_models", {});
   const ollama = new OllamaManager(savedModels.ollama?.baseUrl || process.env.ULTRON_OLLAMA_URL || undefined);
-  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama };
+  const bus = new EventBus();
+  const actions = new ActionRunner(stores, bus, process.env.ULTRON_ACTIONS_DRY_RUN === "1");
+  const scheduler = new ReminderScheduler(stores, bus);
+  // A new or cancelled reminder may be sooner than the scheduler's next wake-up.
+  bus.subscribe((e) => {
+    if (e.type === "action_updated" && e.execution.status === "succeeded" && /reminder/.test(e.execution.tool)) scheduler.reschedule();
+  });
+  scheduler.start();
+  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   // ---- public ----
   app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));
@@ -104,6 +115,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       where: s.provider === "mock" ? "test" : isLocalProvider(s.provider) ? "local" : "cloud",
       providerProblem: r.ok ? null : r.reason,
       activeReplies: streams.size,
+      pendingApprovals: stores.actions.pending().length,
+      upcomingReminders: stores.reminders.upcoming().length,
       counts: { conversations: stores.conversations.list().length, memories: stores.memories.list().length },
       persona: { name: persona.name },
     };
@@ -318,11 +331,66 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     }
   });
 
-  // Emergency stop: cancels every in-flight reply.
+  // ---- live events (reminders, approvals) ----
+  app.get("/api/events", async (req, reply) => {
+    reply.hijack();
+    reply.raw.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
+    const send = (e: unknown) => !reply.raw.writableEnded && reply.raw.write(`data: ${JSON.stringify(e)}\n\n`);
+    send({ type: "hello", at: new Date().toISOString() });
+    const unsubscribe = bus.subscribe(send);
+    const keepAlive = setInterval(() => !reply.raw.writableEnded && reply.raw.write(": keep-alive\n\n"), 25_000);
+    req.raw.on("close", () => {
+      unsubscribe();
+      clearInterval(keepAlive);
+    });
+  });
+
+  // ---- reminders ----
+  app.get("/api/reminders", async () => ({ reminders: stores.reminders.list() }));
+  const NewReminder = z.object({ text: z.string().trim().min(1).max(300), dueAt: z.string().datetime({ offset: true }) });
+  app.post("/api/reminders", async (req, reply) => {
+    const body = NewReminder.parse(req.body);
+    const due = new Date(body.dueAt);
+    if (due.getTime() < Date.now() - 60_000) return reply.code(400).send({ error: "past", message: "That time has already passed." });
+    const r = stores.reminders.create({ text: body.text, dueAt: due, source: "manual" });
+    stores.audit.record("reminder.created", "owner", r.id, { via: "app" });
+    scheduler.reschedule();
+    return { reminder: r };
+  });
+  app.post<{ Params: { id: string } }>("/api/reminders/:id/cancel", async (req, reply) => {
+    const r = stores.reminders.get(req.params.id);
+    if (!r) return reply.code(404).send({ error: "not_found" });
+    if (r.status !== "scheduled" && r.status !== "missed") return reply.code(409).send({ error: "not_active", message: "That reminder isn't active." });
+    stores.audit.record("reminder.cancelled", "owner", r.id, { via: "app" });
+    return { reminder: stores.reminders.setStatus(r.id, r.status === "missed" ? "fired" : "cancelled") };
+  });
+
+  // ---- actions & approvals ----
+  app.get("/api/actions", async () => {
+    stores.actions.expireStale(10 * 60_000);
+    return { actions: stores.actions.list(), pending: stores.actions.pending(), policy: actions.policy() };
+  });
+  app.post<{ Params: { id: string } }>("/api/actions/:id/approve", async (req, reply) => {
+    const r = await actions.resolve(req.params.id, true);
+    return "failure" in r ? reply.code(r.code).send({ error: "cannot_approve", message: r.failure }) : { action: r };
+  });
+  app.post<{ Params: { id: string } }>("/api/actions/:id/deny", async (req, reply) => {
+    const r = await actions.resolve(req.params.id, false);
+    return "failure" in r ? reply.code(r.code).send({ error: "cannot_deny", message: r.failure }) : { action: r };
+  });
+  app.put("/api/settings/actions", async (req) => {
+    const body = z.object({ paused: z.boolean(), confirmLowRisk: z.boolean() }).parse(req.body);
+    stores.preferences.set("actions", body);
+    stores.audit.record(body.paused ? "actions.paused" : "actions.policy_changed", "owner", null, body);
+    return { policy: body };
+  });
+
+  // Emergency stop: cancels every in-flight reply and every action waiting for approval.
   app.post("/api/stop", async () => {
     const stopped = streams.stopAll();
-    stores.audit.record("system.stop_all", "owner", null, { stopped });
-    return { stopped };
+    const cancelledActions = actions.denyAllPending();
+    stores.audit.record("system.stop_all", "owner", null, { stopped, cancelledActions });
+    return { stopped, cancelledActions };
   });
 
   // ---- memory vault ----
@@ -382,6 +450,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   }
 
   app.addHook("onClose", async () => {
+    scheduler.stop();
     streams.stopAll();
     stores.close();
   });

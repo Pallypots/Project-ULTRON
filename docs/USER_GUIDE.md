@@ -20,6 +20,25 @@ Open **Chat**, type, press **Enter**. **Shift+Enter** adds a new line. **Esc** o
 - Voices run **on your PC** (Kokoro; ~90 MB one-time download). Default is "George" (British). "Heart" (American) is the highest-rated.
   Change voice and speed in Settings → Spoken replies, and use **Preview voice** to hear it. Windows' built-in voices are a no-download fallback.
 
+## Reminders and timers
+Say or type things like:
+- "remind me in 20 minutes to take the pizza out" · "remind me at 5pm to call mom" · "remind me tomorrow at 9 to send the invoice"
+- "set a timer for 10 minutes" · "what are my reminders?" · "cancel my reminder to call mom"
+
+When one is due, ULTRON shows a pop-up, a Windows notification (turn it on in Settings → Actions) and says it out loud. Reminders only fire while ULTRON is
+running; anything that came due while it was off is listed as **missed** on the Reminders page. You can also add or cancel reminders there.
+
+## What ULTRON can do on its own (actions)
+| Kind | Examples | What happens |
+|---|---|---|
+| Read-only | check the time, list reminders | just happens |
+| Low-risk, undoable | set/cancel a reminder | happens and is logged (Settings → Actions can make it ask first) |
+| Outside effect | open a website in your browser | **waits for you to click Approve** (in chat or Activity); expires after 10 minutes |
+| High-risk | money, deleting, security settings | blocked |
+
+Saying "yes" out loud never approves anything; only a click does. **Pause all actions** in Settings is the kill switch, and **Stop all** also cancels anything waiting for approval.
+Every action is listed in **Activity** with who asked for it and what happened.
+
 ## Memory: what ULTRON remembers
 ULTRON only keeps long-term memories you explicitly give it:
 

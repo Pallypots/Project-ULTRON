@@ -13,6 +13,7 @@ interface MessageRow {
   memory_ids: string;
   source_device_id: string | null;
   input_mode: InputMode;
+  tool_events: string;
   created_at: string;
 }
 
@@ -27,6 +28,7 @@ const toMessage = (r: MessageRow): Message => ({
   memoryIds: JSON.parse(r.memory_ids) as string[],
   sourceDeviceId: r.source_device_id,
   inputMode: r.input_mode,
+  toolEvents: JSON.parse(r.tool_events ?? "[]"),
   createdAt: r.created_at,
 });
 
@@ -95,12 +97,12 @@ export class ConversationStore {
     return this.getMessage(id)!;
   }
 
-  updateMessage(id: string, patch: { content?: string; status?: MessageStatus; memoryIds?: string[] }): Message | null {
+  updateMessage(id: string, patch: { content?: string; status?: MessageStatus; memoryIds?: string[]; toolEvents?: Message["toolEvents"] }): Message | null {
     const cur = this.getMessage(id);
     if (!cur) return null;
     this.db
-      .prepare("UPDATE messages SET content = ?, status = ?, memory_ids = ? WHERE id = ?")
-      .run(patch.content ?? cur.content, patch.status ?? cur.status, JSON.stringify(patch.memoryIds ?? cur.memoryIds), id);
+      .prepare("UPDATE messages SET content = ?, status = ?, memory_ids = ?, tool_events = ? WHERE id = ?")
+      .run(patch.content ?? cur.content, patch.status ?? cur.status, JSON.stringify(patch.memoryIds ?? cur.memoryIds), JSON.stringify(patch.toolEvents ?? cur.toolEvents), id);
     return this.getMessage(id);
   }
 

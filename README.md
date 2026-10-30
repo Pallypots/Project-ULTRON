@@ -26,7 +26,9 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | Online/offline indicator, emergency **Stop all**, activity/audit log, redacted log export | ✅ working |
 | Voice input: push-to-talk (hold button or Space), speech recognized **on your PC** by Whisper, or OpenAI | ✅ working (see [Voice](docs/VOICE.md)) |
 | **Spoken replies** with a natural voice generated **on your PC** (Kokoro), sentence-by-sentence; interrupt by talking, Esc or Stop | ✅ working (real voice tested in CI) |
-| Reminders and other actions, connected accounts, phone access | ⏳ planned (see [ROADMAP](docs/ROADMAP.md)) |
+| **Reminders & timers** ("remind me at 5pm to…", "set a timer for 10 minutes"): pop-up, Windows notification, spoken; missed-while-off shown | ✅ working |
+| **Actions with a safety policy**: read-only runs, low-risk is logged, anything external waits for your **Approve** click; kill switch | ✅ working |
+| Local file search, wake word, connected accounts, phone access | ⏳ planned (see [ROADMAP](docs/ROADMAP.md)) |
 
 ## Start it on Windows (no coding needed)
 

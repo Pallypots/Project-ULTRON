@@ -43,10 +43,84 @@ export interface Status {
   model: string;
   providerReady: boolean;
   where: "local" | "cloud" | "test";
+  pendingApprovals: number;
+  upcomingReminders: number;
   providerProblem: string | null;
   activeReplies: number;
   counts: { conversations: number; memories: number };
   persona: { name: string };
+}
+
+export interface Reminder {
+  id: string;
+  text: string;
+  dueAt: string;
+  status: "scheduled" | "fired" | "missed" | "cancelled";
+  source: string;
+  createdAt: string;
+  firedAt: string | null;
+}
+export interface ActionRecord {
+  id: string;
+  conversationId: string | null;
+  tool: string;
+  input: Record<string, unknown>;
+  risk: number;
+  status: string;
+  requestedBy: string;
+  summary: string;
+  result: string | null;
+  error: string | null;
+  createdAt: string;
+}
+export interface ActionPolicy {
+  paused: boolean;
+  confirmLowRisk: boolean;
+}
+export type ServerEvent =
+  | { type: "hello"; at: string }
+  | { type: "reminder_fired"; reminder: Reminder }
+  | { type: "reminders_missed"; reminders: Reminder[] }
+  | { type: "action_updated"; execution: ActionRecord };
+
+/** Keeps a live connection for reminders and approvals; reconnects with backoff. Returns a stop function. */
+export function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {
+  let stopped = false;
+  let ctl: AbortController | null = null;
+  const loop = async () => {
+    let delay = 1000;
+    while (!stopped) {
+      ctl = new AbortController();
+      try {
+        const res = await fetch("/api/events", { headers: { authorization: `Bearer ${await getToken()}` }, signal: ctl.signal });
+        if (!res.ok || !res.body) throw new Error(String(res.status));
+        delay = 1000;
+        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buf = "";
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += value;
+          let i: number;
+          while ((i = buf.indexOf("\n\n")) >= 0) {
+            const frame = buf.slice(0, i);
+            buf = buf.slice(i + 2);
+            if (frame.startsWith("data: ")) onEvent(JSON.parse(frame.slice(6)) as ServerEvent);
+          }
+        }
+      } catch {
+        /* offline or restarting; retry */
+      }
+      if (stopped) break;
+      await new Promise((r) => setTimeout(r, delay));
+      delay = Math.min(delay * 2, 15000);
+    }
+  };
+  loop();
+  return () => {
+    stopped = true;
+    ctl?.abort();
+  };
 }
 
 export interface LocalAiStatus {
@@ -94,6 +168,13 @@ export const api = {
   pullLocalModel: (model: string) => call("POST", "/api/local-ai/pull", { model }),
   cancelLocalPull: (model: string) => call("POST", "/api/local-ai/pull/cancel", { model }),
   useLocalModel: (model: string) => call("POST", "/api/local-ai/use", { model }),
+  reminders: () => call<{ reminders: Reminder[] }>("GET", "/api/reminders"),
+  createReminder: (text: string, dueAt: string) => call<{ reminder: Reminder }>("POST", "/api/reminders", { text, dueAt }),
+  cancelReminder: (id: string) => call("POST", `/api/reminders/${id}/cancel`),
+  actions: () => call<{ actions: ActionRecord[]; pending: ActionRecord[]; policy: ActionPolicy }>("GET", "/api/actions"),
+  approveAction: (id: string) => call<{ action: ActionRecord }>("POST", `/api/actions/${id}/approve`),
+  denyAction: (id: string) => call<{ action: ActionRecord }>("POST", `/api/actions/${id}/deny`),
+  saveActionPolicy: (p: ActionPolicy) => call<{ policy: ActionPolicy }>("PUT", "/api/settings/actions", p),
   voiceStatus: () => call<VoiceStatus>("GET", "/api/voice/status"),
   saveVoiceSettings: (s: { engine: VoiceStatus["engine"]; model?: string }) => call<VoiceStatus>("PUT", "/api/voice/settings", s),
   prepareVoice: () => call<VoiceStatus>("POST", "/api/voice/prepare"),

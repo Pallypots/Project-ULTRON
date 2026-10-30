@@ -1,5 +1,20 @@
 import OpenAI from "openai";
-import { ProviderError, type ModelProvider, type ModelRequest } from "./types.ts";
+import { newToolCallId, ProviderError, type ChatTurn, type ModelProvider, type ModelRequest, type ProviderEvent, type ToolSpec } from "./types.ts";
+
+const toOpenAIMessages = (system: string, turns: ChatTurn[]): OpenAI.ChatCompletionMessageParam[] => [
+  { role: "system", content: system },
+  ...turns.map((t): OpenAI.ChatCompletionMessageParam =>
+    t.role === "tool"
+      ? { role: "tool", tool_call_id: t.toolCallId, content: t.content }
+      : t.role === "assistant"
+        ? {
+            role: "assistant",
+            content: t.content,
+            ...(t.toolCalls?.length ? { tool_calls: t.toolCalls.map((c) => ({ id: c.id, type: "function" as const, function: { name: c.name, arguments: JSON.stringify(c.args) } })) } : {}),
+          }
+        : { role: "user", content: t.content },
+  ),
+];
 
 /**
  * OpenAI and any OpenAI-compatible server (Ollama, LM Studio, llama.cpp) via baseUrl.
@@ -17,14 +32,44 @@ export class OpenAICompatibleProvider implements ModelProvider {
   }
 
   async *stream(req: ModelRequest): AsyncIterable<string> {
+    for await (const e of this.run(req)) if (e.type === "text") yield e.text;
+  }
+
+  streamWithTools(req: ModelRequest & { tools: ToolSpec[] }): AsyncIterable<ProviderEvent> {
+    return this.run(req, req.tools);
+  }
+
+  private async *run(req: ModelRequest, tools?: ToolSpec[]): AsyncIterable<ProviderEvent> {
     try {
       const stream = await this.client.chat.completions.create(
-        { model: this.model, stream: true, messages: [{ role: "system", content: req.system }, ...req.messages] },
+        {
+          model: this.model,
+          stream: true,
+          messages: toOpenAIMessages(req.system, req.messages),
+          ...(tools?.length ? { tools: tools.map((t) => ({ type: "function" as const, function: t })) } : {}),
+        },
         { signal: req.signal },
       );
+      const pending = new Map<number, { id: string; name: string; args: string }>();
       for await (const chunk of stream) {
-        const text = chunk.choices[0]?.delta?.content;
-        if (text) yield text;
+        const delta = chunk.choices[0]?.delta;
+        if (delta?.content) yield { type: "text", text: delta.content };
+        for (const tc of delta?.tool_calls ?? []) {
+          const cur = pending.get(tc.index) ?? { id: tc.id ?? newToolCallId(), name: "", args: "" };
+          if (tc.id) cur.id = tc.id;
+          if (tc.function?.name) cur.name += tc.function.name;
+          if (tc.function?.arguments) cur.args += tc.function.arguments;
+          pending.set(tc.index, cur);
+        }
+      }
+      for (const p of pending.values()) {
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(p.args || "{}") as Record<string, unknown>;
+        } catch {
+          args = {};
+        }
+        if (p.name) yield { type: "tool_call", call: { id: p.id, name: p.name, args } };
       }
     } catch (err) {
       if (err instanceof OpenAI.APIUserAbortError) throw err;

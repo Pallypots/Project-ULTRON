@@ -1,13 +1,24 @@
-import { ProviderError, type ModelProvider, type ModelRequest } from "./types.ts";
+import { newToolCallId, ProviderError, type ChatTurn, type ModelProvider, type ModelRequest, type ProviderEvent, type ToolSpec } from "./types.ts";
 
 export const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 
 interface ChatChunk {
-  message?: { content?: string; thinking?: string };
+  message?: { content?: string; thinking?: string; tool_calls?: { function?: { name?: string; arguments?: Record<string, unknown> | string } }[] };
   done?: boolean;
   done_reason?: string;
   error?: string;
 }
+
+const toOllamaMessages = (system: string, turns: ChatTurn[]) => [
+  { role: "system", content: system },
+  ...turns.map((t) =>
+    t.role === "tool"
+      ? { role: "tool", content: t.content, tool_name: t.name }
+      : t.role === "assistant" && t.toolCalls?.length
+        ? { role: "assistant", content: t.content, tool_calls: t.toolCalls.map((c) => ({ function: { name: c.name, arguments: c.args } })) }
+        : { role: t.role, content: t.content },
+  ),
+];
 
 /**
  * Local models via Ollama's native API (no API key, nothing leaves the PC).
@@ -17,6 +28,7 @@ export class OllamaProvider implements ModelProvider {
   readonly id = "ollama";
   readonly model: string;
   private baseUrl: string;
+  private fetchImpl: typeof fetch = (...a) => fetch(...a);
 
   constructor(opts: { model?: string; baseUrl?: string; fetchImpl?: typeof fetch }) {
     if (!opts.model) throw new ProviderError("Pick a local model in Settings → Language model → Local AI.", "config");
@@ -25,20 +37,27 @@ export class OllamaProvider implements ModelProvider {
     if (opts.fetchImpl) this.fetchImpl = opts.fetchImpl;
   }
 
-  private fetchImpl: typeof fetch = (...a) => fetch(...a);
-
-  private thinkSetting(): boolean | "low" | undefined {
+  private thinkSetting(): boolean | "low" {
     // gpt-oss can't fully disable reasoning; others accept false.
     return this.model.startsWith("gpt-oss") ? "low" : false;
   }
 
   async *stream(req: ModelRequest): AsyncIterable<string> {
+    for await (const e of this.run(req)) if (e.type === "text") yield e.text;
+  }
+
+  streamWithTools(req: ModelRequest & { tools: ToolSpec[] }): AsyncIterable<ProviderEvent> {
+    return this.run(req, req.tools);
+  }
+
+  private async *run(req: ModelRequest, tools?: ToolSpec[]): AsyncIterable<ProviderEvent> {
     const body = (think: boolean | "low" | undefined) =>
       JSON.stringify({
         model: this.model,
         stream: true,
         keep_alive: "30m",
-        messages: [{ role: "system", content: req.system }, ...req.messages],
+        messages: toOllamaMessages(req.system, req.messages),
+        ...(tools?.length ? { tools: tools.map((t) => ({ type: "function", function: t })) } : {}),
         ...(think === undefined ? {} : { think }),
       });
 
@@ -47,6 +66,7 @@ export class OllamaProvider implements ModelProvider {
     if (res.status === 400) {
       const text = await res.text();
       if (/think/i.test(text)) res = await this.post(body(undefined), req.signal);
+      else if (tools?.length && /tools?/i.test(text)) throw new ProviderError(`The local model "${this.model}" doesn't support actions (tool use). Pick a model that does, e.g. qwen3 or gpt-oss.`, "bad_request");
       else throw new ProviderError(`The local model rejected the request: ${parseError(text)}`, "bad_request");
     }
     if (res.status === 404) throw new ProviderError(`The local model "${this.model}" isn't downloaded. Download it in Settings → Language model → Local AI.`, "bad_request");
@@ -66,6 +86,18 @@ export class OllamaProvider implements ModelProvider {
         if (!line) continue;
         const chunk = JSON.parse(line) as ChatChunk;
         if (chunk.error) throw new ProviderError(`Local AI error: ${chunk.error}`, "unavailable");
+        for (const tc of chunk.message?.tool_calls ?? []) {
+          const name = tc.function?.name;
+          if (!name) continue;
+          const raw = tc.function?.arguments ?? {};
+          let args: Record<string, unknown> = {};
+          try {
+            args = typeof raw === "string" ? (JSON.parse(raw) as Record<string, unknown>) : raw;
+          } catch {
+            args = {};
+          }
+          yield { type: "tool_call", call: { id: newToolCallId(), name, args } };
+        }
         let text = chunk.message?.content ?? "";
         // Some model templates inline their reasoning as <think>…</think>; never speak it.
         if (text) {
@@ -77,8 +109,8 @@ export class OllamaProvider implements ModelProvider {
           }
           text = out;
         }
-        if (text) yield text;
-        if (chunk.done && chunk.done_reason === "length") yield "\n\n[Response truncated at the length limit.]";
+        if (text) yield { type: "text", text };
+        if (chunk.done && chunk.done_reason === "length") yield { type: "text", text: "\n\n[Response truncated at the length limit.]" };
       }
     }
   }

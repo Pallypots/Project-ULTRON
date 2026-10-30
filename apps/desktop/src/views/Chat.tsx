@@ -5,6 +5,7 @@ import { Core, type CoreState } from "../Core.tsx";
 import { usePushToTalk } from "../voice/usePushToTalk.ts";
 import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
 import { SentenceSplitter } from "@ultron/audio";
+import { ToolChips } from "../ToolChips.tsx";
 import { loadVoicePrefs } from "../voice/prefs.ts";
 
 interface UiMessage extends Message {
@@ -54,6 +55,22 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
   }, [speaking]);
 
   const stopSpeaking = useCallback(() => speaker.current?.stop(), []);
+
+  // Approvals made anywhere (this chip, Activity page, another window) update the chips in place.
+  useEffect(() => {
+    const onAction = (ev: Event) => {
+      const x = (ev as CustomEvent<{ id: string; status: string; summary: string; tool: string; risk: number }>).detail;
+      setMessages((cur) =>
+        cur.map((m) =>
+          m.toolEvents?.some((t) => t.executionId === x.id)
+            ? { ...m, toolEvents: m.toolEvents.map((t) => (t.executionId === x.id ? { ...t, status: x.status } : t)) }
+            : m,
+        ),
+      );
+    };
+    window.addEventListener("ultron-action", onAction);
+    return () => window.removeEventListener("ultron-action", onAction);
+  }, []);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -124,7 +141,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
         switch (e.type) {
           case "start":
             assistantId = e.assistantMessageId;
-            setMessages((cur) => [...cur, e.userMessage, { ...e.userMessage, id: e.assistantMessageId, role: "assistant", content: "", status: "streaming", provider: e.provider, model: e.model, memoryIds: [] }]);
+            setMessages((cur) => [...cur, e.userMessage, { ...e.userMessage, id: e.assistantMessageId, role: "assistant", content: "", status: "streaming", provider: e.provider, model: e.model, memoryIds: [], toolEvents: [] }]);
             break;
           case "memories":
             patch((m) => ({ ...m, citations: e.memories.map((x) => ({ id: x.id, content: x.content })) }));
@@ -134,6 +151,9 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
             break;
           case "memory_forgotten":
             patch((m) => ({ ...m, notice: "Removed from Memory Vault" }));
+            break;
+          case "tool":
+            patch((m) => ({ ...m, toolEvents: [...(m.toolEvents ?? []).filter((t) => t.executionId !== e.event.executionId), e.event] }));
             break;
           case "brain_changed":
             patch((m) => ({ ...m, notice: e.where === "local" ? `Brain: local ${e.model}` : e.where === "cloud" ? `Brain: cloud ${e.model}` : "Brain: test" }));
@@ -261,6 +281,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
               <div className="msg__body">
                 {m.content || (m.status === "streaming" ? <span className="typing" aria-label="ULTRON is thinking"><i /><i /><i /></span> : null)}
               </div>
+              {m.toolEvents?.length > 0 && <ToolChips events={m.toolEvents} />}
               {(m.notice || m.citations?.length || m.status === "cancelled" || m.status === "error") && (
                 <div className="msg__meta">
                   {m.notice && <span className="tag tag--accent">{m.notice}</span>}

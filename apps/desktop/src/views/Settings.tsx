@@ -118,6 +118,8 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
       <VoiceSettings onSaved={onSaved} />
       <SpeechSettings />
 
+      <ActionsSettings />
+
       <section className="panel form">
         <h2 className="panel__title">Display &amp; accessibility</h2>
         <label className="toggle">
@@ -135,5 +137,36 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
         <p className="muted small">ULTRON's name, traits and tone live in <code>config/persona.json</code>. An in-app editor is planned; for now the defaults are warm, witty, efficient, perceptive and candid.</p>
       </section>
     </div>
+  );
+}
+
+function ActionsSettings() {
+  const [policy, setPolicy] = useState<{ paused: boolean; confirmLowRisk: boolean } | null>(null);
+  const [notify, setNotify] = useState(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
+  useEffect(() => {
+    api.actions().then((r) => setPolicy(r.policy)).catch(() => {});
+  }, []);
+  if (!policy) return null;
+  const save = async (p: { paused: boolean; confirmLowRisk: boolean }) => setPolicy((await api.saveActionPolicy(p)).policy);
+  return (
+    <section className="panel form" aria-labelledby="actions-title">
+      <h2 className="panel__title" id="actions-title">Actions</h2>
+      <p className="muted small">
+        What ULTRON may do on its own: read-only things (like checking the time) always; low-risk, undoable things (like setting a reminder) unless you
+        turn that off below; anything with an outside effect (like opening a website) only after you click Approve. Spoken "yes" never approves anything.
+      </p>
+      <label className="toggle">
+        <input type="checkbox" checked={policy.paused} onChange={(e) => save({ ...policy, paused: e.target.checked })} />
+        <span><strong>Pause all actions</strong> (kill switch: only read-only lookups still work)</span>
+      </label>
+      <label className="toggle">
+        <input type="checkbox" checked={policy.confirmLowRisk} onChange={(e) => save({ ...policy, confirmLowRisk: e.target.checked })} />
+        <span>Ask me before low-risk actions too (e.g. setting reminders)</span>
+      </label>
+      <div className="row">
+        <span className="small muted">Windows notifications for reminders: {notify === "granted" ? "on" : notify === "denied" ? "blocked in browser settings" : notify === "unsupported" ? "not supported" : "off"}</span>
+        {notify === "default" && <button type="button" className="btn btn--small" onClick={() => Notification.requestPermission().then(setNotify)}>Turn on</button>}
+      </div>
+    </section>
   );
 }

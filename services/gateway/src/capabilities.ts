@@ -39,7 +39,12 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
           ? "using this computer's built-in voices; interrupt by talking or pressing Stop"
           : "natural voice generated on this computer (Kokoro); interrupt by talking or pressing Stop",
     },
-    { id: "tools", label: "Actions/tools (reminders, files, apps)", status: "not_implemented", detail: "tool policy registry is planned; no actions can be taken yet" },
+    {
+      id: "tools",
+      label: "Actions",
+      status: "enabled",
+      detail: "check the time; set, list and cancel reminders and timers; open a website (asks for approval first). File search and app control not yet available",
+    },
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
     { id: "integrations", label: "Connected accounts (email, calendar, GitHub, YouTube...)", status: "not_implemented", detail: "none connected" },
     { id: "screen", label: "Screen viewing", status: "disabled", detail: "not available" },

@@ -68,5 +68,13 @@ Kokoro-82M gives natural voices on CPU in a small download and is Apache-2.0. `k
 our v4 (all five APIs it uses exist unchanged), avoiding a second ONNX Runtime install. Piper was the alternative (good quality, but needs a native
 binary + espeak-ng data per OS). Default voice "George" (British male) suits the persona without imitating any actor.
 
+### D-016 · 2026-10-30 · Actions: typed tool registry + policy engine; reminders parsed by code
+Each tool declares a Zod input schema (enforced), a JSON Schema for the model, a risk level L0–L3, a timeout and a plain-English preview. The runner
+records every proposal in `tool_executions` (state machine proposed → awaiting_approval → running → succeeded/failed/denied/expired/cancelled). L2 needs
+an owner click via an authenticated endpoint (never voice, never model text); approvals expire after 10 minutes and policy is re-checked at approval
+time. L3 is blocked. A kill switch pauses everything but L0. Tool results go back to the model as data. Common reminder phrasing is parsed
+deterministically (works with any brain) and goes through the same policy. The scheduler wakes for the next reminder (max 30 s sleep) and marks
+reminders missed while offline instead of firing them late. The model ↔ tools loop is capped at 4 rounds.
+
 ### D-010 · SSE (not WebSocket) for streaming replies
 Simpler, works through proxies, trivially testable. WebSocket/WebRTC will be introduced for voice (Phase 2) and multi-device push (Phase 5).
