@@ -3,6 +3,8 @@ import type { ChatEvent, Conversation, Message } from "@ultron/schemas";
 import { api, sendMessage, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
 import { usePushToTalk } from "../voice/usePushToTalk.ts";
+import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
+import { SentenceSplitter } from "@ultron/audio";
 import { loadVoicePrefs } from "../voice/prefs.ts";
 
 interface UiMessage extends Message {
@@ -25,6 +27,33 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const tts = useRef<{ engine: TtsEngineId; speed: number }>({ engine: "local", speed: 1 });
+  const speaker = useRef<Speaker | null>(null);
+  if (!speaker.current) speaker.current = new Speaker(() => tts.current.engine, () => loadVoicePrefs().browserVoice, () => tts.current.speed);
+  const [speaking, setSpeaking] = useState(false);
+  const [speakLevel, setSpeakLevel] = useState(0);
+  const [speakError, setSpeakError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sp = speaker.current!;
+    sp.onChange = setSpeaking;
+    sp.onError = (m) => setSpeakError(m);
+    api.ttsStatus().then((s) => (tts.current = { engine: s.engine, speed: s.speed })).catch(() => {});
+    return () => sp.stop();
+  }, []);
+
+  useEffect(() => {
+    if (!speaking) return void setSpeakLevel(0);
+    let raf = 0;
+    const tick = () => {
+      setSpeakLevel(speaker.current!.level());
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [speaking]);
+
+  const stopSpeaking = useCallback(() => speaker.current?.stop(), []);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -77,6 +106,12 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
   const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text") => {
     if (!text.trim() || busy) return;
     setError(null);
+    setSpeakError(null);
+    const sp = speaker.current!;
+    sp.stop();
+    sp.unlock();
+    const mode = loadVoicePrefs().speakMode;
+    const splitter = mode === "always" || (mode === "voice" && inputMode === "voice") ? new SentenceSplitter() : null;
     setBusy(true);
     onCoreState("thinking");
     const id = activeId ?? (await newConversation());
@@ -110,8 +145,10 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
           case "delta":
             onCoreState("speaking");
             patch((m) => ({ ...m, content: m.content + e.text }));
+            if (splitter) sp.enqueue(splitter.push(e.text));
             break;
           case "done":
+            if (splitter) sp.enqueue(splitter.flush());
             patch((m) => ({ ...m, ...e.message, citations: m.citations, notice: m.notice }));
             break;
           case "error":
@@ -126,7 +163,8 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
     } finally {
       setBusy(false);
       abortRef.current = null;
-      onCoreState("idle");
+      // The voice may still be reading the reply after the text has finished streaming.
+      onCoreState(speaker.current?.speaking ? "speaking" : "idle");
       loadList();
       onChanged();
     }
@@ -143,14 +181,23 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
     },
     [send],
   );
-  const ptt = usePushToTalk(onTranscript, !busy);
+  const ptt = usePushToTalk(onTranscript, !busy, stopSpeaking);
 
   useEffect(() => {
     if (ptt.state === "listening") onCoreState("listening");
     else if (ptt.state === "transcribing") onCoreState("thinking");
+    else if (speaking) onCoreState("speaking");
     else if (!busy) onCoreState("idle");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ptt.state]);
+  }, [ptt.state, speaking]);
+
+  // Esc anywhere silences ULTRON while it's talking.
+  useEffect(() => {
+    if (!speaking) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && stopSpeaking();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [speaking, stopSpeaking]);
 
   useEffect(() => {
     if (seed) {
@@ -160,6 +207,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
   }, [seed, clearSeed, send]);
 
   const stop = () => {
+    stopSpeaking();
     abortRef.current?.abort();
     api.stopAll().catch(() => {});
   };
@@ -194,7 +242,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
 
       <section className="chat__main">
         <header className="chat__header">
-          <Core state={core} size={56} level={ptt.level} />
+          <Core state={core} size={56} level={ptt.level || speakLevel} />
           <div>
             <h1 className="chat__heading">{conversations.find((c) => c.id === activeId)?.title ?? "New conversation"}</h1>
             <p className="muted small">{status ? (status.where === "test" ? "Built-in test brain (canned replies)" : status.where === "local" ? `Local brain · ${status.model} · on this PC` : `Cloud brain · ${status.provider} · ${status.model}`) : ""}</p>
@@ -232,6 +280,19 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
         {ptt.error && (
           <div className="banner banner--error" role="alert">
             {ptt.error} <button className="link" onClick={ptt.clearError}>Dismiss</button>
+          </div>
+        )}
+        {speakError && (
+          <div className="banner banner--warn" role="alert">
+            Couldn't speak the reply: {speakError} <button className="link" onClick={() => setSpeakError(null)}>Dismiss</button>
+          </div>
+        )}
+        {speaking && ptt.state === "idle" && (
+          <div className="listening listening--speaking" role="status" aria-live="polite">
+            <span className="listening__dot" aria-hidden="true" />
+            ULTRON is speaking · press Talk to interrupt, or Esc
+            <span className="listening__meter" aria-hidden="true"><i style={{ transform: `scaleX(${Math.max(0.02, speakLevel)})` }} /></span>
+            <button type="button" className="btn btn--small" onClick={stopSpeaking}>Stop speaking</button>
           </div>
         )}
         {ptt.state !== "idle" && (

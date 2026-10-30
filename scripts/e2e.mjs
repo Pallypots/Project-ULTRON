@@ -31,7 +31,7 @@ const ollamaUrl = await new Promise((resolve, reject) => {
 });
 
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_LOG_LEVEL: "warn" },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_LOG_LEVEL: "warn" },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {
@@ -141,15 +141,28 @@ try {
   step(`Hold-to-talk: mic audio captured and sent as a voice message (${secs(t)} s, level ${level(t)})`);
   await page.screenshot({ path: join(shots, "07-voice-message-sent.png") });
 
-  // 2) Hold Space (focus outside text fields).
+  // Spoken reply to a voice message, then barge-in.
+  await page.locator(".listening--speaking").waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => document.querySelector(".core--speaking"), null, { timeout: 5000 });
+  step("Reply to a voice message is spoken aloud (sentence by sentence)");
+
+  // 2) Hold Space (focus outside text fields) — also interrupts the spoken reply.
   await page.locator(".messages").click({ position: { x: 5, y: 5 } });
   await page.keyboard.down("Space");
   await page.locator(".listening", { hasText: "Listening" }).waitFor();
+  if (await page.locator(".listening--speaking").count()) throw new Error("ULTRON kept speaking after the owner started talking");
+  step("Barge-in: starting to talk silences ULTRON instantly");
   await page.waitForTimeout(1500);
   await page.keyboard.up("Space");
   await userVoiceMsgs.nth(1).waitFor();
   step("Hold Space: push-to-talk works from the keyboard");
   await page.locator(".msg--assistant.msg--complete").nth(1).waitFor();
+
+  // Esc while speaking stops the voice.
+  await page.locator(".listening--speaking").waitFor({ timeout: 10000 });
+  await page.keyboard.press("Escape");
+  await page.locator(".listening--speaking").waitFor({ state: "detached", timeout: 3000 });
+  step("Esc stops ULTRON speaking");
 
   // 3) Esc cancels and discards.
   const before = await userVoiceMsgs.count();
@@ -174,6 +187,12 @@ try {
 
   // 5) Review-before-send mode puts the transcript in the box.
   await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByText("Spoken replies").waitFor();
+  await page.getByRole("button", { name: "▶ Preview voice" }).click();
+  await page.getByRole("button", { name: "■ Stop", exact: true }).waitFor();
+  await page.screenshot({ path: join(shots, "10-spoken-replies-settings.png") });
+  await page.getByRole("button", { name: "■ Stop", exact: true }).click();
+  step("Settings → Spoken replies: preview plays and can be stopped");
   await page.getByLabel(/Send right after I stop talking/).uncheck();
   await page.getByRole("button", { name: "Chat" }).click();
   await talk.click();

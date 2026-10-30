@@ -25,7 +25,7 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | Original cyan HUD interface, high-contrast and reduced-motion modes, phone-width layout | ✅ working |
 | Online/offline indicator, emergency **Stop all**, activity/audit log, redacted log export | ✅ working |
 | Voice input: push-to-talk (hold button or Space), speech recognized **on your PC** by Whisper, or OpenAI | ✅ working (see [Voice](docs/VOICE.md)) |
-| Spoken replies, interruptions | ⏳ next cycle |
+| **Spoken replies** with a natural voice generated **on your PC** (Kokoro), sentence-by-sentence; interrupt by talking, Esc or Stop | ✅ working (real voice tested in CI) |
 | Reminders and other actions, connected accounts, phone access | ⏳ planned (see [ROADMAP](docs/ROADMAP.md)) |
 
 ## Start it on Windows (no coding needed)

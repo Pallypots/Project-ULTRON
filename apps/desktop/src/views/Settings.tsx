@@ -3,6 +3,7 @@ import { api, type ProviderSettings } from "../api.ts";
 import type { UiPrefs } from "../prefs.ts";
 import { VoiceSettings } from "./VoiceSettings.tsx";
 import { LocalAiPanel } from "./LocalAiPanel.tsx";
+import { SpeechSettings } from "./SpeechSettings.tsx";
 
 const PROVIDERS = [
   { id: "ollama", name: "Local AI on this PC (Ollama), recommended", help: "Free, private and works offline: the AI runs entirely on this computer. Set it up below." },
@@ -115,6 +116,7 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
       </form>
 
       <VoiceSettings onSaved={onSaved} />
+      <SpeechSettings />
 
       <section className="panel form">
         <h2 className="panel__title">Display &amp; accessibility</h2>

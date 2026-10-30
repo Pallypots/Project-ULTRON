@@ -66,7 +66,8 @@ export class ConversationStore {
 
   messages(conversationId: string, limit = 500): Message[] {
     const rows = this.db
-      .prepare("SELECT * FROM (SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?) ORDER BY created_at ASC")
+      // rowid breaks ties: a user message and its reply placeholder are often written in the same millisecond.
+      .prepare("SELECT * FROM (SELECT *, rowid AS seq FROM messages WHERE conversation_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?) ORDER BY created_at ASC, seq ASC")
       .all(conversationId, limit) as unknown as MessageRow[];
     return rows.map(toMessage);
   }

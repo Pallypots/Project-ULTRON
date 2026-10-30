@@ -13,6 +13,13 @@ Open **Chat**, type, press **Enter**. **Shift+Enter** adds a new line. **Esc** o
 - Wrong mic? Settings → Voice → pick it, then **Test microphone**: the bar should move when you talk.
 - Prefer to check the words first? Turn off "Send right after I stop talking"; the transcript appears in the message box for editing.
 
+## ULTRON talking back
+- By default ULTRON reads its reply aloud **when you spoke to it** (Settings → Spoken replies: "always" or "never" also available).
+- It starts speaking after the first sentence, not after the whole reply.
+- **Interrupt it** any time: press Talk / hold Space (it stops and listens), press **Esc**, or click **Stop speaking**.
+- Voices run **on your PC** (Kokoro; ~90 MB one-time download). Default is "George" (British). "Heart" (American) is the highest-rated.
+  Change voice and speed in Settings → Spoken replies, and use **Preview voice** to hear it. Windows' built-in voices are a no-download fallback.
+
 ## Memory: what ULTRON remembers
 ULTRON only keeps long-term memories you explicitly give it:
 

@@ -63,5 +63,10 @@ Cloud brains remain optional. Switching to one is announced in chat, colored amb
 "switch your brain to X" is parsed by code (like memory commands), resolved against what's actually installed/configured, and refused with a reason
 otherwise. A model (or injected text) can't switch providers by itself.
 
+### D-015 · 2026-10-30 · Local TTS: Kokoro via kokoro-js, deduped onto transformers v4
+Kokoro-82M gives natural voices on CPU in a small download and is Apache-2.0. `kokoro-js` pins transformers v3; an npm `overrides` entry points it at
+our v4 (all five APIs it uses exist unchanged), avoiding a second ONNX Runtime install. Piper was the alternative (good quality, but needs a native
+binary + espeak-ng data per OS). Default voice "George" (British male) suits the persona without imitating any actor.
+
 ### D-010 · SSE (not WebSocket) for streaming replies
 Simpler, works through proxies, trivially testable. WebSocket/WebRTC will be introduced for voice (Phase 2) and multi-device push (Phase 5).

@@ -128,6 +128,22 @@ export interface TranscribeResult {
   elapsedMs: number;
 }
 
+export const TtsSettingsUpdate = z.object({
+  engine: z.enum(["local", "browser", "mock"]),
+  voice: z.string().trim().max(50).optional(),
+  speed: z.number().min(0.5).max(2).optional(),
+});
+
+export interface TtsStatusResponse {
+  engine: "local" | "browser" | "mock";
+  voice: string;
+  speed: number;
+  voices: { id: string; name: string; accent: string; gender: string; quality: string }[];
+  state: "ready" | "not_loaded" | "loading" | "error";
+  detail: string;
+  progress?: number;
+}
+
 export const Capability = z.object({
   id: z.string(),
   label: z.string(),

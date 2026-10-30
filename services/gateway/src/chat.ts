@@ -17,6 +17,7 @@ export interface ChatDeps {
   persona: () => Persona;
   mockDelayMs: number;
   stt?: () => SttEngine;
+  ttsEngine?: () => string;
   ollama?: OllamaManager;
 }
 
@@ -166,7 +167,7 @@ export async function handleUserMessage(
 
   const memories = stores.memories.retrieveForPrompt(content);
   if (memories.length) emit({ type: "memories", memories: memories.map(brief) });
-  const capabilities = currentCapabilities(settings, resolution, deps.stt?.());
+  const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
   const system = buildSystemPrompt(deps.persona(), {
     capabilities,
     memories,

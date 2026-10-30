@@ -83,3 +83,16 @@ describe("redaction", () => {
     expect(JSON.stringify(s.audit.list())).not.toMatch(/supersecret|ghp_abc/);
   });
 });
+
+describe("message ordering", () => {
+  it("keeps insertion order for messages written in the same millisecond", () => {
+    const s = openStores(":memory:");
+    const c = s.conversations.create();
+    const same = "2026-10-30T00:00:00.000Z";
+    for (let i = 0; i < 20; i++) {
+      s.conversations.addMessage({ conversationId: c.id, role: i % 2 ? "assistant" : "user", content: `m${i}` });
+      s.db.prepare("UPDATE messages SET created_at = ?").run(same);
+    }
+    expect(s.conversations.messages(c.id).map((m) => m.content)).toEqual(Array.from({ length: 20 }, (_, i) => `m${i}`));
+  });
+});

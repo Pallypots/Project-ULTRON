@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 · 2026-10-30 · Cycle 3: UL-009 spoken replies (local voice)
+- Kokoro natural voices generated on the PC (default "George", British), one-time ~90 MB download with progress; Windows built-in voices as fallback.
+- Replies to voice messages are spoken sentence by sentence while the text streams; "always/never" options; speed control; voice preview.
+- Barge-in: Talk/Space, Esc, Stop, or a new message silences ULTRON instantly; HUD core animates to the real speech level.
+- Fix: messages written in the same millisecond could load out of order.
+- Tests: speech text cleanup and sentence splitting, speak API, browser barge-in steps; CI runs a real Kokoro → Whisper round trip.
+
 ## 0.3.0 · 2026-10-30 · Cycle 3: UL-011 local-first brain
 - Local AI via Ollama: native streaming chat with thinking disabled/hidden, clear errors for "not running" / "model not downloaded".
 - Hardware detection (nvidia-smi; Windows display-adapter registry for true VRAM) and a model recommendation per machine.

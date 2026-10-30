@@ -22,9 +22,10 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 - ✅ **UL-011** local-first brain: Ollama provider, hardware detection, model recommendation, one-click download with progress,
   brain switching by voice/chat, per-brain skins; real model verified in CI
 
+- ✅ **UL-009** spoken replies with a local natural voice (Kokoro), sentence streaming, barge-in, voice/speed/mode settings; real round trip in CI
+
 ## Next
-1. ⏳ **UL-009** spoken replies with a **local** voice (streamed TTS), barge-in/interruption, voice selection
-2. ⏳ **UL-010** tool policy registry (risk levels L0–L3, approval modal), clock + reminders with a real scheduler, audit integration
+1. ⏳ **UL-010** tool policy registry (risk levels L0–L3, approval modal), clock + reminders with a real scheduler, audit integration
 3. ⏳ Voice benchmark on the owner's PC (time to transcript / first audio, interruption reliability)
 Also queued: live-key provider validation on the owner's PC, Tauri build on Windows, persona editor, usage/cost display.
 

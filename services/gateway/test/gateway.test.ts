@@ -160,7 +160,7 @@ describe("capabilities", () => {
   it("reports real state, not imagined features", async () => {
     const { api } = await gateway();
     const caps = (await api("GET", "/api/capabilities")).body.capabilities as any[];
-    expect(caps.find((c) => c.id === "voice_output").status).toBe("not_implemented");
+    expect(caps.find((c) => c.id === "voice_output").detail).toMatch(/generated on this computer/);
     expect(caps.find((c) => c.id === "voice_input").detail).toMatch(/recognized on this PC/);
     expect(caps.find((c) => c.id === "model").detail).toMatch(/mock/);
   });
@@ -168,7 +168,8 @@ describe("capabilities", () => {
   it("answers 'what can you do right now?' from the live capability list", async () => {
     const { chat, newConversation } = await gateway();
     const text = replyText(await chat(await newConversation(), "What can you do right now?"));
-    expect(text).toMatch(/Spoken replies: not implemented/);
+    expect(text).toMatch(/Spoken replies: enabled/);
+    expect(text).toMatch(/Phone \/ remote access: disabled/);
     expect(text).toMatch(/Long-term memory: enabled/);
   });
 });

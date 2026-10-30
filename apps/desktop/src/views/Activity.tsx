@@ -16,6 +16,9 @@ const DESCRIBE: Record<string, string> = {
   "voice.transcribed": "Microphone used (push-to-talk)",
   "voice.error": "Speech recognition error",
   "settings.voice_changed": "Voice settings changed",
+  "settings.tts_changed": "Spoken-reply settings changed",
+  "settings.brain_switched": "Brain switched",
+  "local_ai.download_started": "Local model download started",
   "recovery.interrupted_messages": "Recovered interrupted replies after restart",
 };
 

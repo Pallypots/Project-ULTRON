@@ -1,6 +1,8 @@
 // Pure audio helpers shared by the UI (encoding microphone audio) and the gateway (decoding it).
 // No DOM or Node APIs, so both sides can use them and tests can run them directly.
 
+export { toSpeakable, SentenceSplitter } from "./speech.ts";
+
 export const TARGET_SAMPLE_RATE = 16_000;
 
 /** Linear-interpolation resampler. Good enough for speech going into a recognizer. */

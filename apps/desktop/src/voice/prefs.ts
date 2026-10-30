@@ -2,14 +2,19 @@
 export interface VoicePrefs {
   micId: string;
   autoSend: boolean;
+  /** When ULTRON reads replies aloud: after I talk to it, always, or never. */
+  speakMode: "voice" | "always" | "never";
+  /** Chosen built-in system voice (when the "browser" engine is used). */
+  browserVoice: string;
 }
 const KEY = "ultron.voice";
+const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "" };
 
 export function loadVoicePrefs(): VoicePrefs {
   try {
-    return { micId: "", autoSend: true, ...(JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<VoicePrefs>) };
+    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<VoicePrefs>) };
   } catch {
-    return { micId: "", autoSend: true };
+    return { ...DEFAULTS };
   }
 }
 

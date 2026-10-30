@@ -14,7 +14,7 @@ const isTyping = (el: EventTarget | null) => el instanceof HTMLElement && (["INP
  * Push-to-talk: hold the button or the Space key to talk, release to finish.
  * A quick click instead latches recording on until the next click. Esc cancels and discards.
  */
-export function usePushToTalk(onTranscript: (text: string) => void, enabled: boolean) {
+export function usePushToTalk(onTranscript: (text: string) => void, enabled: boolean, onStart?: () => void) {
   const recorder = useRef(new Recorder());
   const [state, setState] = useState<PttState>("idle");
   const [level, setLevel] = useState(0);
@@ -31,6 +31,7 @@ export function usePushToTalk(onTranscript: (text: string) => void, enabled: boo
   const start = useCallback(async () => {
     if (!enabled || stateRef.current !== "idle") return;
     setError(null);
+    onStart?.(); // barge-in: silence ULTRON the moment the owner starts talking
     set("starting");
     try {
       await recorder.current.start(loadVoicePrefs().micId || undefined);
@@ -39,7 +40,7 @@ export function usePushToTalk(onTranscript: (text: string) => void, enabled: boo
       set("idle");
       setError(err instanceof MicError ? err.message : String(err));
     }
-  }, [enabled]);
+  }, [enabled, onStart]);
 
   const finish = useCallback(async () => {
     latched.current = false;

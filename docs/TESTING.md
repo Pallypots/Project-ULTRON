@@ -25,6 +25,9 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Local AI | Ollama provider streaming, `think:false`, `<think>` text hidden, retry without `think`, plain-English errors; hardware → model table; integrated GPUs ignored; brain-switch intents (and non-intents); brain resolution with/without keys; status, download progress, bad names, use-before-download refused, switching by chat |
 | Real local brain (CI Linux, `ULTRON_TEST_OLLAMA=1`) | installs Ollama, downloads `gemma4:e2b`, "switch your brain to local", asks a question, expects "Paris" and no thinking tags |
 | E2E local brain (fake Ollama) | Local AI panel detects engine + hardware, downloads with progress, Use it → cyan skin + status pill; local reply; test ↔ local switching changes skins; cloud refused without key |
+| Spoken replies | `toSpeakable` cleanup, streaming `SentenceSplitter`, speak API (WAV, 204 for nothing to say, validation, browser-engine 409, token), capability text |
+| Real voice round trip (CI, `ULTRON_TEST_TTS=1`) | Kokoro speaks a sentence → resample → Whisper transcribes → key words must match |
+| E2E spoken replies (test tone) | voice message reply is spoken; Talk/Space interrupts instantly; Esc stops speech; Settings preview plays and stops |
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30, cycle 2 (Linux cloud container, Node 22.22, Chromium via Playwright)

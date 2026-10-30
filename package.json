@@ -1,11 +1,17 @@
 {
   "name": "ultron",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "ULTRON - private, persistent, voice-first personal AI assistant",
   "type": "module",
-  "workspaces": ["packages/*", "services/*", "apps/*"],
-  "engines": { "node": ">=22.13" },
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "start": "npm run build && npm run serve",
@@ -22,5 +28,10 @@
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "kokoro-js": {
+      "@huggingface/transformers": "^4.3.2"
+    }
   }
 }

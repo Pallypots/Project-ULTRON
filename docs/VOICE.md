@@ -35,13 +35,22 @@ The comparison matters for **UL-009** (streaming spoken replies, barge-in):
 | Owner setup burden on Windows | Higher: extra services to run | Low |
 | Latency (expected, **not yet measured**) | Depends on chosen STT/TTS; typically sub-second with streaming components | Typically lowest, single hop |
 
-**Interim decision (D-012):** keep push-to-talk on HTTP now. For UL-009, prototype **spoken replies with the gateway streaming TTS audio over the existing connection**,
+**Interim decision (D-012), implemented in v0.4:** keep push-to-talk on HTTP. For UL-009, use **spoken replies with the gateway streaming TTS audio over the existing connection**,
 with barge-in implemented client-side (stop playback the moment the mic opens). Adopt LiveKit only if measured latency or interruption reliability on the owner's
 hardware falls short. The blueprint asks for a written benchmark on actual hardware: time to first spoken audio and interruption reliability.
 That needs the owner's PC and is listed as an open item, not claimed.
 
+## Spoken replies (v0.4, UL-009)
+- **Engine:** Kokoro-82M (Apache-2.0) via `kokoro-js`, sharing ULTRON's transformers.js/ONNX Runtime (npm `overrides` dedupes it, so there's no second
+  500 MB runtime). Model `onnx-community/Kokoro-82M-v1.0-ONNX` (q8, ~90 MB) downloads once into `<data>/models`; voices ship with the package.
+- **Streaming:** the UI splits the reply into sentences as tokens arrive (`SentenceSplitter`) and requests `POST /api/voice/speak` per sentence. The next
+  sentence is generated while the current one plays.
+- **Barge-in:** opening the mic (Talk / Space), Esc, Stop, or sending a new message stops playback and aborts pending generations. The mic is
+  never open while ULTRON speaks unless the owner opens it, so there's no echo loop.
+- **Fallback:** Windows built-in voices via `speechSynthesis`, restricted to `localService` voices (online "natural" voices are hidden for privacy).
+- **Privacy:** speech audio is generated in memory and never stored.
+
 ## Not done yet
-- Spoken replies, barge-in, voice selection (UL-009).
 - Wake word ("Ultron"): opt-in, Phase 6. Never always-on by default.
 - Streaming partial transcripts while speaking (current flow transcribes after release).
 - Benchmarks on the owner's hardware.

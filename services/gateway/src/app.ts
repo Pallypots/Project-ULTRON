@@ -5,7 +5,7 @@ import fastifyStatic from "@fastify/static";
 import { loadPersona, type Persona } from "@ultron/agent-core";
 import { openStores, redact, type Stores } from "@ultron/memory";
 import { decodeWav, rms, WavError } from "@ultron/audio";
-import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, VoiceSettingsUpdate, type ChatEvent, type TranscribeResult, type VoiceStatus } from "@ultron/schemas";
+import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, TtsSettingsUpdate, VoiceSettingsUpdate, type ChatEvent, type TranscribeResult, type TtsStatusResponse, type VoiceStatus } from "@ultron/schemas";
 import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { currentCapabilities } from "./capabilities.ts";
@@ -18,8 +18,10 @@ import { recommendModel } from "./local-ai/recommend.ts";
 import { z } from "zod";
 import { SecretStore } from "./secrets.ts";
 import { SttError, SttManager } from "./stt/index.ts";
+import { TtsError, TtsManager } from "./tts/index.ts";
+import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.3.0";
+export const VERSION = "0.4.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -74,9 +76,10 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   const settings = () => readProviderSettings(stores.preferences);
   const stt = new SttManager(config.dataDir, stores.preferences, secrets);
+  const tts = new TtsManager(config.dataDir, stores.preferences);
   const savedModels = stores.preferences.get<Record<string, { model: string; baseUrl: string }>>("provider_models", {});
   const ollama = new OllamaManager(savedModels.ollama?.baseUrl || process.env.ULTRON_OLLAMA_URL || undefined);
-  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ollama };
+  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama };
 
   // ---- public ----
   app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));
@@ -88,7 +91,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   // ---- status ----
   app.get("/api/capabilities", async () => {
     const s = settings();
-    return { capabilities: currentCapabilities(s, resolveProvider(s, secrets, config.mockDelayMs), stt.current()) };
+    return { capabilities: currentCapabilities(s, resolveProvider(s, secrets, config.mockDelayMs), stt.current(), tts.settings().engine) };
   });
   app.get("/api/status", async () => {
     const s = settings();
@@ -274,6 +277,44 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       const e = err instanceof SttError ? err : new SttError(`Speech recognition failed: ${(err as Error).message}`, "failed");
       stores.audit.record("voice.error", "system", null, { engine: engine.id, code: e.code });
       return reply.code(e.code === "not_configured" ? 409 : 503).send({ error: e.code, message: e.message });
+    }
+  });
+
+  // ---- spoken replies ----
+  const ttsStatus = (): TtsStatusResponse => {
+    const s = tts.settings();
+    const engine = tts.current();
+    const st = engine ? engine.status() : { state: "ready" as const, detail: "Using this computer's built-in voices (no download)." };
+    return { engine: s.engine, voice: s.voice, speed: s.speed, voices: engine?.voices ?? [], ...st };
+  };
+  app.get("/api/voice/tts/status", async () => ttsStatus());
+  app.put("/api/voice/tts/settings", async (req) => {
+    const body = TtsSettingsUpdate.parse(req.body);
+    const cur = tts.settings();
+    stores.preferences.set("tts", { engine: body.engine, voice: body.voice ?? cur.voice, speed: body.speed ?? cur.speed });
+    stores.audit.record("settings.tts_changed", "owner", body.engine, { voice: body.voice ?? cur.voice });
+    return ttsStatus();
+  });
+  app.post("/api/voice/tts/prepare", async () => {
+    tts.current()?.prepare().catch((err) => app.log.warn({ err: (err as Error).message }, "voice failed to load"));
+    return ttsStatus();
+  });
+  const SpeakBody = z.object({ text: z.string().max(2000), voice: z.string().max(50).optional(), speed: z.number().min(0.5).max(2).optional() });
+  // Speech is generated in memory and streamed back; nothing is written to disk.
+  app.post("/api/voice/speak", async (req, reply) => {
+    const body = SpeakBody.parse(req.body);
+    const engine = tts.current();
+    if (!engine) return reply.code(409).send({ error: "browser_engine", message: "Spoken replies are set to use this computer's built-in voices." });
+    const text = toSpeakable(body.text);
+    if (!text) return reply.code(204).send();
+    const s = tts.settings();
+    try {
+      const { samples, sampleRate } = await engine.synthesize(text, body.voice ?? s.voice, body.speed ?? s.speed);
+      reply.header("content-type", "audio/wav").header("cache-control", "no-store");
+      return reply.send(Buffer.from(encodeWav(samples, sampleRate)));
+    } catch (err) {
+      const e = err instanceof TtsError ? err : new TtsError((err as Error).message, "failed");
+      return reply.code(503).send({ error: e.code, message: e.message });
     }
   });
 

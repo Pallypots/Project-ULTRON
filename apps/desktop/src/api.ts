@@ -1,4 +1,4 @@
-import type { AuditEvent, Capability, ChatEvent, Conversation, InputMode, Memory, MemoryKind, Message, TranscribeResult, VoiceStatus } from "@ultron/schemas";
+import type { AuditEvent, Capability, ChatEvent, Conversation, InputMode, Memory, MemoryKind, Message, TranscribeResult, TtsStatusResponse, VoiceStatus } from "@ultron/schemas";
 
 let token: string | null = null;
 
@@ -97,7 +97,26 @@ export const api = {
   voiceStatus: () => call<VoiceStatus>("GET", "/api/voice/status"),
   saveVoiceSettings: (s: { engine: VoiceStatus["engine"]; model?: string }) => call<VoiceStatus>("PUT", "/api/voice/settings", s),
   prepareVoice: () => call<VoiceStatus>("POST", "/api/voice/prepare"),
+  ttsStatus: () => call<TtsStatusResponse>("GET", "/api/voice/tts/status"),
+  saveTtsSettings: (s: { engine: TtsStatusResponse["engine"]; voice?: string; speed?: number }) => call<TtsStatusResponse>("PUT", "/api/voice/tts/settings", s),
+  prepareTts: () => call<TtsStatusResponse>("POST", "/api/voice/tts/prepare"),
 };
+
+/** Fetches spoken audio (WAV) for one sentence; null when there's nothing to say. */
+export async function speak(text: string, signal?: AbortSignal): Promise<ArrayBuffer | null> {
+  const res = await fetch("/api/voice/speak", {
+    method: "POST",
+    headers: { authorization: `Bearer ${await getToken()}`, "content-type": "application/json" },
+    body: JSON.stringify({ text }),
+    signal,
+  });
+  if (res.status === 204) return null;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError((data as { message?: string }).message ?? `Speech failed (${res.status})`, res.status);
+  }
+  return res.arrayBuffer();
+}
 
 export async function transcribe(wav: Uint8Array): Promise<TranscribeResult> {
   const res = await fetch("/api/voice/transcribe", {

@@ -11,7 +11,7 @@ function voiceInput(stt: SttEngine | undefined): Capability {
 }
 
 /** The single source of truth for "what can you do right now?" - reported to the model and to the UI. */
-export function currentCapabilities(settings: ProviderSettings, resolution: ProviderResolution, stt?: SttEngine): Capability[] {
+export function currentCapabilities(settings: ProviderSettings, resolution: ProviderResolution, stt?: SttEngine, ttsEngine?: string): Capability[] {
   const model: Capability = resolution.ok
     ? {
         id: "model",
@@ -30,7 +30,15 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
     { id: "chat", label: "Text chat with streaming", status: "enabled", detail: "conversations saved on this computer" },
     { id: "memory", label: "Long-term memory", status: "enabled", detail: "only what the owner explicitly asks to remember; editable in the Memory Vault" },
     voiceInput(stt),
-    { id: "voice_output", label: "Spoken replies", status: "not_implemented", detail: "planned next (UL-009)" },
+    {
+      id: "voice_output",
+      label: "Spoken replies",
+      status: "enabled",
+      detail:
+        ttsEngine === "browser"
+          ? "using this computer's built-in voices; interrupt by talking or pressing Stop"
+          : "natural voice generated on this computer (Kokoro); interrupt by talking or pressing Stop",
+    },
     { id: "tools", label: "Actions/tools (reminders, files, apps)", status: "not_implemented", detail: "tool policy registry is planned; no actions can be taken yet" },
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
     { id: "integrations", label: "Connected accounts (email, calendar, GitHub, YouTube...)", status: "not_implemented", detail: "none connected" },
