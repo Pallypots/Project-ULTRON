@@ -31,7 +31,9 @@ function ToolChip({ e }: { e: ToolEvent }) {
     setBusy(true);
     setErr(null);
     try {
-      await (approve ? api.approveAction(e.executionId) : api.denyAction(e.executionId));
+      const { action } = await (approve ? api.approveAction(e.executionId) : api.denyAction(e.executionId));
+      // Update every view right away from the response; the live event stream is only a backup.
+      window.dispatchEvent(new CustomEvent("ultron-action", { detail: action }));
     } catch (x) {
       setErr((x as Error).message);
     } finally {

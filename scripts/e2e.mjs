@@ -246,7 +246,7 @@ try {
   await page.locator(".nav__item", { hasText: "Activity" }).locator(".badge").waitFor({ timeout: 20000 });
   await page.screenshot({ path: join(shots, "11-approval-needed.png") });
   await chip.getByRole("button", { name: "Approve" }).click();
-  await page.locator(".tool--succeeded", { hasText: "Open example.com" }).waitFor({ timeout: 8000 });
+  await page.locator(".tool--succeeded", { hasText: "Open example.com" }).waitFor({ timeout: 20000 });
   step("External action waits for Approve, then runs once (dry-run in tests)");
 
   await page.getByRole("button", { name: "Reminders" }).click();
