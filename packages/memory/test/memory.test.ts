@@ -73,8 +73,8 @@ describe("memory store", () => {
 
 describe("redaction", () => {
   it("removes secrets by key name and by value pattern", () => {
-    const out = redact({ apiKey: "abc", note: "key is sk-ant-abcdefghijklmnop", nested: { Authorization: "Bearer xyz" } });
-    expect(JSON.stringify(out)).not.toMatch(/abc"|sk-ant-abcdef|xyz/);
+    const out = redact({ apiKey: "abc", note: "key is sk-ant-abcdefghijklmnop and github_pat_11ABCDEFG0123456789_xyz", nested: { Authorization: "Bearer xyz" } });
+    expect(JSON.stringify(out)).not.toMatch(/abc"|sk-ant-abcdef|xyz|github_pat_11/);
   });
 
   it("audit log never stores secrets", () => {

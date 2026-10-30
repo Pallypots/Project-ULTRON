@@ -37,8 +37,17 @@ export function registerAuth(app: FastifyInstance, token: string): void {
     if (!isLoopbackRequest(req)) {
       return reply.code(403).send({ error: "forbidden", message: "ULTRON only accepts requests from this computer." });
     }
-    const path = req.url.split("?")[0] ?? "";
-    if (!path.startsWith("/api/") || PUBLIC_API.has(path)) return;
+    // Decide by the route Fastify actually matched (its router percent-decodes paths), and by the decoded raw path for
+    // unmatched requests, so encodings like /%61pi/... can't slip past the token check.
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent((req.url.split("?")[0] ?? "").toLowerCase());
+    } catch {
+      return reply.code(400).send({ error: "bad_request", message: "Malformed address." });
+    }
+    const route = req.routeOptions?.url;
+    const isApi = (route ?? "").startsWith("/api/") || decoded.startsWith("/api/") || decoded.startsWith("/api%");
+    if (!isApi || (route !== undefined && PUBLIC_API.has(route))) return;
     if (!tokenMatches(req.headers.authorization, token)) {
       return reply.code(401).send({ error: "unauthorized", message: "Missing or invalid ULTRON session token." });
     }

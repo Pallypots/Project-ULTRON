@@ -3,7 +3,7 @@ import type { Db } from "./db.ts";
 import { now, uuid } from "./util.ts";
 
 const SECRET_KEY = /(api[_-]?key|token|secret|password|authorization|cookie)/i;
-const SECRET_VALUE = /\b(sk-[A-Za-z0-9_-]{8,}|sk-ant-[A-Za-z0-9_-]{8,}|xox[abp]-[A-Za-z0-9-]{8,}|gh[pousr]_[A-Za-z0-9]{20,}|Bearer\s+[A-Za-z0-9._-]{8,})/g;
+const SECRET_VALUE = /\b(sk-[A-Za-z0-9_-]{8,}|sk-ant-[A-Za-z0-9_-]{8,}|xox[abp]-[A-Za-z0-9-]{8,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|Bearer\s+[A-Za-z0-9._-]{8,})/g;
 
 /** Removes anything that looks like a credential before it is written to logs or the audit trail. */
 export function redact(value: unknown): unknown {

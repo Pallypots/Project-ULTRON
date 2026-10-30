@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1 · 2026-10-30 · Security review fixes
+- Fixed an auth bypass via percent-encoded paths (`/%61pi/...`), zip-bomb .docx, unsafe "open" of programs/links/UNC paths, mid-JSON truncation,
+  fuzzy "forget", voice-triggered forget/cloud switch, unlimited tool calls, DPAPI transient failures, env-secret scrubbing. See SECURITY.md.
+
 ## 0.10.0 · 2026-10-30 · GitHub issue drafts with approval
 - `github_create_issue` (L2): watched repos only; approval card shows service, repo, public/private, title and full text; AI-assisted footer; clear message for read-only tokens.
 - Approval cards can show a full preview of what will be sent.

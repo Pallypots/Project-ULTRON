@@ -1,6 +1,6 @@
 import { buildSystemPrompt, detectIntent, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
 import type { ToolEvent } from "@ultron/schemas";
-import { toEvent, type ActionRunner } from "./actions/runner.ts";
+import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
 import { TOOLS } from "./actions/tools.ts";
 import type { Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
@@ -149,11 +149,20 @@ export async function handleUserMessage(
     return finish(text, "complete", [memory.id]);
   }
   if (intent.type === "forget") {
-    const matches = stores.memories.search(intent.query, 3);
+    const matches = stores.memories.search(intent.query, 5);
+    const words = (intent.query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => w.length > 2 && !["the", "that", "about", "and", "with", "for", "you", "my"].includes(w));
+    // Only delete on a clear match: every meaningful word appears in it, or it's the only candidate.
+    const strong = matches.filter((m) => words.every((w) => m.content.toLowerCase().includes(w.slice(0, Math.max(4, w.length - 2)))));
     let text: string;
-    if (!matches.length) {
+    if (opts.inputMode === "voice") {
+      text = `For safety I don't delete memories from voice alone (background audio could say it). Type "forget ${intent.query}", or use the Memory Vault.`;
+    } else if (!matches.length) {
       text = `I couldn't find a saved memory matching "${intent.query}". Nothing was deleted. The Memory Vault lists everything I have.`;
+    } else if (strong.length !== 1 && !(matches.length === 1 && strong.length === 1)) {
+      const list = (strong.length ? strong : matches).slice(0, 3).map((m) => `"${m.content}"`).join(", ");
+      text = `I'm not sure which memory you mean, so I didn't delete anything. Closest: ${list}. Repeat with more of its exact words, or delete it in the Memory Vault.`;
     } else {
+      matches.splice(0, matches.length, strong[0]!);
       const target = matches[0]!;
       stores.memories.delete(target.id);
       stores.audit.record("memory.deleted", "owner", target.id, { via: "chat" });
@@ -209,6 +218,11 @@ export async function handleUserMessage(
       keys: { anthropic: deps.secrets.has("ANTHROPIC_API_KEY"), openai: deps.secrets.has("OPENAI_API_KEY") },
     });
     let text: string;
+    if (target.ok && target.where === "cloud" && opts.inputMode === "voice") {
+      const text = `Switching to a cloud brain sends your conversations off this PC, so I don't do that from voice alone. Type "switch to ${intent.target}" to confirm.`;
+      emit({ type: "delta", text });
+      return finish(text, "complete");
+    }
     if (target.ok) {
       // Use the Ollama server ULTRON is actually talking to.
       if (target.settings.provider === "ollama" && deps.ollama) target.settings.baseUrl = deps.ollama.url;
@@ -247,6 +261,7 @@ export async function handleUserMessage(
 
   let text = "";
   let lastFlush = Date.now();
+  let callsThisTurn = 0;
   try {
     // Model ↔ tools loop, bounded so a confused model can't spin (cost and safety cap).
     for (let round = 0; round <= MAX_TOOL_ROUNDS && !opts.signal.aborted; round++) {
@@ -272,6 +287,11 @@ export async function handleUserMessage(
       if (!calls.length || opts.signal.aborted) break;
       turns.push({ role: "assistant", content: roundText, toolCalls: calls });
       for (const call of calls) {
+        // A runaway (or manipulated) model can't flood reminders or approval cards.
+        if (++callsThisTurn > MAX_CALLS_PER_TURN) {
+          turns.push({ role: "tool", content: JSON.stringify({ error: `Too many actions in one reply (limit ${MAX_CALLS_PER_TURN}). This one was not run.` }), toolCallId: call.id, name: call.name });
+          continue;
+        }
         const { execution, resultForModel } = await deps.actions!.propose(call.name, call.args, { conversationId, requestedBy: "model" });
         if (execution) recordTool(toEvent(execution));
         turns.push({ role: "tool", content: resultForModel, toolCallId: call.id, name: call.name });

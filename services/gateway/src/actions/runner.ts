@@ -13,7 +13,16 @@ export interface ActionPolicy {
 }
 
 export const APPROVAL_TTL_MS = 10 * 60_000;
-const MAX_RESULT_CHARS = 4000;
+const MAX_RESULT_CHARS = 12_000;
+const MAX_CALLS_PER_TURN = 8;
+
+/** Keeps results valid JSON when they're too long, and says so, instead of cutting mid-structure. */
+function capResult(result: string): string {
+  if (result.length <= MAX_RESULT_CHARS) return result;
+  return JSON.stringify({ truncated: true, note: "The result was too long; this is only the first part.", partial: result.slice(0, MAX_RESULT_CHARS - 200) });
+}
+
+export { MAX_CALLS_PER_TURN };
 
 export type Decision = "allow" | "needs_approval" | "deny";
 
@@ -97,7 +106,7 @@ export class ActionRunner {
         tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files, connectors: this.connectors }),
         new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Timed out after ${tool.timeoutMs / 1000}s.`)), tool.timeoutMs)),
       ]);
-      const e = this.stores.actions.update(exec.id, { status: "succeeded", result: result.slice(0, MAX_RESULT_CHARS) })!;
+      const e = this.stores.actions.update(exec.id, { status: "succeeded", result: capResult(result) })!;
       this.stores.audit.record("action.succeeded", exec.requestedBy, exec.id, { tool: tool.name });
       this.bus.emit({ type: "action_updated", execution: e });
       return e;

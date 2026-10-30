@@ -1,10 +1,10 @@
 import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
-import { basename, extname } from "node:path";
+import { basename, extname, resolve as resolvePath } from "node:path";
 import { z } from "zod";
 import type { Stores } from "@ultron/memory";
 import { extractText } from "../files/indexer.ts";
-import { openWithDefaultApp, type FileService } from "../files/service.ts";
+import { openTarget, openWithDefaultApp, type FileService } from "../files/service.ts";
 import type { ConnectorService } from "../connectors/service.ts";
 
 /**
@@ -208,7 +208,7 @@ const readFileTool: ToolDef<{ file_id: string }> = {
     const st = await stat(safe);
     const text = await extractText(safe, extname(safe).slice(1).toLowerCase(), st.size);
     if (text === null) return JSON.stringify({ path: safe, note: "This file type can't be read as text (only its name is indexed)." });
-    return JSON.stringify({ path: safe, modified: new Date(st.mtimeMs).toISOString().slice(0, 10), untrusted_file_content: text.slice(0, 8000), truncated: text.length > 8000 });
+    return JSON.stringify({ path: safe, modified: new Date(st.mtimeMs).toISOString().slice(0, 10), untrusted_file_content: text.slice(0, 6000), truncated: text.length > 6000 });
   },
 };
 
@@ -219,12 +219,18 @@ const openPath: ToolDef<{ path: string }> = {
   parameters: { type: "object", properties: { path: { type: "string", description: "Full path from search_files results, or its folder." } }, required: ["path"], additionalProperties: false },
   risk: 2,
   timeoutMs: 15_000,
-  describe: (i) => `Open "${basename(i.path)}" on your screen (${i.path})`,
+  describe: (i) =>
+    /\.(exe|com|bat|cmd|ps1|vbs|js|hta|msi|scr|lnk|url|reg|jar)$/i.test(i.path)
+      ? `Show the folder containing "${basename(i.path)}" (programs are never run) (${i.path})`
+      : `Open "${basename(i.path)}" on your screen (${i.path})`,
   run: async (i, ctx) => {
     const safe = await ctx.files?.safePath(i.path);
     if (!safe) throw new Error("Only files and folders inside your approved folders can be opened.");
-    if (!ctx.dryRun) await openWithDefaultApp(safe);
-    return JSON.stringify({ ok: true, opened: safe, dryRun: ctx.dryRun || undefined });
+    // The approval card named i.path; never open something different (e.g. a link pointing elsewhere).
+    if (safe.toLowerCase() !== resolvePath(i.path).toLowerCase()) throw new Error("That path is a link to a different file, so it wasn't opened. Open the real file instead.");
+    const target = openTarget(safe);
+    if (!ctx.dryRun) await openWithDefaultApp(target.path);
+    return JSON.stringify({ ok: true, opened: target.path, note: target.note ?? undefined, dryRun: ctx.dryRun || undefined });
   },
 };
 
@@ -260,7 +266,7 @@ const connectedUpdates: ToolDef<z.infer<typeof ConnectedUpdates>> = {
       { source: "reddit", status: "not_available_yet" },
       { source: "discord", status: "not_available_yet" },
     ];
-    const events = ctx.stores.connectors.events({ source: i.source, sinceIso: since, minUrgency: i.only_important ? 2 : undefined, limit: 40 });
+    const events = ctx.stores.connectors.events({ source: i.source, sinceIso: since, minUrgency: i.only_important ? 2 : undefined, limit: 25 });
     return JSON.stringify({
       feeds,
       since,

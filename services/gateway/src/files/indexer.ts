@@ -41,6 +41,8 @@ export async function validateFolder(input: string, dataDir: string): Promise<st
 
 /** True if `target` (resolved for symlinks) is inside one of the approved folders. */
 export async function insideApproved(target: string, approved: string[]): Promise<string | null> {
+  // Reject network (UNC) and device paths before touching the filesystem: resolving them can contact other machines.
+  if (/^(\\\\|\/\/)/.test(target) || /^\\\\[?.]\\/.test(target) || !isAbsolute(target)) return null;
   let real: string;
   try {
     real = await realpath(target);

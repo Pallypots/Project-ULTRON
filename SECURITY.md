@@ -19,6 +19,21 @@
 - **Microphone.** Opened only while push-to-talk is active, with a visible red Listening bar; all tracks stop immediately afterwards. Raw audio is processed in memory and never written to disk. The audit log records that the mic was used (engine, seconds, character count), never audio or words. Default engine is on-device Whisper; cloud transcription only if the owner selects it.
 - **Audit trail** of memory changes, setting changes, blocked saves, stops and model errors.
 
+## Independent review (2026-10-30)
+A separate reviewer audited auth, actions, files, connectors and secrets overnight. All findings were fixed the same night, each with a regression test:
+1. **High:** percent-encoded paths (`/%61pi/...`) skipped the token check. The check now uses the decoded path and the matched route.
+2. Zip-bomb `.docx` could freeze/crash indexing. Inflation is capped at 5 MB, with bounds checks.
+3. "Open on screen" could run programs, and a link could differ from what the approval card named; UNC paths reached the filesystem before checks.
+   Programs/shortcuts now open their folder instead, link mismatches are refused, and network/device paths are rejected first.
+4. Long tool results were cut mid-JSON. They're now capped structurally with a `truncated` flag.
+5. "Forget" deleted fuzzy matches. It now needs a clear match, and voice can't delete memories or switch to a cloud brain.
+6. Unlimited tool calls per reply: capped at 8.
+7. A temporary DPAPI failure set keys aside. Now only genuine decryption errors do; temporary failures lock writes until restart.
+8. Env-supplied secrets weren't exact-match scrubbed, and `github_pat_` wasn't pattern-matched. Both are fixed.
+
+**Scope note:** the local session token protects against websites and other browsers. Like any single-user desktop app, it does not protect against
+other programs already running as your Windows user (they could read the same data folder).
+
 ## Known gaps (tracked)
 | Gap | Plan |
 |---|---|

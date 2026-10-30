@@ -16,7 +16,7 @@ import { detectHardware } from "./local-ai/hardware.ts";
 import { EventBus } from "./actions/events.ts";
 import { ActionRunner, toEvent } from "./actions/runner.ts";
 import { ReminderScheduler } from "./actions/scheduler.ts";
-import { FileService, openWithDefaultApp } from "./files/service.ts";
+import { FileService, openTarget, openWithDefaultApp } from "./files/service.ts";
 import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
@@ -28,7 +28,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.10.0";
+export const VERSION = "0.10.1";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -425,9 +425,10 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const doc = stores.files.doc(docId);
     const safe = doc && (await files.safePath(doc.path));
     if (!safe) return reply.code(404).send({ error: "not_found", message: "That file isn't in an approved folder anymore." });
-    if (process.env.ULTRON_ACTIONS_DRY_RUN !== "1") await openWithDefaultApp(safe);
+    const target = openTarget(safe);
+    if (process.env.ULTRON_ACTIONS_DRY_RUN !== "1") await openWithDefaultApp(target.path);
     stores.audit.record("files.opened", "owner", docId, {});
-    return { ok: true, path: safe };
+    return { ok: true, path: target.path, note: target.note };
   });
 
   // ---- connected accounts (Connected Life Hub) ----

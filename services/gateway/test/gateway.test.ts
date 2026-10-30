@@ -21,6 +21,18 @@ describe("security boundary", () => {
     expect(bad.statusCode).toBe(401);
   });
 
+  it("can't be bypassed with encoded or odd paths (regression: /%61pi/…)", async () => {
+    const { gw } = await gateway();
+    for (const [method, url] of [["GET", "/%61pi/memories"], ["HEAD", "/%61pi/memories"], ["POST", "/%61pi/stop"], ["GET", "/%61%70%69/actions"], ["GET", "/api/memories/"], ["GET", "/api//memories"], ["GET", "/%61pi/health/../memories"]] as const) {
+      const res = await gw.app.inject({ method, url, headers: { host: "localhost:7477" } });
+      expect([400, 401, 404], `${method} ${url} -> ${res.statusCode}`).toContain(res.statusCode);
+    }
+    const bad = await gw.app.inject({ method: "GET", url: "/%E0%A4%A", headers: { host: "localhost:7477" } });
+    expect([400, 404]).toContain(bad.statusCode);
+    // Health stays public, bootstrap stays loopback-only.
+    expect((await gw.app.inject({ url: "/api/health", headers: { host: "localhost:7477" } })).statusCode).toBe(200);
+  });
+
   it("rejects non-loopback Host headers (DNS rebinding) and foreign origins", async () => {
     const { gw } = await gateway();
     const auth = `Bearer ${gw.token}`;

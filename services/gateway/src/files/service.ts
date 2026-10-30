@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { basename, dirname } from "node:path";
 import type { FileIndexStore, Folder } from "@ultron/memory";
 import { indexFolder, insideApproved, validateFolder } from "./indexer.ts";
 
@@ -65,6 +66,15 @@ export class FileService {
   async safePath(path: string): Promise<string | null> {
     return insideApproved(path, this.approvedRoots());
   }
+}
+
+// File types Windows would *run* rather than show. ULTRON opens their folder instead.
+const RUNNABLE = /\.(exe|com|bat|cmd|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|msi|msp|scr|cpl|lnk|url|reg|jar|appref-ms|application|pif|gadget|msc|inf|sct|chm|dll|sys)$/i;
+
+/** What will actually be opened for a resolved path: runnable files are never launched; their folder is shown instead. */
+export function openTarget(realPath: string): { path: string; note: string | null } {
+  if (RUNNABLE.test(realPath)) return { path: dirname(realPath), note: `${basename(realPath)} is a program or shortcut, so ULTRON opens its folder instead of running it.` };
+  return { path: realPath, note: null };
 }
 
 /** Opens a file or folder with its default app, without a shell. */

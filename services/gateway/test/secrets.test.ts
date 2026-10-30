@@ -26,12 +26,27 @@ describe("secret storage", () => {
     expect(readFileSync(join(d, "secrets.json"), "utf8")).not.toContain(KEY);
   });
 
-  it("keeps an unreadable file aside and explains, instead of crashing", () => {
+  it("never crashes on an unreadable file: genuine decryption failures are set aside, temporary ones keep the file locked", () => {
     const d = dir();
-    writeFileSync(join(d, "secrets.json"), JSON.stringify({ v: 2, protection: "dpapi", data: "bm90LXJlYWxseS1lbmNyeXB0ZWQ=" }));
+    const original = JSON.stringify({ v: 2, protection: "dpapi", data: "bm90LXJlYWxseS1lbmNyeXB0ZWQ=" });
+    writeFileSync(join(d, "secrets.json"), original);
     const s = new SecretStore(d, "file-permissions");
-    expect(s.problem).toMatch(/couldn't be decrypted/);
     expect(s.get("ANTHROPIC_API_KEY")).toBeUndefined();
-    expect(readdirSync(d).some((f) => f.startsWith("secrets.json.unreadable-"))).toBe(true);
+    if (process.platform === "win32") {
+      // Real DPAPI says the data is invalid → moved aside with an explanation.
+      expect(s.problem).toMatch(/couldn't be decrypted/);
+      expect(readdirSync(d).some((f) => f.startsWith("secrets.json.unreadable-"))).toBe(true);
+    } else {
+      // No PowerShell here = "Windows busy/unavailable" path: file untouched, writes refused so nothing is overwritten.
+      expect(s.problem).toMatch(/couldn't be unlocked just now/);
+      expect(readFileSync(join(d, "secrets.json"), "utf8")).toBe(original);
+      expect(() => s.set("OPENAI_API_KEY", "sk-new-1234567890")).toThrow(/temporarily locked/);
+    }
+  });
+
+  it("scrubs secrets supplied by environment variables too", () => {
+    process.env.ULTRON_GITHUB_TOKEN = "github_pat_ENVONLY_abcdefghijklmnop";
+    expect(new SecretStore(dir()).values()).toContain("github_pat_ENVONLY_abcdefghijklmnop");
+    delete process.env.ULTRON_GITHUB_TOKEN;
   });
 });

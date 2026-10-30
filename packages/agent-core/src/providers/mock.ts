@@ -67,6 +67,14 @@ export class MockProvider implements ModelProvider {
   }
 
   async *streamWithTools(req: ModelRequest & { tools: ToolSpec[] }): AsyncIterable<ProviderEvent> {
+    // Test hook: "mock-flood <tool> <n>" simulates a runaway model emitting many calls at once.
+    const last = req.messages.at(-1);
+    const flood = last?.role === "user" ? /^mock-flood (\w+) (\d+)$/.exec(last.content) : null;
+    if (flood) {
+      for (let i = 0; i < Number(flood[2]); i++)
+        yield { type: "tool_call", call: { id: newToolCallId(), name: flood[1]!, args: flood[1] === "create_reminder" ? { text: `flood ${i}`, minutes_from_now: 60 } : {} } };
+      return;
+    }
     const tool = this.pickTool(req, req.tools);
     if (tool) {
       yield { type: "text", text: "On it. " };

@@ -11,8 +11,17 @@ $out = [Security.Cryptography.ProtectedData]::${op}([Convert]::FromBase64String(
 [Console]::Out.Write([Convert]::ToBase64String($out))
 `;
 
+/** A real "can't decrypt" (wrong user/PC or corrupted data), as opposed to PowerShell being slow or unavailable. */
+class UndecryptableError extends Error {}
+
 function dpapi(op: "Protect" | "Unprotect", base64: string): string {
-  return execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", DPAPI_SCRIPT(op)], { input: base64, windowsHide: true, timeout: 20_000 }).toString().trim();
+  try {
+    return execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", DPAPI_SCRIPT(op)], { input: base64, windowsHide: true, timeout: 60_000, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
+  } catch (err) {
+    const stderr = String((err as { stderr?: Buffer }).stderr ?? "");
+    if (/CryptographicException|Key not valid|data is invalid|FormatException|Base-64/i.test(stderr)) throw new UndecryptableError(stderr.slice(0, 200));
+    throw err;
+  }
 }
 
 interface FileV2 {
@@ -33,6 +42,8 @@ export class SecretStore {
   readonly protection: Protection;
   /** Set when an existing secrets file couldn't be decrypted (e.g. copied from another PC/user). */
   readonly problem: string | null = null;
+  /** True when keys exist but couldn't be read right now; writes are refused so they're never overwritten. */
+  private locked = false;
 
   constructor(dataDir: string, protection: Protection = process.platform === "win32" && process.env.ULTRON_SECRETS_PLAIN !== "1" ? "dpapi" : "file-permissions") {
     this.file = join(dataDir, "secrets.json");
@@ -50,7 +61,15 @@ export class SecretStore {
         this.cache = parsed as Record<string, string>;
         this.persist();
       }
-    } catch {
+    } catch (err) {
+      const genuine = err instanceof UndecryptableError || err instanceof SyntaxError;
+      if (!genuine) {
+        // PowerShell slow/unavailable (e.g. right after sign-in): keep the file untouched and try again next start.
+        this.locked = true;
+        this.problem = "Saved API keys/tokens couldn't be unlocked just now (Windows was busy). Restart ULTRON in a minute; nothing was lost.";
+        this.cache = {};
+        return;
+      }
       // Don't crash and don't delete: keep the unreadable file for the owner and start empty.
       const aside = `${this.file}.unreadable-${Date.now()}`;
       try {
@@ -72,6 +91,7 @@ export class SecretStore {
   }
 
   set(name: string, value: string | null): void {
+    if (this.locked) throw new Error("Saved keys are temporarily locked. Restart ULTRON, then try again.");
     if (value) this.cache[name] = value;
     else delete this.cache[name];
     this.persist();
@@ -90,6 +110,7 @@ export class SecretStore {
 
   /** All secret values, so the logger can scrub them. */
   values(): string[] {
-    return Object.values(this.cache).filter((v) => v.length >= 6);
+    const fromEnv = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "ULTRON_GITHUB_TOKEN"].map((n) => process.env[n] ?? "");
+    return [...Object.values(this.cache), ...fromEnv].filter((v) => v.length >= 6);
   }
 }
