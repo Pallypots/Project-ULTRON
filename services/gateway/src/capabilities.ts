@@ -43,7 +43,7 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
       id: "tools",
       label: "Actions",
       status: "enabled",
-      detail: "check the time; set, list and cancel reminders and timers; open a website (asks for approval first). File search and app control not yet available",
+      detail: "check the time; set, list and cancel reminders and timers; search and read files in folders you approved; open a website or a file on screen (asks for approval first). App control not yet available",
     },
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
     { id: "integrations", label: "Connected accounts (email, calendar, GitHub, YouTube...)", status: "not_implemented", detail: "none connected" },

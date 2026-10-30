@@ -39,6 +39,14 @@ running; anything that came due while it was off is listed as **missed** on the 
 Saying "yes" out loud never approves anything; only a click does. **Pause all actions** in Settings is the kill switch, and **Stop all** also cancels anything waiting for approval.
 Every action is listed in **Activity** with who asked for it and what happened.
 
+## Files: ULTRON's "second brain"
+1. Open **Files** and paste a folder path (copy it from File Explorer's address bar), e.g. `C:\Users\you\Documents\Projects`. Click **Add folder**.
+2. ULTRON indexes it on your PC (names of all files; contents of text, code, CSV, Markdown and Word .docx files). It re-scans at startup and every 30 minutes, or click **Re-scan**.
+3. Ask things like "pull up the free school community", "what does my build log say about the shader cache?", "find my invoice for Mike Johnson".
+
+ULTRON can only see folders you added. It always skips hidden folders, system folders, `node_modules`, and secrets (`.env`, key files, password files).
+It can read files to answer you, but opening something on your screen needs your Approve click. **Remove** a folder to delete its index (your files are untouched).
+
 ## Memory: what ULTRON remembers
 ULTRON only keeps long-term memories you explicitly give it:
 

@@ -27,9 +27,11 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 - ✅ **UL-010** tool registry with risk levels, policy engine, approvals (chat + Activity), kill switch, reminders/timers with scheduler,
   missed-while-off handling, pop-ups/notifications/spoken reminders; tool calling for Ollama, Claude, OpenAI
 
+- ✅ **Files / second brain**: approved folders, safe indexer (.docx, text, code), search/read tools, open-on-screen with approval, Files page
+
 ## Next
-1. ⏳ Local file search ("second brain") in folders the owner approves
-2. ⏳ Opt-in hands-free wake word ("Ultron")
+1. ⏳ Opt-in hands-free wake word ("Ultron")
+2. ⏳ PDF text in the file index; meaning-based (embedding) search for files and memory
 3. ⏳ Voice and local-brain benchmark on the owner's PC (time to first audio, interruption reliability, tokens/sec)
 Also queued: live-key provider validation on the owner's PC, Tauri build on Windows, persona editor, usage/cost display.
 

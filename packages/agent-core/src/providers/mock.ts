@@ -42,6 +42,8 @@ export class MockProvider implements ModelProvider {
     const explicit = /^mock-tool\s+(\w+)\s*(\{.*\})?\s*$/s.exec(text);
     if (explicit) return { name: explicit[1]!, args: explicit[2] ? (JSON.parse(explicit[2]) as Record<string, unknown>) : {} };
     if (has("get_current_time") && /\bwhat(?:'s| is) the (?:time|date)|what time is it|what day is it/i.test(text)) return { name: "get_current_time", args: {} };
+    const files = /\b(?:search (?:my )?files for|find (?:my )?files about|pull up)\s+(.+?)[?.!]*$/i.exec(text);
+    if (files && has("search_files")) return { name: "search_files", args: { query: files[1] } };
     const url = /\bopen\s+(https?:\/\/\S+)/i.exec(text);
     if (url && has("open_website")) return { name: "open_website", args: { url: url[1] } };
     return null;

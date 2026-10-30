@@ -60,6 +60,23 @@ export interface Reminder {
   createdAt: string;
   firedAt: string | null;
 }
+export interface FolderInfo {
+  id: string;
+  path: string;
+  status: "pending" | "indexing" | "ready" | "error";
+  detail: string;
+  fileCount: number;
+  indexedAt: string | null;
+}
+export interface FileHit {
+  docId: string;
+  path: string;
+  name: string;
+  ext: string;
+  size: number;
+  modified: string;
+  snippet: string;
+}
 export interface ActionRecord {
   id: string;
   conversationId: string | null;
@@ -168,6 +185,12 @@ export const api = {
   pullLocalModel: (model: string) => call("POST", "/api/local-ai/pull", { model }),
   cancelLocalPull: (model: string) => call("POST", "/api/local-ai/pull/cancel", { model }),
   useLocalModel: (model: string) => call("POST", "/api/local-ai/use", { model }),
+  folders: () => call<{ folders: FolderInfo[]; indexing: boolean }>("GET", "/api/files/folders"),
+  addFolder: (path: string) => call<{ folder: FolderInfo }>("POST", "/api/files/folders", { path }),
+  removeFolder: (id: string) => call("DELETE", `/api/files/folders/${id}`),
+  reindexFolder: (id: string) => call("POST", `/api/files/folders/${id}/reindex`),
+  searchFiles: (query: string) => call<{ results: FileHit[] }>("POST", "/api/files/search", { query }),
+  openFile: (docId: string) => call("POST", "/api/files/open", { docId }),
   reminders: () => call<{ reminders: Reminder[] }>("GET", "/api/reminders"),
   createReminder: (text: string, dueAt: string) => call<{ reminder: Reminder }>("POST", "/api/reminders", { text, dueAt }),
   cancelReminder: (id: string) => call("POST", `/api/reminders/${id}/cancel`),

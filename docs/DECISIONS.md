@@ -76,5 +76,12 @@ time. L3 is blocked. A kill switch pauses everything but L0. Tool results go bac
 deterministically (works with any brain) and goes through the same policy. The scheduler wakes for the next reminder (max 30 s sleep) and marks
 reminders missed while offline instead of firing them late. The model ↔ tools loop is capped at 4 rounds.
 
+### D-017 · 2026-10-30 · Local file index in SQLite FTS5, owner-approved folders only
+Same engine as memory (no new dependency): file names weighted 4× over contents, BM25 ranking, porter stemming. Text formats and .docx (via a
+dependency-free zip reader) are indexed; PDFs are name-only for now. Safety: folders are validated (no drives, home root, system, credential or ULTRON data
+folders), symlinks are never followed, secrets are skipped by name, every read/open re-resolves the real path and checks it is inside an approved
+folder, file content is returned to the model as `untrusted_file_content`, and opening on screen is an L2 action needing approval. Incremental re-index
+by mtime/size at startup and every 30 minutes.
+
 ### D-010 · SSE (not WebSocket) for streaming replies
 Simpler, works through proxies, trivially testable. WebSocket/WebRTC will be introduced for voice (Phase 2) and multi-device push (Phase 5).

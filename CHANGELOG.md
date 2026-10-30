@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 · 2026-10-30 · Cycle 3: local files ("second brain")
+- Approve folders on the Files page; ULTRON indexes names and text contents (plus Word .docx) locally with incremental re-scans.
+- Tools: `search_files` and `read_file` (read-only, approved folders only, content passed as untrusted data); `open_on_screen` (needs approval).
+- Safety: refuses drives/home/system/credential/ULTRON folders; skips hidden folders, dependencies, symlinks and secret files; path checks on every read/open.
+- Files page: add/remove/re-scan folders, search, one-click open.
+- Migration 4: `folders`, `documents`, `document_chunks` (FTS5).
+- Tests: docx extraction, indexing/skipping rules, incremental re-index, folder validation, traversal/symlink escape, approval for opening; 2 browser steps.
+- CI evidence: the real local model (gemma4:e2b) chose a tool, waited for approval and said so honestly.
+
 ## 0.5.0 · 2026-10-30 · Cycle 3: UL-010 actions, approvals, reminders
 - Tool calling for local (Ollama), Claude and OpenAI brains; capped model ↔ tools loop; honest "waiting for approval" reporting.
 - Tools: current time (L0), create/list/cancel reminders (L1/L0), open a website (L2, approval required). L3 blocked.

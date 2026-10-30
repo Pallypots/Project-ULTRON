@@ -124,4 +124,37 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE messages DROP COLUMN tool_events;
     `,
   },
+  {
+    version: 4,
+    name: "file_index",
+    up: `
+      CREATE TABLE folders (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL DEFAULT 'owner',
+        path TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'pending',
+        detail TEXT NOT NULL DEFAULT '',
+        file_count INTEGER NOT NULL DEFAULT 0,
+        added_at TEXT NOT NULL,
+        indexed_at TEXT
+      );
+      CREATE TABLE documents (
+        id TEXT PRIMARY KEY,
+        folder_id TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+        path TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        ext TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        mtime_ms INTEGER NOT NULL,
+        content_indexed INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX documents_folder ON documents(folder_id);
+      CREATE VIRTUAL TABLE document_chunks USING fts5(name, content, doc_id UNINDEXED, chunk UNINDEXED, tokenize = 'porter unicode61');
+    `,
+    down: `
+      DROP TABLE document_chunks;
+      DROP TABLE documents;
+      DROP TABLE folders;
+    `,
+  },
 ];

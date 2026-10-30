@@ -2,6 +2,7 @@ import type { Stores, ToolExecution } from "@ultron/memory";
 import type { ToolEvent } from "@ultron/schemas";
 import type { EventBus } from "./events.ts";
 import { toolByName, type ToolDef } from "./tools.ts";
+import type { FileService } from "../files/service.ts";
 
 export interface ActionPolicy {
   /** Kill switch: when paused, nothing except read-only (L0) tools runs. */
@@ -31,6 +32,7 @@ export class ActionRunner {
     private bus: EventBus,
     private dryRun: boolean,
     private now: () => Date = () => new Date(),
+    private files?: FileService,
   ) {}
 
   policy(): ActionPolicy {
@@ -78,7 +80,7 @@ export class ActionRunner {
   private async execute(exec: ToolExecution, tool: ToolDef): Promise<ToolExecution> {
     try {
       const result = await Promise.race([
-        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now }),
+        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files }),
         new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Timed out after ${tool.timeoutMs / 1000}s.`)), tool.timeoutMs)),
       ]);
       const e = this.stores.actions.update(exec.id, { status: "succeeded", result: result.slice(0, MAX_RESULT_CHARS) })!;

@@ -1,7 +1,7 @@
 // End-to-end check of the real built app in a real browser (Chromium via Playwright).
 // Usage: npm run build && npm run test:e2e   (screenshots land in docs/screenshots)
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -251,6 +251,35 @@ try {
   await page.getByRole("button", { name: "Activity" }).click();
   await page.locator("td", { hasText: "Open example.com" }).first().waitFor();
   step("Activity lists actions with risk level and who asked");
+
+  // ---- Files / second brain ----
+  const projects = mkdtempSync(join(tmpdir(), "ultron-e2e-projects-"));
+  mkdirSync(join(projects, "Free School Community"));
+  writeFileSync(join(projects, "Free School Community", "launch-plan.md"), "Community launch: weekly AI workshops and onboarding checklist.");
+  writeFileSync(join(projects, ".env"), "SECRET=never-index-me");
+  await page.getByRole("button", { name: "Files" }).click();
+  await page.getByLabel("Folder path").fill(process.platform === "win32" ? "C:\\Windows" : "/etc");
+  await page.getByRole("button", { name: "Add folder" }).click();
+  await page.getByText(/System and credential folders can't be indexed|doesn't exist/).waitFor();
+  await page.getByLabel("Folder path").fill(projects);
+  await page.getByRole("button", { name: "Add folder" }).click();
+  await page.locator(".reminder", { hasText: "✓" }).waitFor({ timeout: 15000 });
+  await page.getByLabel("Search files").fill("workshops");
+  await page.getByRole("button", { name: "Search" }).click();
+  await page.locator(".file-hit", { hasText: "launch-plan.md" }).waitFor();
+  await page.getByLabel("Search files").fill("never-index-me");
+  await page.getByRole("button", { name: "Search" }).click();
+  await page.getByText("No matches").waitFor();
+  await page.screenshot({ path: join(shots, "13-files.png") });
+  step("Files: system folder refused, project folder indexed, search works, secrets never indexed");
+  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByRole("button", { name: "+ New conversation" }).click();
+  await page.getByText("Say hello, ask a question").waitFor();
+  await page.getByLabel("Message ULTRON").fill("pull up the free school community");
+  await page.getByLabel("Message ULTRON").press("Enter");
+  await page.locator(".tool--succeeded", { hasText: "Search your files" }).waitFor();
+  await page.locator(".msg--assistant", { hasText: "launch-plan.md" }).waitFor();
+  step('"Pull up …" searches approved files (read-only, no approval needed)');
 
   // ---- Local brain (UL-011) ----
   const brain = () => page.evaluate(() => document.documentElement.dataset.brain);

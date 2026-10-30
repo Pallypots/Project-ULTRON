@@ -16,6 +16,7 @@ import { detectHardware } from "./local-ai/hardware.ts";
 import { EventBus } from "./actions/events.ts";
 import { ActionRunner } from "./actions/runner.ts";
 import { ReminderScheduler } from "./actions/scheduler.ts";
+import { FileService, openWithDefaultApp } from "./files/service.ts";
 import { OllamaManager } from "./local-ai/ollama.ts";
 import { recommendModel } from "./local-ai/recommend.ts";
 import { z } from "zod";
@@ -24,7 +25,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.5.0";
+export const VERSION = "0.6.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -83,7 +84,9 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const savedModels = stores.preferences.get<Record<string, { model: string; baseUrl: string }>>("provider_models", {});
   const ollama = new OllamaManager(savedModels.ollama?.baseUrl || process.env.ULTRON_OLLAMA_URL || undefined);
   const bus = new EventBus();
-  const actions = new ActionRunner(stores, bus, process.env.ULTRON_ACTIONS_DRY_RUN === "1");
+  const files = new FileService(stores.files, config.dataDir, (m) => app.log.warn(m));
+  files.start();
+  const actions = new ActionRunner(stores, bus, process.env.ULTRON_ACTIONS_DRY_RUN === "1", undefined, files);
   const scheduler = new ReminderScheduler(stores, bus);
   // A new or cancelled reminder may be sooner than the scheduler's next wake-up.
   bus.subscribe((e) => {
@@ -365,6 +368,43 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     return { reminder: stores.reminders.setStatus(r.id, r.status === "missed" ? "fired" : "cancelled") };
   });
 
+  // ---- files (owner-approved folders only) ----
+  app.get("/api/files/folders", async () => ({ folders: stores.files.folders(), indexing: files.indexing }));
+  app.post("/api/files/folders", async (req, reply) => {
+    const { path } = z.object({ path: z.string().min(1).max(1000) }).parse(req.body);
+    try {
+      const folder = await files.add(path);
+      stores.audit.record("files.folder_added", "owner", folder.id, { path: folder.path });
+      return { folder };
+    } catch (err) {
+      return reply.code(400).send({ error: "bad_folder", message: (err as Error).message });
+    }
+  });
+  app.delete<{ Params: { id: string } }>("/api/files/folders/:id", async (req, reply) => {
+    const f = stores.files.folder(req.params.id);
+    if (!f || !stores.files.removeFolder(f.id)) return reply.code(404).send({ error: "not_found" });
+    stores.audit.record("files.folder_removed", "owner", f.id, { path: f.path });
+    return { ok: true };
+  });
+  app.post<{ Params: { id: string } }>("/api/files/folders/:id/reindex", async (req, reply) => {
+    if (!stores.files.folder(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    return { started: files.reindex(req.params.id) };
+  });
+  app.post("/api/files/search", async (req) => {
+    const { query } = z.object({ query: z.string().max(200) }).parse(req.body);
+    return { results: stores.files.search(query, 25) };
+  });
+  // The owner clicking "Open" is itself the approval for this one action.
+  app.post("/api/files/open", async (req, reply) => {
+    const { docId } = z.object({ docId: z.string().max(64) }).parse(req.body);
+    const doc = stores.files.doc(docId);
+    const safe = doc && (await files.safePath(doc.path));
+    if (!safe) return reply.code(404).send({ error: "not_found", message: "That file isn't in an approved folder anymore." });
+    if (process.env.ULTRON_ACTIONS_DRY_RUN !== "1") await openWithDefaultApp(safe);
+    stores.audit.record("files.opened", "owner", docId, {});
+    return { ok: true, path: safe };
+  });
+
   // ---- actions & approvals ----
   app.get("/api/actions", async () => {
     stores.actions.expireStale(10 * 60_000);
@@ -451,6 +491,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   app.addHook("onClose", async () => {
     scheduler.stop();
+    files.stop();
     streams.stopAll();
     stores.close();
   });

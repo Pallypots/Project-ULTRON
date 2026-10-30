@@ -32,6 +32,8 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Actions | policy matrix; read-only tool result fed back; website open waits for approval, runs once, double-approve refused, chat bubble synced; deny / Stop all / kill switch; unknown tool, invalid input, `javascript:`/`file:` URLs rejected; approval-looking text can't approve |
 | Reminders | set/list/cancel via chat, live `reminder_fired` event over `/api/events`, missed-while-off, input validation |
 | E2E actions | 3-second timer pops up; website action shows Approve and runs only after the click; Reminders page add/cancel; Activity table |
+| Files | .docx text, chunking; indexes names/contents; skips `.env`, password files, hidden, `node_modules`, binary; incremental re-index and deletion; folder validation (relative, drive root, home, system, data dir, missing); owner search/open; brain search; read only via indexed ids; `..` traversal and symlink escape blocked; open needs approval; removing a folder removes its index |
+| E2E files | system folder refused; project folder indexed; search; secret never indexed; "pull up …" in chat uses `search_files` |
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30, cycle 2 (Linux cloud container, Node 22.22, Chromium via Playwright)

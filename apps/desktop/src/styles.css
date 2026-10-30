@@ -309,3 +309,4 @@ body, .panel, .btn, .nav__item { transition: border-color 0.6s, box-shadow 0.6s,
 .toast strong { color: var(--accent-strong); }
 .badge { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--warn); color: #1c1003; font-size: 0.72rem; font-weight: 700; text-align: center; }
 .badge--soft { background: var(--line-strong); color: var(--text); }
+.file-hit > span:first-child { display: grid; gap: 2px; }

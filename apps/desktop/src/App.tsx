@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, health, subscribeEvents, type Status } from "./api.ts";
 import { RemindersView } from "./views/Reminders.tsx";
+import { FilesView } from "./views/Files.tsx";
 import { Toasts, type Toast } from "./Toasts.tsx";
 import { Speaker } from "./voice/speaker.ts";
 import { loadVoicePrefs } from "./voice/prefs.ts";
@@ -12,12 +13,13 @@ import { MemoryView } from "./views/Memory.tsx";
 import { ActivityView } from "./views/Activity.tsx";
 import { SettingsView } from "./views/Settings.tsx";
 
-export type View = "home" | "chat" | "reminders" | "memory" | "activity" | "settings";
+export type View = "home" | "chat" | "reminders" | "files" | "memory" | "activity" | "settings";
 
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: "home", label: "Home", icon: "◎" },
   { id: "chat", label: "Chat", icon: "✦" },
   { id: "reminders", label: "Reminders", icon: "⏰" },
+  { id: "files", label: "Files", icon: "📁" },
   { id: "memory", label: "Memory Vault", icon: "▣" },
   { id: "activity", label: "Activity", icon: "≡" },
   { id: "settings", label: "Settings", icon: "⚙" },
@@ -119,6 +121,7 @@ export function App() {
         {view === "home" && <HomeView status={status} core={effectiveCore} onAsk={(q) => { setChatSeed(q); go("chat"); }} onNavigate={go} />}
         {view === "chat" && <ChatView onCoreState={setCoreState} core={effectiveCore} seed={chatSeed} clearSeed={() => setChatSeed(null)} status={status} onChanged={refreshStatus} />}
         {view === "reminders" && <RemindersView refreshKey={remindersKey} />}
+        {view === "files" && <FilesView />}
         {view === "memory" && <MemoryView />}
         {view === "activity" && <ActivityView />}
         {view === "settings" && <SettingsView prefs={prefs} setPrefs={setPrefs} onSaved={refreshStatus} />}
