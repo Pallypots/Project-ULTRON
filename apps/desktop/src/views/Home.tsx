@@ -41,6 +41,7 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
         </div>
       </section>
 
+      {status?.secretsProblem && <div className="banner banner--warn" role="alert">{status.secretsProblem}</div>}
       {status && !status.providerReady && (
         <div className="banner banner--warn" role="status">
           {status.providerProblem} <button className="link" onClick={() => onNavigate("settings")}>Open Settings</button>

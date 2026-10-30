@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1 · 2026-10-30 · Security: secrets encrypted at rest on Windows
+- API keys and connector tokens are encrypted with Windows DPAPI (current user). Old plain files upgrade automatically; undecryptable files are set aside with a clear Home warning.
+
 ## 0.9.0 · 2026-10-30 · Cycle 3: morning briefing, personality editor
 - `daily_briefing` tool: today's reminders, missed reminders, pending approvals, GitHub highlights; explicitly lists unconnected sources.
 - Settings → Personality: name, salutation, wake words, humor/sarcasm/formality sliders, verbosity; reset; boundaries not editable. Home greets you by your salutation.

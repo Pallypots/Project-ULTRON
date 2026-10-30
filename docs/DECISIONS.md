@@ -98,5 +98,9 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-020 · 2026-10-30 · Windows DPAPI for secrets at rest
+`ProtectedData.Protect` (CurrentUser scope, fixed entropy) via Windows PowerShell 5.1 (present on every Windows install, has System.Security), with
+plaintext sent over stdin. No native module, no extra dependency. Costs ~0.5 s per load/save, which only happens at startup and when a key changes.
+
 ### D-010 · SSE (not WebSocket) for streaming replies
 Simpler, works through proxies, trivially testable. WebSocket/WebRTC will be introduced for voice (Phase 2) and multi-device push (Phase 5).

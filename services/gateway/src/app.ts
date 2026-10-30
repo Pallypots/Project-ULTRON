@@ -124,6 +124,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       providerProblem: r.ok ? null : r.reason,
       activeReplies: streams.size,
       pendingApprovals: stores.actions.pending().length,
+      secretsProblem: secrets.problem,
+      secretsProtection: secrets.protection,
       upcomingReminders: stores.reminders.upcoming().length,
       counts: { conversations: stores.conversations.list().length, memories: stores.memories.list().length },
       persona: { name: persona.name, wakeNames: persona.wakeNames, salutation: persona.ownerSalutation },

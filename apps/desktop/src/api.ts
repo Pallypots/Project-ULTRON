@@ -44,6 +44,8 @@ export interface Status {
   providerReady: boolean;
   where: "local" | "cloud" | "test";
   pendingApprovals: number;
+  secretsProblem: string | null;
+  secretsProtection: "dpapi" | "file-permissions";
   upcomingReminders: number;
   providerProblem: string | null;
   activeReplies: number;

@@ -3,6 +3,7 @@
 ## In place (v0.1, tested)
 - **Local only.** The gateway binds to `127.0.0.1`. Requests must carry a loopback `Host` (blocks DNS rebinding) and, if present, a loopback `Origin` (blocks other websites).
 - **Authenticated API.** Every route except `/api/health` and `/api/bootstrap` requires a random 256-bit bearer token (`<data>/local-token`, owner-only file mode).
+- **Secrets encrypted at rest (Windows).** API keys and connector tokens are encrypted with Windows DPAPI for the current Windows user (data passed over stdin, never on a command line). Older plain files are upgraded automatically; a file that can't be decrypted (another user/PC) is set aside with a clear message, never crashes ULTRON. Backups never include secrets.
 - **Secrets never leave the server.** API keys are write-only from the UI; settings responses only say whether a key exists. Keys and the token are scrubbed from logs (pattern + exact-value redaction) and from the audit log. Tests assert this.
 - **Memory consent.** Only explicit "Remember…" or Vault entries are stored. Passwords, PINs, card/bank numbers, API keys and ID numbers are refused. Health/finance details are flagged sensitive.
 - **Forget means delete.** Memory rows and their search-index entries are hard-deleted.
@@ -21,7 +22,7 @@
 ## Known gaps (tracked)
 | Gap | Plan |
 |---|---|
-| API keys stored as a JSON file (owner-only permissions), **not yet encrypted** with Windows DPAPI/keychain | UL-005b: DPAPI on Windows |
+| macOS/Linux keep secrets protected by file permissions only (no keychain yet) | Keychain / libsecret support if ULTRON runs there |
 | Approvals are click-only in the app; there is no secure way yet to approve from the phone | Phase 5 device pairing |
 | Prompt-injection test suite only covers memory commands (model output can't save/delete memories) | Extend with tool/connector threat scenarios in Phase 3 |
 | No per-provider spend budget / usage display | Phase 3–6 cost dashboard |
