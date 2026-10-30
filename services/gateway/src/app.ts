@@ -17,6 +17,8 @@ import { EventBus } from "./actions/events.ts";
 import { ActionRunner } from "./actions/runner.ts";
 import { ReminderScheduler } from "./actions/scheduler.ts";
 import { FileService, openWithDefaultApp } from "./files/service.ts";
+import { ConnectorService } from "./connectors/service.ts";
+import { ConnectorError } from "./connectors/types.ts";
 import { OllamaManager } from "./local-ai/ollama.ts";
 import { recommendModel } from "./local-ai/recommend.ts";
 import { z } from "zod";
@@ -25,7 +27,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.7.0";
+export const VERSION = "0.8.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -84,6 +86,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const savedModels = stores.preferences.get<Record<string, { model: string; baseUrl: string }>>("provider_models", {});
   const ollama = new OllamaManager(savedModels.ollama?.baseUrl || process.env.ULTRON_OLLAMA_URL || undefined);
   const bus = new EventBus();
+  const connectors = new ConnectorService(stores, secrets, bus);
+  connectors.start();
   const files = new FileService(stores.files, config.dataDir, (m) => app.log.warn(m));
   files.start();
   const actions = new ActionRunner(stores, bus, process.env.ULTRON_ACTIONS_DRY_RUN === "1", undefined, files);
@@ -422,6 +426,52 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     return { ok: true, path: safe };
   });
 
+  // ---- connected accounts (Connected Life Hub) ----
+  const connectorFail = (reply: any, err: unknown) => {
+    const e = err instanceof ConnectorError ? err : new ConnectorError((err as Error).message, "unavailable");
+    return reply.code(e.code === "auth" ? 401 : e.code === "rate_limited" ? 429 : e.code === "not_found" || e.code === "bad_request" ? 400 : 502).send({ error: e.code, message: e.message });
+  };
+  app.get("/api/connectors", async () => ({ connectors: connectors.info() }));
+  app.post("/api/connectors/github/connect", async (req, reply) => {
+    const { token } = z.object({ token: z.string().trim().min(10).max(500) }).parse(req.body);
+    try {
+      return { connector: await connectors.connectGithub(token) };
+    } catch (err) {
+      return connectorFail(reply, err);
+    }
+  });
+  app.get("/api/connectors/github/repos", async (_req, reply) => {
+    try {
+      return { repos: await connectors.listGithubRepos() };
+    } catch (err) {
+      return connectorFail(reply, err);
+    }
+  });
+  app.put("/api/connectors/github/repos", async (req, reply) => {
+    const { repos } = z.object({ repos: z.array(z.string().max(200)).max(100) }).parse(req.body);
+    try {
+      return { connector: await connectors.setGithubRepos(repos) };
+    } catch (err) {
+      return connectorFail(reply, err);
+    }
+  });
+  app.post("/api/connectors/github/sync", async (_req, reply) => {
+    try {
+      return await connectors.syncGithub();
+    } catch (err) {
+      return connectorFail(reply, err);
+    }
+  });
+  app.delete("/api/connectors/github", async () => ({ ok: true, eventsDeleted: connectors.disconnectGithub() }));
+  app.get<{ Querystring: { source?: string; important?: string; unread?: string } }>("/api/feed", async (req) => ({
+    events: stores.connectors.events({ source: req.query.source || undefined, minUrgency: req.query.important === "1" ? 2 : undefined, unreadOnly: req.query.unread === "1", limit: 200 }),
+  }));
+  app.post("/api/feed/read", async (req) => {
+    const { ids } = z.object({ ids: z.union([z.array(z.string()).max(500), z.literal("all")]) }).parse(req.body);
+    stores.connectors.markRead(ids);
+    return { ok: true };
+  });
+
   // ---- actions & approvals ----
   app.get("/api/actions", async () => {
     stores.actions.expireStale(10 * 60_000);
@@ -509,6 +559,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   app.addHook("onClose", async () => {
     scheduler.stop();
     files.stop();
+    connectors.stop();
     streams.stopAll();
     stores.close();
   });

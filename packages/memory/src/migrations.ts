@@ -157,4 +157,47 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE folders;
     `,
   },
+  {
+    version: 5,
+    name: "connectors",
+    up: `
+      CREATE TABLE integrations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL DEFAULT 'owner',
+        account TEXT,
+        config TEXT NOT NULL DEFAULT '{}',
+        cursor TEXT NOT NULL DEFAULT '{}',
+        health TEXT NOT NULL DEFAULT 'not_connected',
+        health_detail TEXT NOT NULL DEFAULT '',
+        last_sync_at TEXT,
+        next_sync_at TEXT,
+        connected_at TEXT
+      );
+      CREATE TABLE connector_events (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL DEFAULT 'owner',
+        source TEXT NOT NULL,
+        provider_event_id TEXT NOT NULL,
+        account_id TEXT,
+        resource_type TEXT NOT NULL,
+        resource_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL DEFAULT '',
+        canonical_url TEXT,
+        occurred_at TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        project_tags TEXT NOT NULL DEFAULT '[]',
+        urgency INTEGER NOT NULL DEFAULT 0,
+        read_state TEXT NOT NULL DEFAULT 'unread',
+        why TEXT NOT NULL DEFAULT '',
+        content_expiry TEXT,
+        dedupe_key TEXT NOT NULL UNIQUE
+      );
+      CREATE INDEX connector_events_time ON connector_events(source, occurred_at);
+    `,
+    down: `
+      DROP TABLE connector_events;
+      DROP TABLE integrations;
+    `,
+  },
 ];

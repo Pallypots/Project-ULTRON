@@ -31,10 +31,14 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 
 - ✅ **Hands-free wake word** (opt-in): local VAD + local Whisper, server-side wake matching, non-addressed speech discarded
 
+- ✅ **UL-CON-001…004** connector framework (canonical events, dedupe, cursors, health, retention, disconnect-deletes), GitHub read-only
+  connector, Connections page, feed, Home "What's new", `connected_updates` tool; real GitHub API contract test in CI
+
 ## Next
-1. ⏳ Connected Life Hub: connector framework + GitHub read-only (blueprint §17, UL-CON-001…004)
-2. ⏳ PDF text in the file index; meaning-based (embedding) search for files and memory
-3. ⏳ Voice and local-brain benchmark on the owner's PC (time to first audio, interruption reliability, tokens/sec)
+1. ⏳ UL-CON-005 GitHub drafts (issue/comment drafts shown for approval before posting)
+2. ⏳ UL-CON-006 YouTube subscriptions (needs the owner's Google Cloud OAuth client)
+3. ⏳ PDF text in the file index; meaning-based (embedding) search for files and memory
+4. ⏳ Voice and local-brain benchmark on the owner's PC (time to first audio, interruption reliability, tokens/sec)
 Also queued: live-key provider validation on the owner's PC, Tauri build on Windows, persona editor, usage/cost display.
 
 ## Phase 2–7 (from the blueprint)

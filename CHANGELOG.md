@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 · 2026-10-30 · Cycle 3: Connected Life Hub v1 (GitHub read-only)
+- Connector framework: canonical event schema with dedupe keys, urgency and "why surfaced", per-account cursor/health, 30-day retention, capability flags.
+- GitHub connector (fine-grained token, read-only): commits, PRs, issues, failed workflow runs, releases for chosen repos; rate-limit backoff; 15-minute sync.
+- Connections page (guided token setup, repo picker, Sync now, Disconnect deletes all data), feed with All/Important, Home "What's new", "Ask ULTRON" from a card.
+- `connected_updates` tool reports real feed status per source (never invents counts); hostile titles stay data.
+- Migration 5: `integrations`, `connector_events`.
+- Tests: fake GitHub API, mapping/dedupe/cursor/rate limit/bad token/disconnect, 3 browser steps; CI contract test against the real GitHub API.
+
 ## 0.7.0 · 2026-10-30 · Cycle 3: hands-free wake word
 - Opt-in Hands-free mode in Chat: voice-activity detection cuts phrases; on-PC Whisper transcribes; "Ultron, …" (and common mishearings) wakes ULTRON;
   "Ultron" alone opens an 8-second follow-up window. Non-addressed speech is dropped on the server, never returned or logged.

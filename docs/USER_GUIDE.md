@@ -55,6 +55,16 @@ or just "Ultron" and then your request. Anything that doesn't start with ULTRON'
 - To interrupt ULTRON while it's talking, press Esc, Stop, or Talk.
 - Noisy rooms use more processor time (every phrase is checked). Push-to-talk is the lighter option.
 
+## Connections: GitHub (read-only)
+1. Open **Connections** and follow the three steps to create a **fine-grained token** on GitHub: only the repos you want, and **Read-only** for Contents,
+   Issues, Pull requests and Actions. Paste it into ULTRON (never into chat). ULTRON tests it before saying "connected".
+2. **Choose repos** → **Save & sync**. ULTRON checks every 15 minutes while it's running (or click **Sync now**).
+3. Ask "what's new on GitHub?", "catch me up", or "did any builds fail?". Or read the **Feed** (filter **Important** for failures, PRs, issues and releases).
+   **Ask ULTRON** on a card starts a chat about it; **Open source** opens it on GitHub.
+
+ULTRON stores titles and links only (no code or issue bodies) and deletes them after 30 days. **Disconnect** deletes the token and everything it stored.
+YouTube, Reddit and Discord are listed as "coming next" with what each needs.
+
 ## Memory: what ULTRON remembers
 ULTRON only keeps long-term memories you explicitly give it:
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Capability } from "@ultron/schemas";
-import { api, type Status } from "../api.ts";
+import { api, type FeedEvent, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
 import type { View } from "../App.tsx";
 
@@ -9,6 +9,10 @@ const SUGGESTIONS = ["What can you do right now?", "Remember that I prefer short
 export function HomeView({ status, core, onAsk, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onNavigate: (v: View) => void }) {
   const [caps, setCaps] = useState<Capability[]>([]);
   const [q, setQ] = useState("");
+  const [news, setNews] = useState<FeedEvent[]>([]);
+  useEffect(() => {
+    api.feed(true).then((r) => setNews(r.events.filter((e) => e.readState === "unread").slice(0, 5))).catch(() => {});
+  }, []);
   useEffect(() => {
     api.capabilities().then((r) => setCaps(r.capabilities)).catch(() => {});
   }, [status?.provider, status?.providerReady]);
@@ -52,6 +56,21 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
         <div className="banner" role="status">
           <strong>Cloud brain</strong> ({status.model}): your messages go to {status.provider === "anthropic" ? "Anthropic" : "OpenAI"}. Say "go local" to switch back.
         </div>
+      )}
+
+      {news.length > 0 && (
+        <section className="panel">
+          <h2 className="panel__title">What's new (connected accounts)</h2>
+          <ul className="reminders">
+            {news.map((e) => (
+              <li key={e.id} className={`reminder feed feed--u${e.urgency}`}>
+                <span>{e.title}<div className="small muted">{e.why}</div></span>
+                {e.canonicalUrl && <a className="btn btn--small" href={e.canonicalUrl} target="_blank" rel="noreferrer">Open</a>}
+              </li>
+            ))}
+          </ul>
+          <div className="row"><button type="button" className="btn btn--small" onClick={() => onNavigate("connections")}>See all</button><button type="button" className="btn btn--small" onClick={() => onAsk("What's new? Catch me up.")}>Brief me</button></div>
+        </section>
       )}
 
       <section className="grid">

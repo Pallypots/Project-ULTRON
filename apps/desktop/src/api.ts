@@ -60,6 +60,32 @@ export interface Reminder {
   createdAt: string;
   firedAt: string | null;
 }
+export interface ConnectorInfo {
+  id: string;
+  label: string;
+  available: boolean;
+  connected: boolean;
+  account: string | null;
+  capabilities: string[];
+  health: "not_connected" | "ok" | "error" | "rate_limited" | "syncing";
+  healthDetail: string;
+  lastSyncAt: string | null;
+  nextSyncAt: string | null;
+  repos?: string[];
+  note: string;
+}
+export interface FeedEvent {
+  id: string;
+  source: string;
+  resourceType: string;
+  title: string;
+  summary: string;
+  canonicalUrl: string | null;
+  occurredAt: string;
+  urgency: number;
+  readState: "unread" | "read" | "saved";
+  why: string;
+}
 export interface FolderInfo {
   id: string;
   path: string;
@@ -98,7 +124,8 @@ export type ServerEvent =
   | { type: "hello"; at: string }
   | { type: "reminder_fired"; reminder: Reminder }
   | { type: "reminders_missed"; reminders: Reminder[] }
-  | { type: "action_updated"; execution: ActionRecord };
+  | { type: "action_updated"; execution: ActionRecord }
+  | { type: "connector_synced"; source: string; added: number };
 
 /** Keeps a live connection for reminders and approvals; reconnects with backoff. Returns a stop function. */
 export function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {
@@ -185,6 +212,14 @@ export const api = {
   pullLocalModel: (model: string) => call("POST", "/api/local-ai/pull", { model }),
   cancelLocalPull: (model: string) => call("POST", "/api/local-ai/pull/cancel", { model }),
   useLocalModel: (model: string) => call("POST", "/api/local-ai/use", { model }),
+  connectors: () => call<{ connectors: ConnectorInfo[] }>("GET", "/api/connectors"),
+  connectGithub: (token: string) => call<{ connector: ConnectorInfo }>("POST", "/api/connectors/github/connect", { token }),
+  githubRepos: () => call<{ repos: { fullName: string; private: boolean }[] }>("GET", "/api/connectors/github/repos"),
+  setGithubRepos: (repos: string[]) => call("PUT", "/api/connectors/github/repos", { repos }),
+  syncGithub: () => call<{ added: number }>("POST", "/api/connectors/github/sync"),
+  disconnectGithub: () => call("DELETE", "/api/connectors/github"),
+  feed: (important = false) => call<{ events: FeedEvent[] }>("GET", `/api/feed${important ? "?important=1" : ""}`),
+  markFeedRead: (ids: string[] | "all") => call("POST", "/api/feed/read", { ids }),
   folders: () => call<{ folders: FolderInfo[]; indexing: boolean }>("GET", "/api/files/folders"),
   addFolder: (path: string) => call<{ folder: FolderInfo }>("POST", "/api/files/folders", { path }),
   removeFolder: (id: string) => call("DELETE", `/api/files/folders/${id}`),

@@ -30,8 +30,17 @@ const ollamaUrl = await new Promise((resolve, reject) => {
   setTimeout(() => reject(new Error("fake Ollama did not start")), 20000);
 });
 
+const fakeGithub = spawn(process.execPath, ["--import", "tsx", "scripts/fake-github.ts"], { stdio: ["ignore", "pipe", "inherit"] });
+const [githubUrl, githubToken] = await new Promise((resolve, reject) => {
+  fakeGithub.stdout.on("data", (d) => {
+    const m = /FAKE_GITHUB_URL=(\S+) FAKE_GITHUB_TOKEN=(\S+)/.exec(String(d));
+    if (m) resolve([m[1], m[2]]);
+  });
+  setTimeout(() => reject(new Error("fake GitHub did not start")), 20000);
+});
+
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_LOG_LEVEL: "warn" },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_GITHUB_API: githubUrl, ULTRON_LOG_LEVEL: "warn" },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {
@@ -302,6 +311,37 @@ try {
   await page.locator(".msg--assistant", { hasText: "launch-plan.md" }).waitFor();
   step('"Pull up …" searches approved files (read-only, no approval needed)');
 
+  // ---- Connected Life Hub: GitHub ----
+  await page.getByRole("button", { name: "Connections" }).click();
+  await page.getByLabel("GitHub token").fill("github_pat_wrong_token");
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.getByText(/rejected the token/).waitFor();
+  await page.getByLabel("GitHub token").fill(githubToken);
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.getByText("Connected. Now pick the repos to watch.").waitFor();
+  await page.getByRole("button", { name: "Choose repos" }).click();
+  await page.getByLabel("pallypots/oogie-port").check();
+  await page.getByRole("button", { name: "Save & sync" }).click();
+  await page.locator(".feed", { hasText: 'workflow "CI" failed' }).waitFor({ timeout: 15000 });
+  await page.screenshot({ path: join(shots, "15-connections-github.png") });
+  step("GitHub: bad token refused, real read test before 'connected', repo picked, feed synced");
+  await page.getByRole("button", { name: "Important" }).click();
+  await page.locator(".feed", { hasText: "Add Android build target" }).waitFor({ state: "detached", timeout: 5000 });
+  await page.locator(".feed", { hasText: 'workflow "CI" failed' }).waitFor();
+  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByRole("button", { name: "+ New conversation" }).click();
+  await page.getByText("Say hello, ask a question").waitFor();
+  await page.getByLabel("Message ULTRON").fill("what's new on github?");
+  await page.getByLabel("Message ULTRON").press("Enter");
+  await page.locator(".tool--succeeded", { hasText: "Check what's new on github" }).waitFor();
+  step("Asking \"what's new on GitHub?\" uses the real synced feed (read-only)");
+  await page.getByRole("button", { name: "Connections" }).click();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Disconnect" }).click();
+  await page.getByText("Disconnected; GitHub data deleted.").waitFor();
+  await page.getByText("Connect an account to see updates here.").waitFor();
+  step("Disconnect deletes the token and all GitHub data");
+
   // ---- Local brain (UL-011) ----
   const brain = () => page.evaluate(() => document.documentElement.dataset.brain);
   if ((await brain()) !== "test") throw new Error(`expected test skin, got ${await brain()}`);
@@ -363,6 +403,7 @@ try {
   await browser.close();
   server.kill();
   fakeOllama.kill();
+  fakeGithub.kill();
 }
 if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Browser E2E (${process.platform})::${failed ? "FAILED" : "all steps passed"}: ${passed.join(" | ")}`);
 process.exit(failed ? 1 : 0);

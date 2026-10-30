@@ -2,6 +2,11 @@ name: CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
+  actions: read
+  issues: read
+  pull-requests: read
 jobs:
   test:
     strategy:
@@ -13,6 +18,8 @@ jobs:
       # Runs the real local Whisper speech-recognition test (downloads the model once, then cached).
       ULTRON_TEST_WHISPER: "1"
       ULTRON_TEST_TTS: "1"
+      ULTRON_TEST_GITHUB: "1"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ULTRON_TEST_MODEL_DIR: ${{ github.workspace }}/.model-cache
     steps:
       - uses: actions/checkout@v4

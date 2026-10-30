@@ -90,5 +90,13 @@ to typical mishearings). Non-addressed phrases are dropped on the server and nev
 the cloud. Trade-offs: more CPU than a dedicated wake-word model, about 1–3 s latency per phrase, and no voice barge-in while ULTRON speaks (Esc/Talk interrupt).
 Revisit with a trained openWakeWord model if CPU or latency is a problem on the owner's hardware.
 
+### D-019 · 2026-10-30 · Connected Life Hub v1: connector framework + GitHub read-only via fine-grained token
+Follows blueprint §17 ordering (shared schema, then GitHub read-only). Canonical events (`connector_events`, unique `dedupe_key`, urgency, `why`,
+30-day expiry) and per-integration cursor/health rows. GitHub uses the REST API with a fine-grained PAT entered in the app (stored server-side, write-only;
+the blueprint allows fine-grained tokens for the prototype; a GitHub App/OAuth flow needs an app registration and comes later). Only titles, states and links are stored;
+bodies are not fetched, which minimises private content and prompt-injection surface. Rate limits back off to the reset time and keep the last good sync visible.
+Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
+Actions-provided read-only `GITHUB_TOKEN` on this repository.
+
 ### D-010 · SSE (not WebSocket) for streaming replies
 Simpler, works through proxies, trivially testable. WebSocket/WebRTC will be introduced for voice (Phase 2) and multi-device push (Phase 5).

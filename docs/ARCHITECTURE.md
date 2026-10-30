@@ -45,6 +45,9 @@ and `OllamaManager` (version, installed models, background pulls). `brains.ts` r
 (reminders), `actions/events.ts` (live `/api/events` stream). `files/` holds folder validation, the incremental indexer (`docx.ts` for Word files) and
 `FileService`. The chat orchestrator parses reminder commands deterministically, then runs a capped model ↔ tools loop.
 
+**Connected Life Hub (v0.8):** `connectors/github.ts` (REST, read-only) → `ConnectorService` (connect with read test, repo config, 15-min sync,
+backoff, disconnect) → `ConnectorStore` canonical events → `/api/feed`, the `connected_updates` tool and the Home "What's new" panel.
+
 ## API
 `GET /api/health` (public, sanitized) · `GET /api/bootstrap` (loopback-only token handout) · `GET /api/status` · `GET /api/capabilities`
 `GET/POST /api/conversations` · `GET/DELETE /api/conversations/:id` · `POST /api/conversations/:id/messages` (SSE)
@@ -54,6 +57,7 @@ and `OllamaManager` (version, installed models, background pulls). `brains.ts` r
 `GET /api/voice/status` · `PUT /api/voice/settings` · `POST /api/voice/prepare` · `POST /api/voice/transcribe` (audio/wav)
 `GET /api/events` (live) · `GET/POST /api/reminders` · `POST /api/reminders/:id/cancel` · `GET /api/actions` · `POST /api/actions/:id/approve|deny` · `PUT /api/settings/actions`
 `GET/POST /api/files/folders` · `DELETE /api/files/folders/:id` · `POST /api/files/folders/:id/reindex` · `POST /api/files/search` · `POST /api/files/open`
+`GET /api/connectors` · `POST /api/connectors/github/connect` · `GET|PUT /api/connectors/github/repos` · `POST /api/connectors/github/sync` · `DELETE /api/connectors/github` · `GET /api/feed` · `POST /api/feed/read`
 `POST /api/stop` · `GET /api/activity` · `GET /api/logs/export` · `POST /api/persona/reload`
 
 ## Repo layout

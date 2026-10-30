@@ -316,3 +316,10 @@ body, .panel, .btn, .nav__item { transition: border-color 0.6s, box-shadow 0.6s,
 .listening--paused .listening__dot { animation: none; opacity: 0.5; }
 .listening--awake { border-color: var(--accent); }
 .mic--hands { background: rgba(6, 78, 59, 0.45); border-color: var(--ok); color: #d1fae5; box-shadow: 0 0 14px rgba(52, 211, 153, 0.4); }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.chip--on { border-color: var(--accent); color: var(--accent-strong); background: rgba(34, 211, 238, 0.12); }
+.feed > span:first-child { flex: 1; min-width: 220px; }
+.feed--unread { border-color: var(--line-strong); }
+.feed--u3 { border-color: rgba(248, 113, 113, 0.6); }
+.feed--u3 .feed__icon { color: var(--bad); }
+.feed__icon { display: inline-block; width: 16px; text-align: center; color: var(--accent); }

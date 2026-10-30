@@ -6,6 +6,7 @@ import { PreferenceStore } from "./preferences.ts";
 import { ReminderStore } from "./reminders.ts";
 import { ActionStore } from "./actions.ts";
 import { FileIndexStore } from "./files.ts";
+import { ConnectorStore } from "./connectors.ts";
 
 export { openDatabase, migrate, rollback, type Db } from "./db.ts";
 export { MIGRATIONS } from "./migrations.ts";
@@ -16,6 +17,7 @@ export { PreferenceStore } from "./preferences.ts";
 export { ReminderStore, type Reminder } from "./reminders.ts";
 export { ActionStore, type ToolExecution, type ExecutionStatus } from "./actions.ts";
 export { FileIndexStore, type Folder, type FileHit } from "./files.ts";
+export { ConnectorStore, type ConnectorEvent, type IntegrationRow, type NewConnectorEvent } from "./connectors.ts";
 
 export interface Stores {
   db: Db;
@@ -26,6 +28,7 @@ export interface Stores {
   reminders: ReminderStore;
   actions: ActionStore;
   files: FileIndexStore;
+  connectors: ConnectorStore;
   close(): void;
 }
 
@@ -40,6 +43,7 @@ export function openStores(file: string): Stores {
     reminders: new ReminderStore(db),
     actions: new ActionStore(db),
     files: new FileIndexStore(db),
+    connectors: new ConnectorStore(db),
     close: () => db.close(),
   };
 }

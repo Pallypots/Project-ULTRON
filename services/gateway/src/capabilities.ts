@@ -46,7 +46,7 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
       detail: "check the time; set, list and cancel reminders and timers; search and read files in folders you approved; open a website or a file on screen (asks for approval first). App control not yet available",
     },
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
-    { id: "integrations", label: "Connected accounts (email, calendar, GitHub, YouTube...)", status: "not_implemented", detail: "none connected" },
+    { id: "integrations", label: "Connected accounts", status: "enabled", detail: "GitHub (read-only, if connected in Connections); YouTube, Reddit, Discord, email and calendar not available yet. Use connected_updates for real data; never guess" },
     { id: "screen", label: "Screen viewing", status: "disabled", detail: "not available" },
     { id: "remote", label: "Phone / remote access", status: "disabled", detail: "local computer only for now" },
   ];
