@@ -113,15 +113,20 @@ export async function handleUserMessage(
   });
   emit({ type: "start", userMessage, assistantMessageId: assistant.id, provider: providerId, model: modelId });
 
-  const toolEvents: ToolEvent[] = [];
+  let toolEvents: ToolEvent[] = [];
+  // The owner may approve or deny an action while this reply is still streaming; never write back a stale status.
+  const latest = () => (toolEvents = toolEvents.map((t) => {
+    const e = stores.actions.get(t.executionId);
+    return e ? toEvent(e) : t;
+  }));
   const finish = (text: string, status: Message["status"], memoryIds: string[] = []) => {
-    const done = stores.conversations.updateMessage(assistant.id, { content: text, status, memoryIds, toolEvents })!;
+    const done = stores.conversations.updateMessage(assistant.id, { content: text, status, memoryIds, toolEvents: latest() })!;
     emit({ type: "done", message: done });
   };
   const recordTool = (e: ToolEvent) => {
     toolEvents.push(e);
     emit({ type: "tool", event: e });
-    stores.conversations.updateMessage(assistant.id, { toolEvents });
+    stores.conversations.updateMessage(assistant.id, { toolEvents: latest() });
   };
 
   // Explicit memory commands are handled deterministically, so saving never depends on the model's mood.
@@ -261,6 +266,7 @@ export async function handleUserMessage(
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
+    rapport: rapportFor(stores, conversationId, opts.inputMode),
   });
   const turns: ChatTurn[] = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id));
 
@@ -317,3 +323,33 @@ export async function handleUserMessage(
     finish(text ? `${text}\n\n[Stopped: ${message}]` : message, "error");
   }
 }
+
+/** "3 hours ago", "yesterday", "2 weeks ago": how a friend would put it. */
+export function humanAgo(ms: number): string {
+  const min = Math.round(ms / 60_000);
+  if (min < 2) return "a moment ago";
+  if (min < 60) return `${min} minutes ago`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} hour${h === 1 ? "" : "s"} ago`;
+  const d = Math.round(h / 24);
+  if (d === 1) return "yesterday";
+  if (d < 14) return `${d} days ago`;
+  if (d < 60) return `${Math.round(d / 7)} weeks ago`;
+  return `${Math.round(d / 30)} months ago`;
+}
+
+/** Catch-up context: when the owner last talked to ULTRON and what about (other conversations only). */
+export function rapportFor(stores: Stores, conversationId: string, inputMode?: "text" | "voice") {
+  const others = stores.conversations.list().filter((c) => c.id !== conversationId && c.title !== "New conversation");
+  const current = stores.conversations.messages(conversationId).filter((m) => m.role === "user");
+  // Earlier in this same conversation counts too (the last message before this one).
+  const prevHere = current.length >= 2 ? current[current.length - 2]!.createdAt : null;
+  const lastOther = others[0]?.updatedAt ?? null;
+  const last = [prevHere, lastOther].filter(Boolean).sort().at(-1) ?? null;
+  return {
+    lastChat: last ? humanAgo(Date.now() - new Date(last).getTime()) : null,
+    recentTopics: others.slice(0, 5).map((c) => c.title.slice(0, 80)),
+    inputMode,
+  };
+}
+

@@ -85,7 +85,7 @@ export function App() {
     location.hash = view;
   }, [view]);
 
-  // Each kind of brain gets its own skin: local = cyan, cloud = amber, test = violet.
+  // Each kind of brain gets its own skin: local = Ultron red, cloud = amber, test = violet.
   useEffect(() => {
     if (status) document.documentElement.dataset.brain = status.where;
   }, [status?.where]);

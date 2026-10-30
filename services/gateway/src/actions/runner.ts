@@ -27,7 +27,7 @@ export { MAX_CALLS_PER_TURN };
 export type Decision = "allow" | "needs_approval" | "deny";
 
 /** The policy engine: model output is only ever a proposal; this decides what actually happens. */
-export function decide(tool: ToolDef, policy: ActionPolicy): { decision: Decision; reason: string } {
+export function decide(tool: Pick<ToolDef, "risk">, policy: ActionPolicy): { decision: Decision; reason: string } {
   if (tool.risk >= 3) return { decision: "deny", reason: "High-risk actions (money, deleting, security settings) are blocked." };
   if (policy.paused && tool.risk >= 1) return { decision: "deny", reason: "Actions are paused (Settings → Actions)." };
   if (tool.risk === 2 || (tool.risk === 1 && policy.confirmLowRisk)) return { decision: "needs_approval", reason: "Needs the owner's approval in the app." };
@@ -47,6 +47,8 @@ export const toEvent = (e: ToolExecution): ToolEvent => {
 };
 
 export class ActionRunner {
+  /** Hook for tools that change memories (wired to meaning-based indexing by the app). */
+  onMemoryChanged?: () => void;
   constructor(
     private stores: Stores,
     private bus: EventBus,
@@ -73,17 +75,18 @@ export class ActionRunner {
     if (!parsed.success) {
       return { execution: null, resultForModel: JSON.stringify({ error: `Invalid input for ${name}: ${parsed.error.issues.map((i) => i.message).join("; ")}` }) };
     }
-    const { decision, reason } = decide(tool, this.policy());
+    const risk = tool.riskFor?.(parsed.data, { stores: this.stores, conversationId: ctx.conversationId }) ?? tool.risk;
+    const { decision, reason } = decide({ risk }, this.policy());
     const exec = this.stores.actions.create({
       conversationId: ctx.conversationId,
       tool: tool.name,
       input: parsed.data as Record<string, unknown>,
-      risk: tool.risk,
+      risk,
       requestedBy: ctx.requestedBy,
       summary: tool.describe(parsed.data),
       status: decision === "allow" ? "running" : decision === "deny" ? "denied" : "awaiting_approval",
     });
-    this.stores.audit.record(`action.${decision === "allow" ? "started" : decision === "deny" ? "denied" : "awaiting_approval"}`, ctx.requestedBy, exec.id, { tool: tool.name, risk: tool.risk });
+    this.stores.audit.record(`action.${decision === "allow" ? "started" : decision === "deny" ? "denied" : "awaiting_approval"}`, ctx.requestedBy, exec.id, { tool: tool.name, risk });
     if (decision === "deny") {
       const e = this.stores.actions.update(exec.id, { status: "denied", error: reason })!;
       this.bus.emit({ type: "action_updated", execution: e });
@@ -103,7 +106,7 @@ export class ActionRunner {
   private async execute(exec: ToolExecution, tool: ToolDef): Promise<ToolExecution> {
     try {
       const result = await Promise.race([
-        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files, connectors: this.connectors }),
+        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files, connectors: this.connectors, onMemoryChanged: this.onMemoryChanged }),
         new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Timed out after ${tool.timeoutMs / 1000}s.`)), tool.timeoutMs)),
       ]);
       const e = this.stores.actions.update(exec.id, { status: "succeeded", result: capResult(result) })!;

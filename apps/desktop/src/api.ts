@@ -67,6 +67,7 @@ export interface PersonaInfo {
   ownerSalutation: string;
   wakeNames: string[];
   traits: string[];
+  style: string;
   tone: { humor: number; sarcasm: number; formality: number; verbosity: "brief" | "adaptive" | "detailed" };
   boundaries: string[];
 }
@@ -226,8 +227,8 @@ export const api = {
   shortcuts: () => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("GET", "/api/system/shortcuts"),
   setStartAtLogin: (enabled: boolean) => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("POST", "/api/system/start-at-login", { enabled }),
   createDesktopShortcut: () => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("POST", "/api/system/desktop-shortcut"),
-  persona: () => call<{ persona: PersonaInfo }>("GET", "/api/persona"),
-  savePersona: (p: Partial<Omit<PersonaInfo, "boundaries" | "traits">>) => call<{ persona: PersonaInfo }>("PUT", "/api/persona", p),
+  persona: () => call<{ persona: PersonaInfo; homeLocation: string }>("GET", "/api/persona"),
+  savePersona: (p: Partial<Omit<PersonaInfo, "boundaries" | "traits">> & { homeLocation?: string }) => call<{ persona: PersonaInfo; homeLocation: string }>("PUT", "/api/persona", p),
   resetPersona: () => call<{ persona: PersonaInfo }>("DELETE", "/api/persona"),
   connectors: () => call<{ connectors: ConnectorInfo[] }>("GET", "/api/connectors"),
   connectGithub: (token: string) => call<{ connector: ConnectorInfo }>("POST", "/api/connectors/github/connect", { token }),

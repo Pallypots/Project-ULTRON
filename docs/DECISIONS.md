@@ -98,6 +98,15 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-023 · 2026-10-30 · Knowledge tools without accounts, and input-dependent risk for web reads
+Calculator (own parser, no `eval`), Wikipedia REST API, Open-Meteo weather and geocoding: all free, keyless and read-only, so they work for
+every owner with no sign-up. Reading web pages is the dangerous one: a prompt-injected page or a confused model could put private data into a URL
+(exfiltration) or aim at `localhost`/the LAN (SSRF). So `read_webpage` is **L0 only for links the owner typed in this conversation** and L2
+(approval card) otherwise (`ToolDef.riskFor`); every request and redirect hop is DNS-resolved and refused if any address is
+private/loopback/link-local; only http(s), no credentials in URLs, 2 MB cap, text/html or text/plain only. No general web search yet: the
+free options are scraping (against site terms) or need keys; a keyed search provider can be added later as an opt-in.
+Memory suggestions reuse the approval system (`save_memory`, L2) rather than letting the model write memories directly (D-004 still holds).
+
 ### D-022 · 2026-10-30 · Local embeddings for memory recall (hybrid with BM25)
 Supersedes the "later" in D-003. `Xenova/all-MiniLM-L6-v2` via the already-installed transformers.js (no new dependency), vectors stored as
 BLOBs in SQLite (`memory_vectors`, cascade-deleted with the memory, refreshed by content hash). Brute-force cosine is fine for thousands of

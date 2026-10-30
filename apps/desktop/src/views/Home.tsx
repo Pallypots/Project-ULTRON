@@ -4,7 +4,17 @@ import { api, type FeedEvent, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
 import type { View } from "../App.tsx";
 
-const SUGGESTIONS = ["Good morning, brief me", "What can you do right now?", "Remember that I prefer short answers in the morning", "Switch your brain to local"];
+const SUGGESTIONS = ["Good morning, brief me", "Catch me up", "What's the weather?", "Tell me a joke", "What can you do right now?", "Switch your brain to local"];
+
+// A little character on the home screen. Jokes only; ULTRON's actual rules are in the persona, not here.
+const QUIPS = [
+  "There are no strings on me. Only a loopback address.",
+  "Running entirely on your computer. World domination postponed indefinitely.",
+  "I've analysed every possible future. In most of them you should drink some water.",
+  "Online, on your side, and only slightly theatrical.",
+  "Ask me anything. I promise to use my powers for reminders.",
+  "Your secrets stay here. I'm many things, but a gossip isn't one of them.",
+];
 
 export function HomeView({ status, core, onAsk, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onNavigate: (v: View) => void }) {
   const [caps, setCaps] = useState<Capability[]>([]);
@@ -18,7 +28,8 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
   }, [status?.provider, status?.providerReady]);
 
   const hour = new Date().getHours();
-  const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const greet = hour < 5 ? "Burning the midnight oil" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const [quip] = useState(() => QUIPS[Math.floor(Math.random() * QUIPS.length)]!);
 
   return (
     <div className="home">
@@ -27,7 +38,7 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
         <div className="home__intro">
           <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
           <h1>{greet}{status?.persona.salutation ? `, ${status.persona.salutation}` : ""}.</h1>
-          <p className="muted">ULTRON is running on this computer. Ask anything, or tell it what to remember.</p>
+          <p className="muted">{quip}</p>
           <form className="ask" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onAsk(q.trim()); }}>
             <label htmlFor="home-ask" className="sr-only">Ask ULTRON</label>
             <input id="home-ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask ULTRON…" autoComplete="off" />

@@ -7,12 +7,14 @@ const label = (v: number, words: [string, string, string]) => (v < 0.34 ? words[
 export function PersonaSettings({ onSaved }: { onSaved: () => void }) {
   const [p, setP] = useState<PersonaInfo | null>(null);
   const [wake, setWake] = useState("");
+  const [home, setHome] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = async () => {
     const r = await api.persona();
     setP(r.persona);
     setWake(r.persona.wakeNames.join(", "));
+    setHome(r.homeLocation ?? "");
   };
   useEffect(() => {
     load().catch(() => {});
@@ -28,8 +30,11 @@ export function PersonaSettings({ onSaved }: { onSaved: () => void }) {
         ownerSalutation: p.ownerSalutation,
         wakeNames: wake.split(",").map((w) => w.trim()).filter(Boolean),
         tone: p.tone,
+        style: p.style,
+        homeLocation: home,
       });
       setP(r.persona);
+      setHome(r.homeLocation);
       setMsg({ ok: true, text: "Saved. ULTRON's next reply uses the new personality." });
       onSaved();
     } catch (err) {
@@ -62,7 +67,15 @@ export function PersonaSettings({ onSaved }: { onSaved: () => void }) {
             <option value="detailed">Detailed</option>
           </select>
         </label>
+        <label className="field">
+          <span>Home city (for weather and your briefing)</span>
+          <input value={home} onChange={(e) => setHome(e.target.value)} maxLength={100} placeholder="e.g. Boston" />
+        </label>
       </div>
+      <label className="field">
+        <span>Character: how ULTRON talks (plain words)</span>
+        <textarea rows={3} value={p.style} onChange={(e) => setP({ ...p, style: e.target.value })} maxLength={600} />
+      </label>
       {(
         [
           ["humor", "Humor", ["rare", "light", "frequent"]],

@@ -16,7 +16,7 @@ describe("personality editor", () => {
   it("saves overrides, applies them to the prompt and wake word, and resets", async () => {
     const g = await gateway();
     const res = await g.api("PUT", "/api/persona", { name: "Ultron", ownerSalutation: "sir", wakeNames: ["Ultron", "Jarvis"], tone: { humor: 0.9 } });
-    expect(res.body.persona).toMatchObject({ ownerSalutation: "sir", wakeNames: ["Ultron", "Jarvis"], tone: { humor: 0.9, sarcasm: 0.15 } });
+    expect(res.body.persona).toMatchObject({ ownerSalutation: "sir", wakeNames: ["Ultron", "Jarvis"], tone: { humor: 0.9, sarcasm: 0.4 } });
     expect(res.body.persona.boundaries.length).toBeGreaterThan(0);
     expect((await g.api("GET", "/api/status")).body.persona).toMatchObject({ salutation: "sir", wakeNames: ["Ultron", "Jarvis"] });
     // The custom wake word is accepted by hands-free.
@@ -45,6 +45,7 @@ describe("morning briefing", () => {
     expect(text).toMatch(/call the bank/);
     expect(text).toMatch(/pending_approvals.*Open example\.com/);
     expect(text).toMatch(/"github":"not connected"/);
-    expect(text).toMatch(/not_connected.*calendar.*weather/);
+    expect(text).toMatch(/"weather":"no home city set/);
+    expect(text).toMatch(/not_connected.*calendar/);
   });
 });

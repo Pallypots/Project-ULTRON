@@ -38,6 +38,9 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Hands-free API | non-addressed speech returns `{addressed:false}` and leaves no trace in Activity; addressed returns only the command; refused with cloud STT; on/off audited |
 | E2E hands-free | toggle on → fake-mic speech prefixed "Ultron," becomes a voice message (wake word stripped) and gets a reply; toggle off; Activity entry |
 | Connectors | GitHub event mapping (first-line titles, failed runs urgent), bad token / rate limit / unknown repo errors, connect read test, repo validation, sync + dedupe on re-sync, Important filter, rate-limit backoff keeps last good sync, brain gets feed status, hostile issue title stays data, disconnect deletes token + events |
+| Knowledge tools | calculator precedence/percent/functions and rejection of non-maths; Wikipedia found/not found; weather for a place, home city, unknown place, in the briefing; web page text extraction, redirects, non-HTML refused; private/loopback/link-local/IPv6 addresses refused; owner-typed links read directly, model-picked links need approval |
+| Memory offers & personality | proposal waits for approval, saved once (duplicates detected), secrets refused even if approved; prompt contains companion/humour/catch-up/spoken-style rules; humour off removes jokes; character text editable and reset |
+| E2E memory offer | "my sister's birthday is March 3" → approval card shows exactly what will be saved → Approve → appears in Memory Vault |
 | Embeddings | vectors stored, refreshed after edits, dropped on delete; hybrid merge with keyword search; off mode = keyword only |
 | Real meaning-based recall (CI, `ULTRON_TEST_EMBED=1`) | downloads all-MiniLM-L6-v2; "how hot should the oven be?" must recall the bread-baking memory, which shares no keywords |
 | Real GitHub (CI, `ULTRON_TEST_GITHUB=1`) | syncs this repository with the Actions read-only token; checks event shapes and links |

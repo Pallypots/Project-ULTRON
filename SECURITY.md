@@ -34,6 +34,13 @@ A separate reviewer audited auth, actions, files, connectors and secrets overnig
 **Scope note:** the local session token protects against websites and other browsers. Like any single-user desktop app, it does not protect against
 other programs already running as your Windows user (they could read the same data folder).
 
+## Web reading (v0.12)
+`read_webpage` only fetches public http(s) pages: each request and redirect hop is resolved and refused if any address is loopback, private,
+link-local, CGNAT or multicast (blocks `localhost:7477`, routers, cloud metadata), and links with credentials are refused. A link the owner typed
+in the conversation is read directly; any other link needs an approval card, so a malicious page can't make ULTRON send data out in a URL.
+Page text is labelled untrusted and capped (2 MB download, 8,000 characters to the model). Residual risk: DNS rebinding between the check and the
+connection (low impact: only GET, response treated as data).
+
 ## Known gaps (tracked)
 | Gap | Plan |
 |---|---|

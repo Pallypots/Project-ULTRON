@@ -18,12 +18,15 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | Conversations saved and restored after restart | ✅ working |
 | "Remember that…" / "Forget…" in chat, with a Memory Vault to view, edit, pin, export, delete | ✅ working |
 | Memories recalled in *new* conversations, cited as `[memory:xxxxxxxx]` | ✅ working |
+| **Personality**: banter and jokes, catches up on what you last talked about, asks about your life; editable character | ✅ working (tone depends on the brain) |
+| **Offers to remember** personal facts you mention, saved only after you approve | ✅ working |
+| **Everyday help**: exact calculator, Wikipedia, weather + forecast, read/summarize a page you link | ✅ working (tested against local fakes; live services not yet checked in CI) |
 | Memory recall **by meaning** (local embeddings), merged with keyword search | ✅ working (real model tested in CI) |
 | Refuses to store passwords, card numbers, API keys, ID numbers | ✅ working |
 | **Local brain** on your PC via Ollama: detects your graphics card, recommends a model, one-click download, works offline | ✅ working (real model tested in CI) |
 | Switch brains by voice or chat ("switch your brain to local", "switch to Fable"), with a color skin per brain | ✅ working |
 | Optional cloud brains: Claude, OpenAI | ✅ built, **not yet tested with a live key** |
-| Original cyan HUD interface, high-contrast and reduced-motion modes, phone-width layout | ✅ working |
+| Original red Ultron HUD interface, high-contrast and reduced-motion modes, phone-width layout | ✅ working |
 | Online/offline indicator, emergency **Stop all**, activity/audit log, redacted log export | ✅ working |
 | Voice input: push-to-talk (hold button or Space), speech recognized **on your PC** by Whisper, or OpenAI | ✅ working (see [Voice](docs/VOICE.md)) |
 | **Spoken replies** with a natural voice generated **on your PC** (Kokoro), sentence-by-sentence; interrupt by talking, Esc or Stop | ✅ working (real voice tested in CI) |

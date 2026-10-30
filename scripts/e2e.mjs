@@ -249,6 +249,21 @@ try {
   await page.locator(".tool--succeeded", { hasText: "Open example.com" }).waitFor({ timeout: 20000 });
   step("External action waits for Approve, then runs once (dry-run in tests)");
 
+  await page.getByRole("button", { name: "Send", exact: true }).waitFor(); // previous reply finished
+  // Approving mid-reply must not be undone when the reply finishes.
+  await page.locator(".tool--succeeded", { hasText: "Open example.com" }).waitFor();
+  await composer.fill("my sister's birthday is March 3");
+  await composer.press("Enter");
+  const offer = page.locator(".tool--awaiting_approval", { hasText: "Remember" });
+  await offer.getByText("Their sister's birthday is March 3").first().waitFor();
+  await page.screenshot({ path: join(shots, "18-offer-to-remember.png") });
+  await offer.getByRole("button", { name: "Approve" }).click();
+  await page.locator(".tool--succeeded", { hasText: "Remember" }).waitFor({ timeout: 20000 });
+  await page.getByRole("button", { name: "Memory Vault" }).click();
+  await page.getByText("Their sister's birthday is March 3").first().waitFor();
+  await page.getByRole("button", { name: "Chat" }).click();
+  step("ULTRON offers to remember a personal fact; saved only after Approve");
+
   await page.getByRole("button", { name: "Reminders" }).click();
   await page.locator(".reminder--past", { hasText: "3-second timer" }).waitFor();
   await page.getByLabel("Reminder", { exact: true }).fill("Check the oven");
@@ -393,7 +408,7 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.brain === "local", null, { timeout: 8000 });
   await page.locator(".pill", { hasText: "local · qwen3:8b" }).waitFor({ timeout: 8000 });
   await page.screenshot({ path: join(shots, "08-local-ai-setup.png") });
-  step("Switched to the local brain: status pill and cyan local skin");
+  step("Switched to the local brain: status pill and red local skin");
 
   await page.getByRole("button", { name: "Chat" }).click();
   await page.getByRole("button", { name: "+ New conversation" }).click();
@@ -432,6 +447,8 @@ try {
   failed = true;
   console.error("✗ E2E failed:", err.message);
   console.error("  recent requests:\n   " + recent.join("\n   "));
+  const lastMessages = await page.locator(".msg").allInnerTexts().catch(() => []);
+  console.error("  last messages on screen:\n   " + lastMessages.slice(-3).map((t) => t.replace(/\s+/g, " ").slice(0, 300)).join("\n   "));
   if (process.env.GITHUB_ACTIONS) {
     const oneLine = (s) => String(s).replace(/\r?\n/g, " ⏎ ").slice(0, 1500);
     console.log(`::error title=Browser E2E failed (${process.platform}) after "${passed.at(-1) ?? "start"}"::${oneLine(err.message)} || recent: ${oneLine(recent.slice(-12).join(" | "))}`);

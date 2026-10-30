@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0 · 2026-10-30 · Red ULTRON, a real personality, and new abilities
+- **Red interface** inspired by the films' Ultron (new red icon too). Local brain = red; cloud = amber; test = violet.
+- **Personality:** witty, a little theatrical, warm. It banters, makes the occasional joke, asks about your projects and plans, and **catches up**
+  (it knows when you last talked and what about). Spoken questions get spoken-style answers (no lists or Markdown read aloud).
+  Settings → Personality → **Character** lets you rewrite how it talks.
+- **Offers to remember** things you mention ("my sister's birthday is March 3"). Saved only if you click Approve; secrets are still refused.
+- **New abilities:** exact calculator, Wikipedia look-ups, weather + 3-day forecast (set your **Home city** in Settings → Personality),
+  and reading/summarizing a web page you link. The morning briefing now includes the weather.
+- Fixed: approving an action while ULTRON was still finishing its reply could show it as "waiting" again afterwards.
+
 ## 0.11.0 · 2026-10-30 · Meaning-based memory recall (local)
 - ULTRON now finds memories by *meaning*, not only shared words: "how hot should the oven be?" recalls "I bake bread at 230 degrees".
 - Runs on your PC with a small local model (all-MiniLM-L6-v2, ~23 MB, downloaded once on first use). No cloud. Falls back to keyword search if the model isn't available.

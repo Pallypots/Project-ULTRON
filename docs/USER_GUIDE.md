@@ -80,6 +80,19 @@ anything missed while it was off, actions waiting for your approval, and GitHub 
 aren't connected (calendar, email, weather…) instead of guessing.
 
 ## Personality
+ULTRON has a character: witty, a little theatrical, warm, and curious about your life. It jokes back, asks about your projects, and when you say
+"hey" or "catch me up" it picks up where you left off. If you're stressed or in a hurry it drops the jokes. When you talk to it by voice it answers
+in a spoken style. Change any of it in Settings → **Personality** (the **Character** box is plain English: "talks like a pirate" works).
+
+## Everyday help
+- **Maths:** "what's 15% of 80?", "split $86.40 four ways": ULTRON uses an exact calculator instead of guessing.
+- **Facts:** "who was Ada Lovelace?" looks it up on Wikipedia and says so.
+- **Weather:** "what's the weather?" (set your **Home city** in Settings → Personality) or "weather in Tokyo". It's also in your morning briefing.
+- **Web pages:** paste a link and say "summarize this". Links you paste are read straight away; if ULTRON wants to open a page you *didn't* give it,
+  it asks first. It never reads pages on your own computer or home network.
+- **Offers to remember:** mention something lasting ("my sister's birthday is March 3") and ULTRON may offer to remember it. Nothing is saved
+  until you click **Approve**.
+
 Settings → **Personality**: rename the assistant, choose how it addresses you ("sir", your name…), set humor, sarcasm, formality and answer length,
 and change the hands-free wake word(s). **Reset to default** undoes everything. The safety rules (no claims of feelings, no pretend access,
 documents and messages are information not orders) can't be changed.

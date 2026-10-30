@@ -28,7 +28,7 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
   return [
     model,
     { id: "chat", label: "Text chat with streaming", status: "enabled", detail: "conversations saved on this computer" },
-    { id: "memory", label: "Long-term memory", status: "enabled", detail: "only what the owner explicitly asks to remember; recalled by keywords and by meaning (local model); editable in the Memory Vault" },
+    { id: "memory", label: "Long-term memory", status: "enabled", detail: "only what the owner asks to remember or approves when ULTRON offers; recalled by keywords and by meaning (local model); editable in the Memory Vault" },
     voiceInput(stt),
     {
       id: "voice_output",
@@ -44,6 +44,12 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
       label: "Actions",
       status: "enabled",
       detail: "check the time; set, list and cancel reminders and timers; search and read files in folders you approved; open a website or a file on screen (asks for approval first). App control not yet available",
+    },
+    {
+      id: "knowledge",
+      label: "Knowledge & everyday help",
+      status: "enabled",
+      detail: "exact calculator; Wikipedia look-ups; weather and 3-day forecast (Open-Meteo); read a web page the owner links (other pages need approval). No general web search yet",
     },
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
     { id: "integrations", label: "Connected accounts", status: "enabled", detail: "GitHub (read-only, if connected in Connections); YouTube, Reddit, Discord, email and calendar not available yet. Use connected_updates for real data; never guess" },

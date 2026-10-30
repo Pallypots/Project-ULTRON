@@ -29,7 +29,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.11.0";
+export const VERSION = "0.12.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -103,6 +103,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const embeddings = new EmbeddingService(stores, join(config.dataDir, "models"));
   // Prepare meaning-based recall in the background if there's anything to recall.
   if (stores.memories.list().length) embeddings.backfill().catch(() => {});
+  actions.onMemoryChanged = () => void embeddings.backfill().catch(() => {});
   const deps = { embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   // ---- public ----
@@ -577,13 +578,16 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     persona = loadEffectivePersona();
     return { ok: true, name: persona.name };
   });
-  app.get("/api/persona", async () => ({ persona, defaults: loadPersona(config.personaFile), overrides: stores.preferences.get("persona_overrides", {}) }));
+  const homeLocation = () => stores.preferences.get<string>("home_location", "");
+  app.get("/api/persona", async () => ({ persona, defaults: loadPersona(config.personaFile), overrides: stores.preferences.get("persona_overrides", {}), homeLocation: homeLocation() }));
   app.put("/api/persona", async (req) => {
-    const o = PersonaOverrides.parse(req.body);
+    const { homeLocation: home, ...rest } = (req.body ?? {}) as Record<string, unknown>;
+    const o = PersonaOverrides.parse(rest);
+    if (home !== undefined) stores.preferences.set("home_location", z.string().trim().max(100).regex(/^[^<>{}]*$/, "Use a plain place name.").parse(home));
     stores.preferences.set("persona_overrides", o);
     persona = loadEffectivePersona();
-    stores.audit.record("persona.changed", "owner", null, { fields: Object.keys(o) });
-    return { persona };
+    stores.audit.record("persona.changed", "owner", null, { fields: [...Object.keys(o), ...(home !== undefined ? ["homeLocation"] : [])] });
+    return { persona, homeLocation: homeLocation() };
   });
   app.delete("/api/persona", async () => {
     stores.preferences.set("persona_overrides", {});

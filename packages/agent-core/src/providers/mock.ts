@@ -49,6 +49,17 @@ export class MockProvider implements ModelProvider {
     if (has("connected_updates") && /what'?s new|any updates/i.test(text)) return { name: "connected_updates", args: /github/i.test(text) ? { source: "github" } : {} };
     const files = /\b(?:search (?:my )?files for|find (?:my )?files about|pull up)\s+(.+?)[?.!]*$/i.exec(text);
     if (files && has("search_files")) return { name: "search_files", args: { query: files[1] } };
+    const sum = /^(?:calculate|what(?:'s| is))\s+([\d(.][\d\s+\-*/^%().,]*?)\s*\??$/i.exec(text);
+    if (sum && has("calculate")) return { name: "calculate", args: { expression: sum[1]!.trim() } };
+    const weather = /\bweather(?:\s+(?:in|for|at)\s+([\p{L} ,.'-]+?))?\s*[?.!]*$/iu.exec(text);
+    if (weather && has("get_weather")) return { name: "get_weather", args: weather[1] ? { place: weather[1] } : {} };
+    const wiki = /^(?:look up|who (?:is|was)|tell me about)\s+(.+?)[?.!]*$/i.exec(text);
+    if (wiki && has("lookup_wikipedia")) return { name: "lookup_wikipedia", args: { topic: wiki[1] } };
+    const read = /\b(?:summari[sz]e|read)\s+(https?:\/\/\S+)/i.exec(text);
+    if (read && has("read_webpage")) return { name: "read_webpage", args: { url: read[1] } };
+    // A personal fact ("my sister's birthday is March 3") → offer to remember it, like a real model is told to.
+    const fact = /^(?:ultron[,\s]+)?my\s+(.{3,120}?)\s+(is|are|was)\s+(.{2,120}?)[.!]*$/i.exec(text);
+    if (fact && has("save_memory")) return { name: "save_memory", args: { content: `Their ${fact[1]} ${fact[2]} ${fact[3]}` } };
     const url = /\bopen\s+(https?:\/\/\S+)/i.exec(text);
     if (url && has("open_website")) return { name: "open_website", args: { url: url[1] } };
     return null;
