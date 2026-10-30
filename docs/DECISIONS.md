@@ -41,5 +41,15 @@ stored in the data folder. Remote access waits for Phase 5 (Tailscale + device p
 ### D-009 · npm workspaces, TypeScript run directly with `tsx`
 No compile step for the server, so fewer moving parts for a non-technical owner. Pinned TypeScript 5.9 (7.x is the brand-new native compiler; not worth the risk yet).
 
+### D-011 · 2026-10-30 · Speech recognition runs on the PC by default (local Whisper)
+Free, private and offline after a one-time model download, matching the blueprint's privacy defaults. Implemented with transformers.js (ONNX Runtime),
+so there's no Python, no separate service and no native compile for the owner. Cost: `onnxruntime-node` adds ~548 MB to `node_modules` because it bundles every OS;
+the Windows x64 part is ~64 MB. OpenAI transcription is an optional cloud alternative. Engines sit behind `SttEngine`, so whisper.cpp or Piper-era local
+services can replace this without UI changes.
+
+### D-012 · 2026-10-30 · Push-to-talk over plain HTTP; realtime transport decided by measurement
+See [VOICE.md](VOICE.md#voice-transport-livekit-vs-direct-provider-realtime-blueprint-phase-2-comparison). LiveKit is the leading candidate if
+client-side barge-in plus streamed TTS can't meet latency targets on the owner's hardware.
+
 ### D-010 · SSE (not WebSocket) for streaming replies
 Simpler, works through proxies, trivially testable. WebSocket/WebRTC will be introduced for voice (Phase 2) and multi-device push (Phase 5).

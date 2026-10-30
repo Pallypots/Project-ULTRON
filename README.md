@@ -19,7 +19,8 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | Choose the brain: built-in mock (no account), Claude, OpenAI, or a local model (Ollama/LM Studio) | ✅ built; mock is tested, real providers **not yet tested with a live key** |
 | Original cyan HUD interface, high-contrast and reduced-motion modes, phone-width layout | ✅ working |
 | Online/offline indicator, emergency **Stop all**, activity/audit log, redacted log export | ✅ working |
-| Voice (push-to-talk, spoken replies) | ⏳ next cycle |
+| Voice input: push-to-talk (hold button or Space), speech recognized **on your PC** by Whisper, or OpenAI | ✅ working (see [Voice](docs/VOICE.md)) |
+| Spoken replies, interruptions | ⏳ next cycle |
 | Reminders and other actions, connected accounts, phone access | ⏳ planned (see [ROADMAP](docs/ROADMAP.md)) |
 
 ## Start it on Windows (no coding needed)
@@ -57,4 +58,4 @@ Your data lives in `%APPDATA%\ULTRON` on Windows (`~/.ultron` elsewhere): `ultro
 ## Documentation
 
 [User guide](docs/USER_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [Decisions](docs/DECISIONS.md) · [Roadmap](docs/ROADMAP.md) ·
-[Security](SECURITY.md) · [Testing](docs/TESTING.md) · [Changelog](CHANGELOG.md) · [OpenClaw evaluation](docs/OPENCLAW_SPIKE.md)
+[Voice](docs/VOICE.md) · [Security](SECURITY.md) · [Testing](docs/TESTING.md) · [Changelog](CHANGELOG.md) · [OpenClaw evaluation](docs/OPENCLAW_SPIKE.md)

@@ -14,10 +14,14 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 - ✅ UL-006 memory CRUD + retrieval + provenance + citations
 - 🟡 UL-007 original cyan HUD + high-contrast/reduced-motion ✅; persona editor UI pending
 
-## Next cycle
-1. ⏳ **UL-008** microphone permission, push-to-talk, transcription (with a written LiveKit vs direct-provider comparison)
-2. ⏳ **UL-009** spoken replies, barge-in/interruption, voice transcript persistence
-3. ⏳ **UL-010** tool policy registry (risk levels L0–L3, approval modal), clock + reminders with a real scheduler, audit integration
+## Cycle 2
+- ✅ **UL-008** microphone permission, push-to-talk (hold / Space / click-latch / Esc), local Whisper + OpenAI transcription, mic picker and test,
+  voice transcript persistence (`inputMode`), LiveKit vs direct-provider comparison (benchmark on owner hardware still open)
+
+## Next
+1. ⏳ **UL-009** spoken replies (streamed TTS), barge-in/interruption, voice selection
+2. ⏳ **UL-010** tool policy registry (risk levels L0–L3, approval modal), clock + reminders with a real scheduler, audit integration
+3. ⏳ Voice benchmark on the owner's PC (time to transcript / first audio, interruption reliability)
 Also queued: live-key provider validation on the owner's PC, Tauri build on Windows, persona editor, usage/cost display.
 
 ## Phase 2–7 (from the blueprint)

@@ -37,7 +37,11 @@ const browser = await chromium.launch({
   args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-audio-capture=${speech}`, "--autoplay-policy=no-user-gesture-required"],
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-const step = (name) => console.log(`✓ ${name}`);
+const passed = [];
+const step = (name) => {
+  passed.push(name);
+  console.log(`✓ ${name}`);
+};
 let failed = false;
 try {
   await page.goto(base);
@@ -196,4 +200,5 @@ try {
   await browser.close();
   server.kill();
 }
+if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Browser E2E (${process.platform})::${failed ? "FAILED" : "all steps passed"}: ${passed.join(" | ")}`);
 process.exit(failed ? 1 : 0);

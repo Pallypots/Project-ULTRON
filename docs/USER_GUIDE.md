@@ -4,6 +4,15 @@
 Open **Chat**, type, press **Enter**. **Shift+Enter** adds a new line. **Esc** or **Stop** cancels a reply mid-sentence.
 **Stop all** (bottom-left, every screen) cancels everything ULTRON is doing.
 
+## Talking to ULTRON (push-to-talk)
+- **Hold** the 🎙 **Talk** button and speak; let go to send. Or click somewhere that isn't a text box and **hold Space**.
+- **Click** Talk once to go hands-free, click again when you're done. **Esc** throws the recording away.
+- The microphone is on only while the red **Listening** bar is showing. Recordings are never saved, only the text.
+- First time: Windows/Edge asks for microphone permission. Allow it. Speech recognition runs **on your PC**; the first use downloads a speech model once
+  (Settings → Voice → "Download speech model now" does it ahead of time).
+- Wrong mic? Settings → Voice → pick it, then **Test microphone**: the bar should move when you talk.
+- Prefer to check the words first? Turn off "Send right after I stop talking"; the transcript appears in the message box for editing.
+
 ## Memory: what ULTRON remembers
 ULTRON only keeps long-term memories you explicitly give it:
 

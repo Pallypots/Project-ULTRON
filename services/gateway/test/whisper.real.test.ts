@@ -20,7 +20,10 @@ describe.skipIf(!enabled)("local Whisper engine (real model)", () => {
     const t1 = Date.now();
     const text = await engine.transcribe(samples);
     const ms = Date.now() - t1;
-    console.log(`[whisper] model=${engine.model} load=${loadMs}ms audio=${seconds.toFixed(1)}s transcribe=${ms}ms text="${text}"`);
+    const summary = `model=${engine.model} load=${loadMs}ms audio=${seconds.toFixed(1)}s transcribe=${ms}ms text="${text}"`;
+    console.log(`[whisper] ${summary}`);
+    // Surfaces the result as a GitHub annotation so it's visible on the run page.
+    if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Real Whisper transcription (${process.platform})::${summary}`);
     expect(text.toLowerCase()).toMatch(/ask not what your country can do for you/);
     expect(text.toLowerCase()).toMatch(/what you can do for your country/);
   }, 600_000);

@@ -35,11 +35,15 @@ Retrieval is behind `MemoryStore.retrieveForPrompt`, so embedding search can rep
 
 **Single source of truth:** the gateway owns all state. Clients hold no data except UI preferences and the session token.
 
-## API (v0.1)
+**Voice input (v0.2):** UI `Recorder` (getUserMedia → AudioWorklet → 16 kHz WAV) → `POST /api/voice/transcribe` → `SttManager.current()`
+(`LocalWhisperEngine` | `OpenAISttEngine` | `MockSttEngine`) → text → the normal chat turn with `inputMode: "voice"`. See [VOICE.md](VOICE.md).
+
+## API
 `GET /api/health` (public, sanitized) · `GET /api/bootstrap` (loopback-only token handout) · `GET /api/status` · `GET /api/capabilities`
 `GET/POST /api/conversations` · `GET/DELETE /api/conversations/:id` · `POST /api/conversations/:id/messages` (SSE)
 `GET/POST /api/memories` · `PATCH/DELETE /api/memories/:id` · `POST /api/memories/search` · `GET /api/memories/export`
 `GET/PUT /api/settings/provider` · `DELETE /api/settings/provider/:p/key` · `POST /api/settings/provider/test`
+`GET /api/voice/status` · `PUT /api/voice/settings` · `POST /api/voice/prepare` · `POST /api/voice/transcribe` (audio/wav)
 `POST /api/stop` · `GET /api/activity` · `GET /api/logs/export` · `POST /api/persona/reload`
 
 ## Repo layout
@@ -47,6 +51,7 @@ Retrieval is behind `MemoryStore.retrieveForPrompt`, so embedding search can rep
 apps/desktop          React UI (Vite) + experimental Tauri shell (src-tauri)
 services/gateway      HTTP API, auth, chat orchestration
 packages/schemas      shared Zod types
+packages/audio        WAV encode/decode, resampling (shared by UI and gateway)
 packages/agent-core   persona, prompt, intents, model providers
 packages/memory       SQLite persistence, migrations, retrieval, audit
 config/persona.json   ULTRON's identity (version-controlled)

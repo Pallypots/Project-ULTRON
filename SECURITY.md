@@ -9,6 +9,7 @@
 - **Honest capabilities.** The model is told the real capability state on every turn and instructed not to claim anything else.
 - **Kill switch.** "Stop all" and client disconnects abort in-flight model requests (no further tokens spent).
 - **Cost guards.** Max 16k output tokens per reply, history capped at 30 turns / 60k characters, one active reply per conversation.
+- **Microphone.** Opened only while push-to-talk is active, with a visible red Listening bar; all tracks stop immediately afterwards. Raw audio is processed in memory and never written to disk. The audit log records that the mic was used (engine, seconds, character count), never audio or words. Default engine is on-device Whisper; cloud transcription only if the owner selects it.
 - **Audit trail** of memory changes, setting changes, blocked saves, stops and model errors.
 
 ## Known gaps (tracked)
