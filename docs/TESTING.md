@@ -29,6 +29,17 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 - `npm run test:e2e`: **17/17 steps passed**
 - `npm run lint`: clean · `npm run build`: OK · `npm run doctor`: all checks pass
 
+## Results, GitHub Actions CI (windows-latest and ubuntu-latest, Node 22)
+- Lint, 49 tests + **real Whisper test**, build, doctor, **17-step browser E2E**: all passed on both OSes.
+- Real local Whisper (`Xenova/whisper-base.en`, CPU) on the 11.0 s JFK sample:
+
+| OS | Model load (cached) | Transcription time | Output |
+|---|---|---|---|
+| Windows | 1.6 s | 2.4 s | "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country." |
+| Linux | 1.8 s | 2.3 s | identical |
+
+These are cloud CI machines, not the owner's PC. Expect different numbers on your hardware; the first ever use also includes the one-time download.
+
 ## Not yet verified
 - Running on an actual Windows PC (CI covers Windows for unit tests once the repo is pushed to GitHub; the launcher `.bat`/`.ps1` needs a manual run).
 - Real microphone hardware and Edge's permission prompt on the owner's PC (E2E uses Chromium's fake microphone).
