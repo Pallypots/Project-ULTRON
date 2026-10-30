@@ -27,7 +27,7 @@ export function loadConfig(overrides: Partial<GatewayConfig> = {}): GatewayConfi
   const ui = join(REPO_ROOT, "apps/desktop/dist");
   return {
     // Loopback only. Remote access arrives in Phase 5 via Tailscale + device auth, never an open port.
-    host: "127.0.0.1",
+    host: "localhost", // binds both loopback addresses (127.0.0.1 and ::1); never external interfaces
     port: Number(process.env.ULTRON_PORT ?? 7477),
     dataDir: defaultDataDir(),
     personaFile: process.env.ULTRON_PERSONA_FILE ?? join(REPO_ROOT, "config/persona.json"),
