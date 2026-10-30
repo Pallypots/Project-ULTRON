@@ -5,7 +5,7 @@ import { buildSystemPrompt, loadPersona } from "@ultron/agent-core";
 import { calculate, tidy } from "../src/actions/calc.ts";
 import { toolByName } from "../src/actions/tools.ts";
 import { fetchPage, htmlToText, isPrivateAddress } from "../src/actions/knowledge.ts";
-import { humanAgo } from "../src/chat.ts";
+import { humanAgo, recentMemories } from "../src/chat.ts";
 import { replyText, startGateway } from "./helpers.ts";
 
 // One local fake for Wikipedia, Open-Meteo and a couple of web pages.
@@ -185,10 +185,36 @@ describe("personality and catching up", () => {
     expect(humanAgo(5 * 86_400_000)).toBe("5 days ago");
   });
 
+  it("brings up recent (non-sensitive) memories when catching up", async () => {
+    const g = await gateway();
+    const m = g.gw.stores.memories;
+    const interview = m.create({ content: "Job interview at Valve on Thursday", kind: "fact", source: "chat" });
+    m.create({ content: "Started new medication", kind: "fact", source: "chat", sensitivity: "sensitive" });
+    const already = m.create({ content: "Prefers short answers", kind: "preference", source: "chat" });
+    const recent = recentMemories(g.gw.stores, [already], Date.now());
+    expect(recent.map((x) => x.content)).toEqual(["Job interview at Valve on Thursday"]);
+    expect(recentMemories(g.gw.stores, [], Date.now() + 20 * 86_400_000)).toEqual([]);
+    const p = buildSystemPrompt(persona, { ...base, rapport: { lastChat: "2 days ago", recentTopics: [], recentMemories: recent } });
+    expect(p).toContain(`[memory:${interview.id.slice(0, 8)}] Job interview at Valve on Thursday`);
+  });
+
   it("lets the owner edit ULTRON's character text", async () => {
     const g = await gateway();
     const res = await g.api("PUT", "/api/persona", { style: "Talks like a pirate." });
     expect(res.body.persona.style).toBe("Talks like a pirate.");
     expect((await g.api("DELETE", "/api/persona")).body.persona.style).toMatch(/Ultron/);
+  });
+});
+
+describe("ULTRON speaks first", () => {
+  it("greets on Home, mentions the last conversation, and caches the line", async () => {
+    const g = await gateway();
+    expect((await g.api("GET", "/api/greeting")).body.greeting.text).toMatch(/I'm ULTRON/);
+    const id = await g.newConversation();
+    await g.chat(id, "Planning the Oogie port release");
+    // Cached: same line until it goes stale or the brain changes.
+    expect((await g.api("GET", "/api/greeting")).body.greeting.text).toMatch(/I'm ULTRON/);
+    g.gw.stores.preferences.set("greeting_cache", null);
+    expect((await g.api("GET", "/api/greeting")).body.greeting.text).toMatch(/Welcome back\. We last talked a moment ago, about "Planning the Oogie port release"/);
   });
 });

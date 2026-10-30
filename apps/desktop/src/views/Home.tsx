@@ -30,6 +30,13 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
   const hour = new Date().getHours();
   const greet = hour < 5 ? "Burning the midnight oil" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const [quip] = useState(() => QUIPS[Math.floor(Math.random() * QUIPS.length)]!);
+  // ULTRON speaks first: a catch-up line from the current brain (may take a while on a slow local model).
+  const [hello, setHello] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    api.greeting().then((r) => live && setHello(r.greeting?.text ?? null)).catch(() => {});
+    return () => { live = false; };
+  }, [status?.provider]);
 
   return (
     <div className="home">
@@ -39,6 +46,12 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
           <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
           <h1>{greet}{status?.persona.salutation ? `, ${status.persona.salutation}` : ""}.</h1>
           <p className="muted">{quip}</p>
+          {hello && (
+            <div className="hello" role="status">
+              <span className="hello__who">ULTRON</span>
+              <span className="hello__text">{hello}</span>
+            </div>
+          )}
           <form className="ask" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onAsk(q.trim()); }}>
             <label htmlFor="home-ask" className="sr-only">Ask ULTRON</label>
             <input id="home-ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask ULTRON…" autoComplete="off" />

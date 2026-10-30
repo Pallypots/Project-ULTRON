@@ -82,7 +82,8 @@ aren't connected (calendar, email, weather…) instead of guessing.
 ## Personality
 ULTRON has a character: witty, a little theatrical, warm, and curious about your life. It jokes back, asks about your projects, and when you say
 "hey" or "catch me up" it picks up where you left off. If you're stressed or in a hurry it drops the jokes. When you talk to it by voice it answers
-in a spoken style. Change any of it in Settings → **Personality** (the **Character** box is plain English: "talks like a pirate" works).
+in a spoken style. When you open the app after a while, ULTRON greets you first on the Home screen with a line about what's been going on
+(on a slow PC this can take a minute to appear). Change any of it in Settings → **Personality** (the **Character** box is plain English: "talks like a pirate" works).
 
 ## Everyday help
 - **Maths:** "what's 15% of 80?", "split $86.40 four ways": ULTRON uses an exact calculator instead of guessing.

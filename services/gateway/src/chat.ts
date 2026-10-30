@@ -266,7 +266,7 @@ export async function handleUserMessage(
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
-    rapport: rapportFor(stores, conversationId, opts.inputMode),
+    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories) },
   });
   const turns: ChatTurn[] = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id));
 
@@ -351,5 +351,15 @@ export function rapportFor(stores: Stores, conversationId: string, inputMode?: "
     recentTopics: others.slice(0, 5).map((c) => c.title.slice(0, 80)),
     inputMode,
   };
+}
+
+/** Up to 4 memories from the last 14 days that weren't already retrieved for this message. */
+export function recentMemories(stores: Stores, already: { id: string }[], now = Date.now()) {
+  const have = new Set(already.map((m) => m.id));
+  return stores.memories
+    .list()
+    .filter((m) => !have.has(m.id) && m.sensitivity !== "sensitive" && now - new Date(m.createdAt).getTime() < 14 * 86_400_000)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 4);
 }
 

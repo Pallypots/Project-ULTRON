@@ -74,7 +74,9 @@ try {
   await page.goto(base);
   await page.getByText("Online").first().waitFor();
   await page.getByText("Standing by").first().waitFor();
-  step("Home HUD loads and shows Online");
+  await page.locator(".hello", { hasText: "I'm ULTRON" }).waitFor();
+  step("Home HUD loads, shows Online, and ULTRON greets first");
+  await page.waitForTimeout(500); // let the greeting fade in
   await page.screenshot({ path: join(shots, "01-home.png") });
 
   await page.getByRole("button", { name: "Chat" }).click();

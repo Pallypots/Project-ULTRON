@@ -21,6 +21,7 @@ import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
 import { EmbeddingService } from "./embeddings/index.ts";
+import { Greeter } from "./greeting.ts";
 import { OllamaManager } from "./local-ai/ollama.ts";
 import { recommendModel } from "./local-ai/recommend.ts";
 import { z } from "zod";
@@ -105,6 +106,12 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   if (stores.memories.list().length) embeddings.backfill().catch(() => {});
   actions.onMemoryChanged = () => void embeddings.backfill().catch(() => {});
   const deps = { embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+
+  const greeter = new Greeter(deps);
+  app.get("/api/greeting", async () => {
+    const g = await greeter.get().catch(() => null);
+    return { greeting: g ? { text: g.text, at: g.at } : null };
+  });
 
   // ---- public ----
   app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));

@@ -162,6 +162,10 @@ textarea { resize: vertical; }
 .home__hero { display: flex; gap: 40px; align-items: center; flex-wrap: wrap; padding: 12px 0 6px; }
 .home__intro { flex: 1; min-width: 280px; display: grid; gap: 12px; }
 .home__intro h1 { font-size: 2.3rem; font-weight: 300; }
+.hello { display: grid; gap: 4px; color: var(--text); padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 3px 0 0 var(--accent), var(--glow); animation: hello-in 400ms ease-out; }
+.hello__who { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--accent); }
+@keyframes hello-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hello { animation: none; } }
 .ask { display: flex; gap: 8px; }
 .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
 .caps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }

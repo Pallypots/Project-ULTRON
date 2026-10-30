@@ -8,6 +8,8 @@
 - **Offers to remember** things you mention ("my sister's birthday is March 3"). Saved only if you click Approve; secrets are still refused.
 - **New abilities:** exact calculator, Wikipedia look-ups, weather + 3-day forecast (set your **Home city** in Settings → Personality),
   and reading/summarizing a web page you link. The morning briefing now includes the weather.
+- **ULTRON speaks first:** opening the app shows a short in-character catch-up line from your current brain (cached for 3 hours).
+- Catching up also uses memories from the last two weeks (never ones marked sensitive), so it can ask how the interview went.
 - Fixed: approving an action while ULTRON was still finishing its reply could show it as "waiting" again afterwards.
 
 ## 0.11.0 · 2026-10-30 · Meaning-based memory recall (local)

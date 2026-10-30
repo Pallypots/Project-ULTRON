@@ -227,6 +227,7 @@ export const api = {
   shortcuts: () => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("GET", "/api/system/shortcuts"),
   setStartAtLogin: (enabled: boolean) => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("POST", "/api/system/start-at-login", { enabled }),
   createDesktopShortcut: () => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("POST", "/api/system/desktop-shortcut"),
+  greeting: () => call<{ greeting: { text: string; at: string } | null }>("GET", "/api/greeting"),
   persona: () => call<{ persona: PersonaInfo; homeLocation: string }>("GET", "/api/persona"),
   savePersona: (p: Partial<Omit<PersonaInfo, "boundaries" | "traits">> & { homeLocation?: string }) => call<{ persona: PersonaInfo; homeLocation: string }>("PUT", "/api/persona", p),
   resetPersona: () => call<{ persona: PersonaInfo }>("DELETE", "/api/persona"),
