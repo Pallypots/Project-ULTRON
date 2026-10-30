@@ -16,6 +16,7 @@ export const ToolEvent = z.object({
   summary: z.string(),
   status: z.string(),
   risk: z.number(),
+  preview: z.string().optional(),
 });
 export type ToolEvent = z.infer<typeof ToolEvent>;
 

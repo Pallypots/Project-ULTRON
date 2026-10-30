@@ -9,6 +9,8 @@ export interface FakeGithub {
   issues: { id: number; number: number; title: string; state: string; updated_at: string; comments: number }[];
   runs: { id: number; name: string; conclusion: string; created_at: string; head_branch: string }[];
   calls: string[];
+  canWrite: boolean;
+  posted: { repo: string; title: string; body: string }[];
   close(): Promise<void>;
 }
 
@@ -28,8 +30,12 @@ export async function startFakeGithub(): Promise<FakeGithub> {
       { id: 9002, name: "CI", conclusion: "success", created_at: iso(10), head_branch: "main" },
     ],
     calls: [],
+    canWrite: true,
+    posted: [],
   };
-  const server: Server = createServer((req, res) => {
+  const server: Server = createServer(async (req, res) => {
+    let raw = "";
+    for await (const c of req) raw += c;
     const url = new URL(req.url!, "http://x");
     state.calls.push(url.pathname);
     const json = (code: number, body: unknown, headers: Record<string, string> = {}) => {
@@ -45,6 +51,12 @@ export async function startFakeGithub(): Promise<FakeGithub> {
     if (!m || !["pallypots/oogie-port", "pallypots/ultron"].includes(m[1]!)) return json(404, { message: "Not Found" });
     const sub = m[2] ?? "";
     const since = url.searchParams.get("since") ?? "";
+    if (sub === "/issues" && req.method === "POST") {
+      if (!state.canWrite) return json(403, { message: "Resource not accessible by personal access token" });
+      const b = JSON.parse(raw) as { title: string; body: string };
+      state.posted.push({ repo: m[1]!, ...b });
+      return json(201, { number: 100 + state.posted.length, html_url: `https://github.com/${m[1]}/issues/${100 + state.posted.length}` });
+    }
     if (sub === "") return json(200, { full_name: m[1], private: true, pushed_at: iso(5), description: null });
     if (sub === "/commits") return json(200, state.commits.filter((c) => c.date >= since).map((c) => ({ sha: c.sha, html_url: `https://github.com/${m[1]}/commit/${c.sha}`, commit: { message: c.message, author: { name: "Jimmy", date: c.date } } })));
     if (sub === "/pulls") return json(200, [{ id: 301, number: 12, title: "Vulkan backend", state: "open", merged_at: null, updated_at: iso(40), html_url: `https://github.com/${m[1]}/pull/12`, user: { login: "pallypots" } }]);

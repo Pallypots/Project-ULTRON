@@ -105,3 +105,42 @@ describe("connected accounts through the gateway", () => {
     expect((await g.api("POST", "/api/connectors/github/sync")).status).toBe(401);
   });
 });
+
+describe("GitHub issue drafts (UL-CON-005)", () => {
+  async function connected() {
+    const g = await setup();
+    await g.api("POST", "/api/connectors/github/connect", { token: fake!.token });
+    await g.api("PUT", "/api/connectors/github/repos", { repos: ["pallypots/oogie-port"] });
+    return g;
+  }
+
+  it("drafts, shows the exact text with visibility, and posts only after approval (with AI disclosure)", async () => {
+    const g = await connected();
+    const id = await g.newConversation();
+    const events = await g.chat(id, "draft an issue in pallypots/oogie-port: Crash on level 3 when loading the boss arena");
+    const ev = events.find((e) => e.type === "tool") as any;
+    expect(ev.event).toMatchObject({ tool: "github_create_issue", status: "awaiting_approval", risk: 2 });
+    expect(ev.event.preview).toMatch(/Repository: pallypots\/oogie-port \(private repo\)/);
+    expect(ev.event.preview).toMatch(/Title: Crash on level 3/);
+    expect(ev.event.preview).toMatch(/AI-assisted/);
+    expect(fake!.posted).toHaveLength(0);
+    const approved = (await g.api("POST", `/api/actions/${ev.event.executionId}/approve`)).body.action;
+    expect(approved.status).toBe("succeeded");
+    expect(JSON.parse(approved.result)).toMatchObject({ posted: true, url: "https://github.com/pallypots/oogie-port/issues/101" });
+    expect(fake!.posted).toEqual([expect.objectContaining({ repo: "pallypots/oogie-port", title: expect.stringMatching(/^Crash on level 3/), body: expect.stringMatching(/AI-assisted/) })]);
+  });
+
+  it("refuses repos you don't watch and explains a read-only token", async () => {
+    const g = await connected();
+    const id = await g.newConversation();
+    const other = (await g.chat(id, "draft an issue in pallypots/ultron: something")).find((e) => e.type === "tool") as any;
+    expect(other.event.preview).toMatch(/NOT a watched repo/);
+    const r1 = (await g.api("POST", `/api/actions/${other.event.executionId}/approve`)).body.action;
+    expect(r1).toMatchObject({ status: "failed", error: expect.stringMatching(/only post to repos you watch/) });
+    fake!.canWrite = false;
+    const ev = (await g.chat(id, "draft an issue in pallypots/oogie-port: another bug")).find((e) => e.type === "tool") as any;
+    const r2 = (await g.api("POST", `/api/actions/${ev.event.executionId}/approve`)).body.action;
+    expect(r2).toMatchObject({ status: "failed", error: expect.stringMatching(/Issues.*Read and write/) });
+    expect(fake!.posted).toHaveLength(0);
+  });
+});

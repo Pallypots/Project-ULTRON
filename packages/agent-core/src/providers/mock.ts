@@ -40,6 +40,9 @@ export class MockProvider implements ModelProvider {
     const text = lastTurn.content;
     const has = (n: string) => tools.some((t) => t.name === n);
     const explicit = /^mock-tool\s+(\w+)\s*(\{.*\})?\s*$/s.exec(text);
+    const draft = /^draft (?:a |an )?(?:github )?issue (?:in|for|on) ([\w.-]+\/[\w.-]+)[:,]?\s+(.+)$/is.exec(text);
+    if (!explicit && draft && has("github_create_issue"))
+      return { name: "github_create_issue", args: { repo: draft[1], title: draft[2]!.slice(0, 80), body: `**What happened**\n${draft[2]}\n\n**Steps to reproduce**\n1. …` } };
     if (explicit) return { name: explicit[1]!, args: explicit[2] ? (JSON.parse(explicit[2]) as Record<string, unknown>) : {} };
     if (has("get_current_time") && /\bwhat(?:'s| is) the (?:time|date)|what time is it|what day is it/i.test(text)) return { name: "get_current_time", args: {} };
     if (has("daily_briefing") && /good morning|brief me|what'?s my day|catch me up/i.test(text)) return { name: "daily_briefing", args: {} };

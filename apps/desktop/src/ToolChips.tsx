@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ToolEvent } from "@ultron/schemas";
 import { api } from "./api.ts";
 
-const ICON: Record<string, string> = { get_current_time: "🕒", create_reminder: "⏰", list_reminders: "📋", cancel_reminder: "🗑", open_website: "🌐", search_files: "🔎", read_file: "📄", open_on_screen: "🖥", connected_updates: "⛓", daily_briefing: "☀" };
+const ICON: Record<string, string> = { get_current_time: "🕒", create_reminder: "⏰", list_reminders: "📋", cancel_reminder: "🗑", open_website: "🌐", search_files: "🔎", read_file: "📄", open_on_screen: "🖥", connected_updates: "⛓", daily_briefing: "☀", github_create_issue: "🐙" };
 const STATUS: Record<string, string> = {
   succeeded: "done",
   failed: "failed",
@@ -45,6 +45,12 @@ function ToolChip({ e }: { e: ToolEvent }) {
       <span className="tool__summary">{e.summary}</span>
       <span className="tool__status">{STATUS[e.status] ?? e.status}</span>
       {e.risk >= 2 && <span className="tag tag--warn" title="Has an effect outside ULTRON">external</span>}
+      {e.preview && (waiting || e.status === "succeeded") && (
+        <details className="tool__preview" open={waiting}>
+          <summary>{waiting ? "Exactly what will be posted" : "What was posted"}</summary>
+          <pre>{e.preview}</pre>
+        </details>
+      )}
       {waiting && (
         <span className="row">
           <button type="button" className="btn btn--small btn--primary" disabled={busy} onClick={() => decide(true)}>Approve</button>

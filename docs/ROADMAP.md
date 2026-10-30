@@ -36,8 +36,10 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 
 - ✅ **Morning briefing** tool and **Personality editor** (overrides stored in the database; safety boundaries fixed)
 
+- ✅ **UL-CON-005** GitHub issue drafts: watched repos only, full preview with visibility, approval required, AI-assistance note
+
 ## Next
-1. ⏳ UL-CON-005 GitHub drafts (issue/comment drafts shown for approval before posting)
+1. ⏳ UL-CON-005b comment/PR-review drafts; delegating a fix to a sandboxed coding agent
 2. ⏳ UL-CON-006 YouTube subscriptions (needs the owner's Google Cloud OAuth client)
 3. ⏳ PDF text in the file index; meaning-based (embedding) search for files and memory
 4. ⏳ Voice and local-brain benchmark on the owner's PC (time to first audio, interruption reliability, tokens/sec)

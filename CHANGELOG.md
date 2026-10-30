@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0 · 2026-10-30 · GitHub issue drafts with approval
+- `github_create_issue` (L2): watched repos only; approval card shows service, repo, public/private, title and full text; AI-assisted footer; clear message for read-only tokens.
+- Approval cards can show a full preview of what will be sent.
+
 ## 0.9.3 · 2026-10-30 · Faster voice, faster local connections
 - Kokoro now uses fp16 by default: ~2× faster than the old 8-bit model on CPU (benchmarked in CI on Windows and Linux), so speech doesn't pause between sentences.
 - ULTRON listens on both loopback addresses (127.0.0.1 and ::1), avoiding slow "localhost" fallbacks on Windows.

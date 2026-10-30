@@ -338,6 +338,17 @@ try {
   await page.locator(".tool--succeeded", { hasText: "Check what's new on github" }).waitFor();
   await page.locator(".msg--assistant.msg--complete", { hasText: "connected_updates" }).waitFor();
   step("Asking \"what's new on GitHub?\" uses the real synced feed (read-only)");
+  await page.getByLabel("Message ULTRON").fill("draft an issue in pallypots/oogie-port: Crash on level 3 when loading the boss arena");
+  await page.getByLabel("Message ULTRON").press("Enter");
+  const draft = page.locator(".tool--awaiting_approval", { hasText: "Post a GitHub issue to pallypots/oogie-port" });
+  await draft.waitFor();
+  await draft.locator("pre", { hasText: "Repository: pallypots/oogie-port (private repo)" }).waitFor();
+  await draft.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: join(shots, "17-github-issue-draft.png") });
+  await draft.getByRole("button", { name: "Approve" }).click();
+  await page.locator(".tool--succeeded", { hasText: "✓ posted" }).waitFor();
+  step("GitHub issue: drafted with full preview (repo, visibility, text), posted only after Approve");
+
   await page.getByRole("button", { name: "Connections" }).click();
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Disconnect" }).click();

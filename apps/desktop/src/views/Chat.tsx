@@ -64,7 +64,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
       setMessages((cur) =>
         cur.map((m) =>
           m.toolEvents?.some((t) => t.executionId === x.id)
-            ? { ...m, toolEvents: m.toolEvents.map((t) => (t.executionId === x.id ? { ...t, status: x.status } : t)) }
+            ? { ...m, toolEvents: m.toolEvents.map((t) => (t.executionId === x.id ? { ...t, status: x.status, summary: x.status === "succeeded" && x.tool === "github_create_issue" ? `${t.summary} ✓ posted` : t.summary } : t)) }
             : m,
         ),
       );

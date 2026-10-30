@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Stores } from "@ultron/memory";
 import { extractText } from "../files/indexer.ts";
 import { openWithDefaultApp, type FileService } from "../files/service.ts";
+import type { ConnectorService } from "../connectors/service.ts";
 
 /**
  * Risk levels (blueprint §7):
@@ -18,6 +19,7 @@ export interface ToolContext {
   dryRun: boolean;
   now: () => Date;
   files?: FileService;
+  connectors?: ConnectorService;
 }
 
 export interface ToolDef<I = any> {
@@ -30,6 +32,8 @@ export interface ToolDef<I = any> {
   timeoutMs: number;
   /** Plain-English preview of exactly what will happen, shown before approval. */
   describe(input: I): string;
+  /** Optional full preview (e.g. the exact text to be posted), shown on the approval card. */
+  preview?(input: I, ctx: Pick<ToolContext, "connectors">): string;
   run(input: I, ctx: ToolContext): Promise<string>;
 }
 
@@ -302,5 +306,43 @@ const dailyBriefing: ToolDef<Record<string, never>> = {
   },
 };
 
-export const TOOLS: ToolDef[] = [dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
+const AI_FOOTER = "\n\n---\n_Drafted with ULTRON (AI-assisted) and approved by the repository owner before posting._";
+const GithubIssue = z
+  .object({
+    repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/, "Use owner/repo."),
+    title: z.string().trim().min(3).max(200),
+    body: z.string().trim().max(8000).default(""),
+  })
+  .strict();
+const githubCreateIssue: ToolDef<z.infer<typeof GithubIssue>> = {
+  name: "github_create_issue",
+  description:
+    "Draft a GitHub issue in one of the owner's WATCHED repos. It is NOT posted until the owner reviews the exact text and clicks Approve. Write a clear title and a helpful Markdown body (steps, expected vs actual).",
+  input: GithubIssue,
+  parameters: {
+    type: "object",
+    properties: {
+      repo: { type: "string", description: "owner/repo, must be a watched repo" },
+      title: { type: "string" },
+      body: { type: "string", description: "Markdown issue body" },
+    },
+    required: ["repo", "title", "body"],
+    additionalProperties: false,
+  },
+  risk: 2,
+  timeoutMs: 30_000,
+  describe: (i) => `Post a GitHub issue to ${i.repo}: "${i.title}"`,
+  preview: (i, ctx) => {
+    const info = ctx.connectors?.watchedRepos().find((r) => r.name.toLowerCase() === i.repo.toLowerCase());
+    const where = !info ? "⚠ NOT a watched repo (will be refused)" : info.private === false ? "PUBLIC repo: anyone can see this" : info.private ? "private repo" : "visibility unknown";
+    return `Service: GitHub (your connected account)\nRepository: ${i.repo} (${where})\nTitle: ${i.title}\n\n${i.body}${AI_FOOTER}`;
+  },
+  run: async (i, ctx) => {
+    if (!ctx.connectors) throw new Error("GitHub isn't available.");
+    const res = await ctx.connectors.createGithubIssue(i.repo, i.title, i.body + AI_FOOTER);
+    return JSON.stringify({ ok: true, posted: true, issue_number: res.number, url: res.url });
+  },
+};
+
+export const TOOLS: ToolDef[] = [githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
 export const toolByName = (name: string) => TOOLS.find((t) => t.name === name);

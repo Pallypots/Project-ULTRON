@@ -125,6 +125,7 @@ export interface ActionRecord {
   result: string | null;
   error: string | null;
   createdAt: string;
+  preview?: string;
 }
 export interface ActionPolicy {
   paused: boolean;

@@ -14,7 +14,7 @@ import { loadConfig, type GatewayConfig } from "./config.ts";
 import { isLocalProvider, readProviderSettings, resolveProvider, saveProviderSettings, SECRET_FOR } from "./providers.ts";
 import { detectHardware } from "./local-ai/hardware.ts";
 import { EventBus } from "./actions/events.ts";
-import { ActionRunner } from "./actions/runner.ts";
+import { ActionRunner, toEvent } from "./actions/runner.ts";
 import { ReminderScheduler } from "./actions/scheduler.ts";
 import { FileService, openWithDefaultApp } from "./files/service.ts";
 import { ConnectorService } from "./connectors/service.ts";
@@ -28,7 +28,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.9.0";
+export const VERSION = "0.10.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -92,7 +92,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   connectors.start();
   const files = new FileService(stores.files, config.dataDir, (m) => app.log.warn(m));
   files.start();
-  const actions = new ActionRunner(stores, bus, process.env.ULTRON_ACTIONS_DRY_RUN === "1", undefined, files);
+  const actions = new ActionRunner(stores, bus, process.env.ULTRON_ACTIONS_DRY_RUN === "1", undefined, files, connectors);
   const scheduler = new ReminderScheduler(stores, bus);
   // A new or cancelled reminder may be sooner than the scheduler's next wake-up.
   bus.subscribe((e) => {
@@ -502,7 +502,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   // ---- actions & approvals ----
   app.get("/api/actions", async () => {
     stores.actions.expireStale(10 * 60_000);
-    return { actions: stores.actions.list(), pending: stores.actions.pending(), policy: actions.policy() };
+    return { actions: stores.actions.list(), pending: stores.actions.pending().map((p) => ({ ...p, preview: toEvent(p).preview })), policy: actions.policy() };
   });
   app.post<{ Params: { id: string } }>("/api/actions/:id/approve", async (req, reply) => {
     const r = await actions.resolve(req.params.id, true);

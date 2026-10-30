@@ -89,7 +89,7 @@ export function ActivityView() {
         <section className="panel">
           <h2 className="panel__title">Waiting for your approval</h2>
           <p className="muted small">ULTRON proposed these. Nothing happens unless you approve. Requests expire after 10 minutes.</p>
-          <ToolChips events={pending.map((a) => ({ executionId: a.id, tool: a.tool, summary: a.summary, status: a.status, risk: a.risk }))} />
+          <ToolChips events={pending.map((a) => ({ executionId: a.id, tool: a.tool, summary: a.summary, status: a.status, risk: a.risk, preview: a.preview }))} />
         </section>
       )}
 

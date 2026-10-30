@@ -69,6 +69,28 @@ export class GithubConnector {
     return { fullName: r.full_name, private: r.private, pushedAt: r.pushed_at, description: r.description };
   }
 
+  /** Posts an issue. Only ever called after the owner approved the exact preview. Needs Issues: write on the token. */
+  async createIssue(repo: string, title: string, body: string): Promise<{ number: number; url: string }> {
+    let res: Response;
+    try {
+      res = await this.fetchImpl(`${this.apiUrl}/repos/${repo}/issues`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${this.token}`, accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", "user-agent": "ULTRON-assistant", "content-type": "application/json" },
+        body: JSON.stringify({ title, body }),
+        signal: AbortSignal.timeout(20_000),
+      });
+    } catch {
+      throw new ConnectorError("Couldn't reach GitHub. Check your internet connection.", "unavailable");
+    }
+    if (res.status === 401) throw new ConnectorError("GitHub rejected the token. Reconnect GitHub.", "auth");
+    if (res.status === 403 || res.status === 404)
+      throw new ConnectorError(`The GitHub token isn't allowed to create issues in ${repo}. Edit the token on GitHub and set "Issues" to "Read and write" for that repo, then try again.`, "auth");
+    if (res.status === 410) throw new ConnectorError(`Issues are turned off for ${repo}.`, "not_supported");
+    if (!res.ok) throw new ConnectorError(`GitHub returned an error (${res.status}).`, "unavailable");
+    const j = (await res.json()) as { number: number; html_url: string };
+    return { number: j.number, url: j.html_url };
+  }
+
   /** Incremental sync: everything since each repo's cursor (first sync looks back 7 days). */
   async sync(repos: string[], cursor: Record<string, string>, now = new Date()): Promise<SyncResult> {
     const events: NewConnectorEvent[] = [];

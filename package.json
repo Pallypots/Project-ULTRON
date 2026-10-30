@@ -1,7 +1,7 @@
 {
   "name": "ultron",
   "private": true,
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "ULTRON - private, persistent, voice-first personal AI assistant",
   "type": "module",
   "workspaces": [

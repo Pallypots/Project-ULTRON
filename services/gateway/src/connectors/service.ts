@@ -93,10 +93,15 @@ export class ConnectorService {
     const gh = this.github();
     if (!gh) throw new ConnectorError("GitHub isn't connected.", "auth");
     if (repos.length > MAX_REPOS) throw new ConnectorError(`Pick at most ${MAX_REPOS} repos.`, "bad_request");
-    const checked = [];
-    for (const r of [...new Set(repos)]) checked.push((await gh.checkRepo(r)).fullName);
+    const checked: string[] = [];
+    const privacy: Record<string, boolean> = {};
+    for (const r of [...new Set(repos)]) {
+      const info = await gh.checkRepo(r);
+      checked.push(info.fullName);
+      privacy[info.fullName] = info.private;
+    }
     const g = this.stores.connectors.integration("github")!;
-    this.stores.connectors.saveIntegration("github", { config: { ...g.config, repos: checked }, nextSyncAt: new Date().toISOString() });
+    this.stores.connectors.saveIntegration("github", { config: { ...g.config, repos: checked, private: privacy }, nextSyncAt: new Date().toISOString() });
     this.stores.audit.record("connector.repos_changed", "owner", "github", { count: checked.length });
     return this.info()[0]!;
   }
@@ -145,6 +150,24 @@ export class ConnectorService {
     } finally {
       this.syncing = false;
     }
+  }
+
+  /** Watched repos and whether each is private; actions may only target these. */
+  watchedRepos(): { name: string; private: boolean | null }[] {
+    const g = this.stores.connectors.integration("github");
+    if (!g?.connectedAt) return [];
+    const priv = (g.config.private as Record<string, boolean>) ?? {};
+    return ((g.config.repos as string[]) ?? []).map((name) => ({ name, private: name in priv ? priv[name]! : null }));
+  }
+
+  async createGithubIssue(repo: string, title: string, body: string) {
+    const gh = this.github();
+    if (!gh) throw new ConnectorError("GitHub isn't connected.", "auth");
+    if (!this.watchedRepos().some((r) => r.name.toLowerCase() === repo.toLowerCase()))
+      throw new ConnectorError(`ULTRON can only post to repos you watch. ${repo} isn't one of them (Connections → GitHub → Choose repos).`, "bad_request");
+    const res = await gh.createIssue(repo, title, body);
+    this.stores.audit.record("connector.github_issue_created", "owner", "github", { repo, number: res.number });
+    return res;
   }
 
   /** Disconnect deletes the token and every stored GitHub event. */

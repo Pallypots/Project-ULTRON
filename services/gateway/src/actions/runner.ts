@@ -3,6 +3,7 @@ import type { ToolEvent } from "@ultron/schemas";
 import type { EventBus } from "./events.ts";
 import { toolByName, type ToolDef } from "./tools.ts";
 import type { FileService } from "../files/service.ts";
+import type { ConnectorService } from "../connectors/service.ts";
 
 export interface ActionPolicy {
   /** Kill switch: when paused, nothing except read-only (L0) tools runs. */
@@ -24,7 +25,17 @@ export function decide(tool: ToolDef, policy: ActionPolicy): { decision: Decisio
   return { decision: "allow", reason: "" };
 }
 
-export const toEvent = (e: ToolExecution): ToolEvent => ({ executionId: e.id, tool: e.tool, summary: e.summary, status: e.status, risk: e.risk });
+let previewCtx: { connectors?: ConnectorService } = {};
+export const toEvent = (e: ToolExecution): ToolEvent => {
+  const tool = toolByName(e.tool);
+  let preview: string | undefined;
+  try {
+    preview = tool?.preview?.(e.input as never, previewCtx);
+  } catch {
+    preview = undefined;
+  }
+  return { executionId: e.id, tool: e.tool, summary: e.summary, status: e.status, risk: e.risk, ...(preview ? { preview } : {}) };
+};
 
 export class ActionRunner {
   constructor(
@@ -33,7 +44,10 @@ export class ActionRunner {
     private dryRun: boolean,
     private now: () => Date = () => new Date(),
     private files?: FileService,
-  ) {}
+    private connectors?: ConnectorService,
+  ) {
+    previewCtx = { connectors };
+  }
 
   policy(): ActionPolicy {
     return this.stores.preferences.get<ActionPolicy>("actions", { paused: false, confirmLowRisk: false });
@@ -80,7 +94,7 @@ export class ActionRunner {
   private async execute(exec: ToolExecution, tool: ToolDef): Promise<ToolExecution> {
     try {
       const result = await Promise.race([
-        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files }),
+        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files, connectors: this.connectors }),
         new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Timed out after ${tool.timeoutMs / 1000}s.`)), tool.timeoutMs)),
       ]);
       const e = this.stores.actions.update(exec.id, { status: "succeeded", result: result.slice(0, MAX_RESULT_CHARS) })!;

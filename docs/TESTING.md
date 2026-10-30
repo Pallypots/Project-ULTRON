@@ -43,6 +43,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Personality & briefing | overrides saved/applied (prompt, wake words, status), reset; invalid wake words, out-of-range tone, editing boundaries and HTML names rejected; briefing includes reminders, pending approvals, "github not connected", unconnected calendar/weather |
 | E2E personality & briefing | salutation saved → Home says ", sir."; "Good morning, brief me" runs `daily_briefing` and reports unconnected sources; reset |
 | Windows (CI only) | DPAPI secrets round-trip with no plaintext on disk; shortcuts created/removed; `Start-ULTRON.bat --background` brings ULTRON online and serves the interface |
+| GitHub drafts | preview shows repo/visibility/title/AI note; nothing posted before approval; posted after; unwatched repo refused; read-only token explained |
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30, cycle 2 (Linux cloud container, Node 22.22, Chromium via Playwright)

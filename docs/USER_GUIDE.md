@@ -62,6 +62,11 @@ or just "Ultron" and then your request. Anything that doesn't start with ULTRON'
 3. Ask "what's new on GitHub?", "catch me up", or "did any builds fail?". Or read the **Feed** (filter **Important** for failures, PRs, issues and releases).
    **Ask ULTRON** on a card starts a chat about it; **Open source** opens it on GitHub.
 
+**Drafting issues:** say "draft an issue in pallypots/oogie-port: crash when loading the boss arena". ULTRON writes the issue and shows you
+exactly what would be posted (repo, public/private, title, text). Nothing is posted until you click **Approve**. Posted issues end with a short
+"drafted with ULTRON (AI-assisted)" note. ULTRON can only post to repos you watch, and your token needs **Issues: Read and write** for those repos
+(edit the token on GitHub if you want this; read-only tokens just get a clear message).
+
 ULTRON stores titles and links only (no code or issue bodies) and deletes them after 30 days. **Disconnect** deletes the token and everything it stored.
 YouTube, Reddit and Discord are listed as "coming next" with what each needs.
 
