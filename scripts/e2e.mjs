@@ -398,6 +398,10 @@ try {
   failed = true;
   console.error("✗ E2E failed:", err.message);
   console.error("  recent requests:\n   " + recent.join("\n   "));
+  if (process.env.GITHUB_ACTIONS) {
+    const oneLine = (s) => String(s).replace(/\r?\n/g, " ⏎ ").slice(0, 1500);
+    console.log(`::error title=Browser E2E failed (${process.platform}) after "${passed.at(-1) ?? "start"}"::${oneLine(err.message)} || recent: ${oneLine(recent.slice(-12).join(" | "))}`);
+  }
   await page.screenshot({ path: join(shots, "failure.png") }).catch(() => {});
 } finally {
   await browser.close();
