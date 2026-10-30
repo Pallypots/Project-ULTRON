@@ -163,4 +163,11 @@ describe("capabilities", () => {
     expect(caps.find((c) => c.id === "voice").status).toBe("not_implemented");
     expect(caps.find((c) => c.id === "model").detail).toMatch(/mock/);
   });
+
+  it("answers 'what can you do right now?' from the live capability list", async () => {
+    const { chat, newConversation } = await gateway();
+    const text = replyText(await chat(await newConversation(), "What can you do right now?"));
+    expect(text).toMatch(/Voice \(push-to-talk, spoken replies\): not implemented/);
+    expect(text).toMatch(/Long-term memory: enabled/);
+  });
 });

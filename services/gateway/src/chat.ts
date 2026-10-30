@@ -134,8 +134,9 @@ export async function handleUserMessage(
 
   const memories = stores.memories.retrieveForPrompt(content);
   if (memories.length) emit({ type: "memories", memories: memories.map(brief) });
+  const capabilities = currentCapabilities(settings, resolution);
   const system = buildSystemPrompt(deps.persona(), {
-    capabilities: currentCapabilities(settings, resolution),
+    capabilities,
     memories,
     nowIso: new Date().toISOString(),
   });
@@ -144,7 +145,7 @@ export async function handleUserMessage(
   let text = "";
   let lastFlush = Date.now();
   try {
-    for await (const chunk of resolution.provider.stream({ system, messages: history, memories, signal: opts.signal })) {
+    for await (const chunk of resolution.provider.stream({ system, messages: history, memories, capabilities, signal: opts.signal })) {
       if (opts.signal.aborted) break;
       text += chunk;
       emit({ type: "delta", text: chunk });

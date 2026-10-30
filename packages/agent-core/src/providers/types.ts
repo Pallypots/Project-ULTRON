@@ -1,4 +1,4 @@
-import type { Memory } from "@ultron/schemas";
+import type { Capability, Memory } from "@ultron/schemas";
 
 export interface ChatTurn {
   role: "user" | "assistant";
@@ -10,6 +10,8 @@ export interface ModelRequest {
   messages: ChatTurn[];
   /** Retrieved memories, also embedded in `system`; exposed so offline providers can use them. */
   memories: Memory[];
+  /** Live capability state, also embedded in `system`; lets offline providers answer "what can you do?". */
+  capabilities?: Capability[];
   signal?: AbortSignal;
 }
 

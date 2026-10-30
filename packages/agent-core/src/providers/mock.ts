@@ -10,7 +10,10 @@ export class MockProvider implements ModelProvider {
   reply(req: ModelRequest): string {
     const last = [...req.messages].reverse().find((m) => m.role === "user")?.content ?? "";
     const parts: string[] = [];
-    if (req.memories.length) {
+    if (req.capabilities?.length && /what can you do|capabilit|what are you able/i.test(last)) {
+      parts.push("Here's exactly what I can do right now:");
+      for (const c of req.capabilities) parts.push(`• ${c.label}: ${c.status.replace("_", " ")}${c.detail ? ` (${c.detail})` : ""}`);
+    } else if (req.memories.length) {
       parts.push("Here's what I have on record that looks relevant:");
       for (const m of req.memories) parts.push(`• ${m.content} [memory:${m.id.slice(0, 8)}]`);
     } else {

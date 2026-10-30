@@ -1,7 +1,7 @@
 # Testing
 
 ```bash
-npm test            # 37 unit + API integration tests, mock provider, no network or keys
+npm test            # 38 unit + API integration tests, mock provider, no network or keys
 npm run lint        # TypeScript strict type check
 npm run build && npm run test:e2e   # real Chromium against the real built app; writes docs/screenshots/*.png
 ```
@@ -21,7 +21,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30 (Linux cloud container, Node 22.22, Chromium via Playwright)
-- `npm test`: **37/37 passed** (~2.5 s)
+- `npm test`: **38/38 passed** (~2.5 s)
 - `npm run test:e2e`: **9/9 steps passed**
 - `npm run lint`: clean · `npm run build`: OK · `npm run doctor`: all checks pass
 
