@@ -1,0 +1,81 @@
+import { useEffect, useState } from "react";
+import type { Capability } from "@ultron/schemas";
+import { api, type Status } from "../api.ts";
+import { Core, type CoreState } from "../Core.tsx";
+import type { View } from "../App.tsx";
+
+const SUGGESTIONS = ["What can you do right now?", "Remember that I prefer short answers in the morning", "What do you remember about me?"];
+
+export function HomeView({ status, core, onAsk, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onNavigate: (v: View) => void }) {
+  const [caps, setCaps] = useState<Capability[]>([]);
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    api.capabilities().then((r) => setCaps(r.capabilities)).catch(() => {});
+  }, [status?.provider, status?.providerReady]);
+
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  return (
+    <div className="home">
+      <section className="home__hero">
+        <Core state={core} size={260} />
+        <div className="home__intro">
+          <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+          <h1>{greet}.</h1>
+          <p className="muted">ULTRON is running on this computer. Ask anything, or tell it what to remember.</p>
+          <form className="ask" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onAsk(q.trim()); }}>
+            <label htmlFor="home-ask" className="sr-only">Ask ULTRON</label>
+            <input id="home-ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask ULTRON…" autoComplete="off" />
+            <button className="btn btn--primary" type="submit">Ask</button>
+          </form>
+          <div className="chips">
+            {SUGGESTIONS.map((s) => (
+              <button key={s} className="chip" onClick={() => onAsk(s)}>{s}</button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {status && !status.providerReady && (
+        <div className="banner banner--warn" role="status">
+          {status.providerProblem} <button className="link" onClick={() => onNavigate("settings")}>Open Settings</button>
+        </div>
+      )}
+      {status?.provider === "mock" && (
+        <div className="banner" role="status">
+          You're on the built-in <strong>mock model</strong>: chat, history and memory all work, but replies are canned. <button className="link" onClick={() => onNavigate("settings")}>Connect a real model</button>
+        </div>
+      )}
+
+      <section className="grid">
+        <div className="panel">
+          <h2 className="panel__title">Systems</h2>
+          <ul className="caps">
+            {caps.map((c) => (
+              <li key={c.id} className={`cap cap--${c.status}`}>
+                <span className="cap__dot" aria-hidden="true" />
+                <span className="cap__label">{c.label}</span>
+                <span className="cap__status">{c.status.replace("_", " ")}</span>
+                <span className="cap__detail">{c.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="panel">
+          <h2 className="panel__title">At a glance</h2>
+          <dl className="stats">
+            <div><dt>Conversations</dt><dd>{status?.counts.conversations ?? "–"}</dd></div>
+            <div><dt>Memories</dt><dd>{status?.counts.memories ?? "–"}</dd></div>
+            <div><dt>Model</dt><dd className="stats__small">{status ? (status.provider === "mock" ? "Mock (offline)" : status.model) : "–"}</dd></div>
+            <div><dt>Version</dt><dd className="stats__small">{status?.version ?? "–"}</dd></div>
+          </dl>
+          <div className="row">
+            <button className="btn" onClick={() => onNavigate("memory")}>Open Memory Vault</button>
+            <button className="btn" onClick={() => onNavigate("activity")}>View activity</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

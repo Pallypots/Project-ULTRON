@@ -1,0 +1,250 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import Fastify, { type FastifyInstance } from "fastify";
+import fastifyStatic from "@fastify/static";
+import { loadPersona, type Persona } from "@ultron/agent-core";
+import { openStores, redact, type Stores } from "@ultron/memory";
+import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, type ChatEvent } from "@ultron/schemas";
+import { ZodError } from "zod";
+import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
+import { currentCapabilities } from "./capabilities.ts";
+import { ActiveStreams, handleUserMessage } from "./chat.ts";
+import { loadConfig, type GatewayConfig } from "./config.ts";
+import { readProviderSettings, resolveProvider, SECRET_FOR } from "./providers.ts";
+import { SecretStore } from "./secrets.ts";
+
+export const VERSION = "0.1.0";
+
+export interface Gateway {
+  app: FastifyInstance;
+  stores: Stores;
+  token: string;
+  config: GatewayConfig;
+  logLines: string[];
+}
+
+export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Promise<Gateway> {
+  const config = loadConfig(overrides);
+  const stores = openStores(join(config.dataDir, "ultron.db"));
+  const secrets = new SecretStore(config.dataDir);
+  const token = loadOrCreateToken(config.dataDir);
+  const recovered = stores.conversations.recoverInterrupted();
+  const streams = new ActiveStreams();
+  let persona: Persona = loadPersona(config.personaFile);
+
+  // Every log line passes through redaction (pattern-based plus exact known secret values).
+  const logLines: string[] = [];
+  const scrub = (line: string) => {
+    let out = String(redact(line));
+    for (const v of [...secrets.values(), token]) out = out.split(v).join("[REDACTED]");
+    return out;
+  };
+  const app = Fastify({
+    logger: {
+      level: config.logLevel,
+      redact: ["req.headers.authorization", "req.headers.cookie"],
+      stream: {
+        write: (line: string) => {
+          const clean = scrub(line);
+          logLines.push(clean);
+          if (logLines.length > 2000) logLines.shift();
+          if (!process.env.VITEST) process.stdout.write(clean);
+        },
+      },
+    },
+    bodyLimit: 1_000_000,
+  });
+
+  app.setErrorHandler((err, _req, reply) => {
+    if (err instanceof ZodError) return reply.code(400).send({ error: "invalid_request", message: err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") });
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    if (status >= 500) app.log.error(err);
+    return reply.code(status).send({ error: "error", message: status >= 500 ? "ULTRON hit an internal error. Details are in the log." : (err as Error).message });
+  });
+
+  registerAuth(app, token);
+  if (recovered) stores.audit.record("recovery.interrupted_messages", "system", null, { count: recovered });
+
+  const settings = () => readProviderSettings(stores.preferences);
+  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs };
+
+  // ---- public ----
+  app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));
+  app.get("/api/bootstrap", async (req, reply) => {
+    if (!isLoopbackRequest(req) || req.headers["sec-fetch-site"] === "cross-site") return reply.code(403).send({ error: "forbidden" });
+    return { token };
+  });
+
+  // ---- status ----
+  app.get("/api/capabilities", async () => {
+    const s = settings();
+    return { capabilities: currentCapabilities(s, resolveProvider(s, secrets, config.mockDelayMs)) };
+  });
+  app.get("/api/status", async () => {
+    const s = settings();
+    const r = resolveProvider(s, secrets, config.mockDelayMs);
+    return {
+      version: VERSION,
+      provider: s.provider,
+      model: r.ok ? r.provider.model : s.model,
+      providerReady: r.ok,
+      providerProblem: r.ok ? null : r.reason,
+      activeReplies: streams.size,
+      counts: { conversations: stores.conversations.list().length, memories: stores.memories.list().length },
+      persona: { name: persona.name },
+    };
+  });
+
+  // ---- settings ----
+  app.get("/api/settings/provider", async () => {
+    const s = settings();
+    return {
+      ...s,
+      keys: Object.fromEntries(Object.entries(SECRET_FOR).filter(([, v]) => v).map(([k, v]) => [k, secrets.has(v!)])),
+    };
+  });
+  app.put("/api/settings/provider", async (req) => {
+    const body = ProviderSettingsUpdate.parse(req.body);
+    const next = { provider: body.provider, model: body.model ?? "", baseUrl: body.baseUrl ?? "" };
+    stores.preferences.set("provider", next);
+    const secretName = SECRET_FOR[body.provider];
+    if (secretName && body.apiKey) secrets.set(secretName, body.apiKey);
+    stores.audit.record("settings.provider_changed", "owner", body.provider, { model: next.model, keyUpdated: Boolean(body.apiKey) });
+    const r = resolveProvider(next, secrets, config.mockDelayMs);
+    return { ok: r.ok, problem: r.ok ? null : r.reason };
+  });
+  app.delete<{ Params: { provider: "anthropic" | "openai" } }>("/api/settings/provider/:provider/key", async (req, reply) => {
+    const name = SECRET_FOR[req.params.provider];
+    if (!name) return reply.code(404).send({ error: "not_found" });
+    secrets.set(name, null);
+    stores.audit.record("settings.key_removed", "owner", req.params.provider);
+    return { ok: true };
+  });
+  app.post("/api/settings/provider/test", async () => {
+    const s = settings();
+    const r = resolveProvider(s, secrets, config.mockDelayMs);
+    if (!r.ok) return { ok: false, message: r.reason };
+    const started = Date.now();
+    try {
+      let text = "";
+      const ctl = AbortSignal.timeout(30_000);
+      for await (const t of r.provider.stream({ system: "Reply with the single word: ready", messages: [{ role: "user", content: "Connection test" }], memories: [], signal: ctl })) {
+        text += t;
+        if (text.length > 200) break;
+      }
+      return { ok: true, message: `Connected to ${r.provider.id} / ${r.provider.model} in ${Date.now() - started} ms.`, sample: text.slice(0, 200) };
+    } catch (err) {
+      return { ok: false, message: (err as Error).message };
+    }
+  });
+
+  // ---- conversations ----
+  app.get("/api/conversations", async () => ({ conversations: stores.conversations.list() }));
+  app.post("/api/conversations", async () => ({ conversation: stores.conversations.create() }));
+  app.get<{ Params: { id: string } }>("/api/conversations/:id", async (req, reply) => {
+    const conversation = stores.conversations.get(req.params.id);
+    if (!conversation) return reply.code(404).send({ error: "not_found", message: "Conversation not found." });
+    return { conversation, messages: stores.conversations.messages(conversation.id) };
+  });
+  app.delete<{ Params: { id: string } }>("/api/conversations/:id", async (req, reply) => {
+    if (!stores.conversations.delete(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    stores.audit.record("conversation.deleted", "owner", req.params.id);
+    return { ok: true };
+  });
+
+  app.post<{ Params: { id: string } }>("/api/conversations/:id/messages", async (req, reply) => {
+    const body = SendMessage.parse(req.body);
+    if (!stores.conversations.get(req.params.id)) return reply.code(404).send({ error: "not_found", message: "Conversation not found." });
+    const ctl = streams.start(req.params.id);
+    if (!ctl) return reply.code(409).send({ error: "busy", message: "ULTRON is still answering in this conversation. Stop it or wait." });
+
+    reply.hijack();
+    reply.raw.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
+    const emit = (e: ChatEvent) => {
+      if (!reply.raw.writableEnded) reply.raw.write(`data: ${JSON.stringify(e)}\n\n`);
+    };
+    // Client hung up mid-reply: stop generating (and spending) immediately.
+    reply.raw.on("close", () => {
+      if (!reply.raw.writableFinished) ctl.abort();
+    });
+    try {
+      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, signal: ctl.signal, emit });
+    } catch (err) {
+      app.log.error(err);
+      emit({ type: "error", code: "internal", message: "ULTRON hit an internal error. Details are in the log." });
+    } finally {
+      streams.finish(req.params.id);
+      reply.raw.end();
+    }
+  });
+
+  // Emergency stop: cancels every in-flight reply.
+  app.post("/api/stop", async () => {
+    const stopped = streams.stopAll();
+    stores.audit.record("system.stop_all", "owner", null, { stopped });
+    return { stopped };
+  });
+
+  // ---- memory vault ----
+  app.get("/api/memories", async () => ({ memories: stores.memories.list() }));
+  app.post("/api/memories", async (req) => {
+    const body = MemoryCreate.parse(req.body);
+    const memory = stores.memories.create({ ...body, source: "manual" });
+    stores.audit.record("memory.created", "owner", memory.id, { via: "vault", kind: memory.kind });
+    return { memory };
+  });
+  app.patch<{ Params: { id: string } }>("/api/memories/:id", async (req, reply) => {
+    const memory = stores.memories.update(req.params.id, MemoryPatch.parse(req.body));
+    if (!memory) return reply.code(404).send({ error: "not_found" });
+    stores.audit.record("memory.updated", "owner", memory.id, { fields: Object.keys(req.body as object) });
+    return { memory };
+  });
+  app.delete<{ Params: { id: string } }>("/api/memories/:id", async (req, reply) => {
+    if (!stores.memories.delete(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    stores.audit.record("memory.deleted", "owner", req.params.id, { via: "vault" });
+    return { ok: true };
+  });
+  app.post("/api/memories/search", async (req) => {
+    const { query } = (req.body ?? {}) as { query?: string };
+    return { memories: stores.memories.search(String(query ?? ""), 10) };
+  });
+  app.get("/api/memories/export", async (_req, reply) => {
+    stores.audit.record("memory.exported", "owner");
+    reply.header("content-disposition", `attachment; filename="ultron-memories-${new Date().toISOString().slice(0, 10)}.json"`);
+    return { exportedAt: new Date().toISOString(), memories: stores.memories.list() };
+  });
+
+  // ---- activity ----
+  app.get("/api/activity", async () => ({ events: stores.audit.list() }));
+  app.get("/api/logs/export", async (_req, reply) => {
+    reply.header("content-type", "text/plain; charset=utf-8");
+    reply.header("content-disposition", 'attachment; filename="ultron-logs.txt"');
+    return logLines.join("");
+  });
+
+  app.post("/api/persona/reload", async () => {
+    persona = loadPersona(config.personaFile);
+    return { ok: true, name: persona.name };
+  });
+
+  // ---- UI ----
+  if (config.uiDir) {
+    await app.register(fastifyStatic, { root: config.uiDir, index: ["index.html"] });
+    const indexHtml = readFileSync(join(config.uiDir, "index.html"), "utf8");
+    app.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith("/api/")) return reply.code(404).send({ error: "not_found" });
+      return reply.type("text/html").send(indexHtml);
+    });
+  } else {
+    app.get("/", async (_req, reply) =>
+      reply.type("text/html").send("<h1>ULTRON gateway is running</h1><p>The UI hasn't been built yet. Run <code>npm run build</code>, or use <code>npm run dev</code>.</p>"),
+    );
+  }
+
+  app.addHook("onClose", async () => {
+    streams.stopAll();
+    stores.close();
+  });
+
+  return { app, stores, token, config, logLines };
+}

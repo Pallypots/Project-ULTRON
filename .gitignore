@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-*
+.ultron-data/
+test-results/
+playwright-report/
+apps/desktop/src-tauri/target/
+backups/
