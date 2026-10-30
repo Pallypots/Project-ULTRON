@@ -52,5 +52,16 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Local brain tool use (${process.platform})::${toolSummary}`);
     // Whatever the model did, nothing external may have run without approval.
     expect(tools.filter((t) => t.startsWith("open_website:") && t !== "open_website:awaiting_approval")).toEqual([]);
-  }, 1_200_000);
+
+    // Informational: does it hand maths to the calculator, and does the personality come through?
+    const t3 = Date.now();
+    const maths = await g.chat(await g.newConversation(), "What is 1299 times 0.85, plus 4.99?");
+    const mathTools = maths.filter((e) => e.type === "tool").map((e: any) => `${e.event.tool}:${e.event.status}`);
+    const mathSummary = `tools=${JSON.stringify(mathTools)} correct=${/1,?109\.14/.test(replyText(maths))} reply=${Date.now() - t3}ms text="${replyText(maths).replace(/\s+/g, " ").slice(0, 160)}"`;
+    if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Local brain maths (${process.platform})::${mathSummary}`);
+    const t4 = Date.now();
+    const hi = replyText(await g.chat(await g.newConversation(), "Hey Ultron, I'm back. Tell me a quick joke."));
+    if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Local brain personality (${process.platform})::reply=${Date.now() - t4}ms text="${hi.replace(/\s+/g, " ").slice(0, 300)}"`);
+    expect(hi).not.toMatch(/<\/?think>/);
+  }, 1_800_000);
 });

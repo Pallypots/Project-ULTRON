@@ -21,6 +21,7 @@ jobs:
       ULTRON_TEST_TTS_BENCH: "1"
       ULTRON_TEST_EMBED: "1"
       ULTRON_TEST_GITHUB: "1"
+      ULTRON_TEST_WEB: "1"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       ULTRON_TEST_MODEL_DIR: ${{ github.workspace }}/.model-cache
     steps:

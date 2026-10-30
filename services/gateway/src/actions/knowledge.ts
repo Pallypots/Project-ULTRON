@@ -11,8 +11,19 @@ const GEOCODE = () => process.env.ULTRON_GEOCODE_API ?? "https://geocoding-api.o
 const WEATHER = () => process.env.ULTRON_WEATHER_API ?? "https://api.open-meteo.com";
 const UA = "ULTRON-personal-assistant/0.12 (local, single user)";
 
+/** Network failures in plain English ("fetch failed" means nothing to anyone). */
+async function reach(url: string | URL, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (err) {
+    const host = new URL(url).host;
+    if ((err as Error).name === "TimeoutError") throw new Error(`${host} took too long to answer.`);
+    throw new Error(`Couldn't reach ${host}. This computer may be offline.`);
+  }
+}
+
 async function getJson(url: string, timeoutMs = 8000): Promise<any> {
-  const res = await fetch(url, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(timeoutMs) });
+  const res = await reach(url, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error(`The service answered ${res.status}.`);
   return res.json();
 }
@@ -161,7 +172,7 @@ export async function fetchPage(raw: string): Promise<{ url: string; title: stri
   let url = new URL(raw);
   for (let hop = 0; hop < 4; hop++) {
     await assertPublic(url);
-    const res = await fetch(url, { redirect: "manual", headers: { "user-agent": UA, accept: "text/html,text/plain;q=0.9,*/*;q=0.1" }, signal: AbortSignal.timeout(12_000) });
+    const res = await reach(url, { redirect: "manual", headers: { "user-agent": UA, accept: "text/html,text/plain;q=0.9,*/*;q=0.1" }, signal: AbortSignal.timeout(12_000) });
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       url = new URL(res.headers.get("location")!, url); // each hop is checked again
       continue;
