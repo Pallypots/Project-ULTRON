@@ -30,11 +30,15 @@ if (-not (Test-Path "apps\desktop\dist\index.html")) { Say "Building the interfa
 
 Say "Starting ULTRON..."
 $server = Start-Process node -ArgumentList "--disable-warning=ExperimentalWarning","--import","tsx","services/gateway/src/main.ts" -PassThru -NoNewWindow
-for ($i = 0; $i -lt 40; $i++) {
+# First start on a slow or busy PC can take a while (antivirus scans the files once); wait up to 2 minutes.
+$ready = $false
+for ($i = 0; $i -lt 240; $i++) {
   Start-Sleep -Milliseconds 500
-  try { if ((Invoke-WebRequest "$url/api/health" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { break } } catch {}
+  try { if ((Invoke-WebRequest "$url/api/health" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { $ready = $true; break } } catch {}
   if ($server.HasExited) { Write-Host "  ULTRON stopped unexpectedly. Run 'npm run doctor' in this folder for a diagnosis." -ForegroundColor Red; exit 1 }
+  if ($i -eq 20) { Say "Still starting (first start can take a minute)..." }
 }
+if (-not $ready) { Write-Host "  ULTRON is taking unusually long to start. It will open as soon as it's ready; if not, run 'npm run doctor'." -ForegroundColor Yellow }
 
 $edge = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
 if (-not $Background) {
