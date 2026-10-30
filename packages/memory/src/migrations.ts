@@ -200,4 +200,17 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE integrations;
     `,
   },
+  {
+    version: 6,
+    name: "memory_vectors",
+    up: `
+      CREATE TABLE memory_vectors (
+        memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+        model TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        vector BLOB NOT NULL
+      );
+    `,
+    down: `DROP TABLE memory_vectors;`,
+  },
 ];

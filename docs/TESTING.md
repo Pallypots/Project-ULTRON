@@ -38,6 +38,8 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Hands-free API | non-addressed speech returns `{addressed:false}` and leaves no trace in Activity; addressed returns only the command; refused with cloud STT; on/off audited |
 | E2E hands-free | toggle on → fake-mic speech prefixed "Ultron," becomes a voice message (wake word stripped) and gets a reply; toggle off; Activity entry |
 | Connectors | GitHub event mapping (first-line titles, failed runs urgent), bad token / rate limit / unknown repo errors, connect read test, repo validation, sync + dedupe on re-sync, Important filter, rate-limit backoff keeps last good sync, brain gets feed status, hostile issue title stays data, disconnect deletes token + events |
+| Embeddings | vectors stored, refreshed after edits, dropped on delete; hybrid merge with keyword search; off mode = keyword only |
+| Real meaning-based recall (CI, `ULTRON_TEST_EMBED=1`) | downloads all-MiniLM-L6-v2; "how hot should the oven be?" must recall the bread-baking memory, which shares no keywords |
 | Real GitHub (CI, `ULTRON_TEST_GITHUB=1`) | syncs this repository with the Actions read-only token; checks event shapes and links |
 | E2E connections (fake GitHub) | bad token refused; connect; choose repo; feed; Important filter; "what's new on github?" tool; disconnect clears feed |
 | Personality & briefing | overrides saved/applied (prompt, wake words, status), reset; invalid wake words, out-of-range tone, editing boundaries and HTML names rejected; briefing includes reminders, pending approvals, "github not connected", unconnected calendar/weather |

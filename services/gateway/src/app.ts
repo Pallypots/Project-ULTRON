@@ -20,6 +20,7 @@ import { FileService, openTarget, openWithDefaultApp } from "./files/service.ts"
 import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
+import { EmbeddingService } from "./embeddings/index.ts";
 import { OllamaManager } from "./local-ai/ollama.ts";
 import { recommendModel } from "./local-ai/recommend.ts";
 import { z } from "zod";
@@ -28,7 +29,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.10.1";
+export const VERSION = "0.11.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -99,7 +100,10 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     if (e.type === "action_updated" && e.execution.status === "succeeded" && /reminder/.test(e.execution.tool)) scheduler.reschedule();
   });
   scheduler.start();
-  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+  const embeddings = new EmbeddingService(stores, join(config.dataDir, "models"));
+  // Prepare meaning-based recall in the background if there's anything to recall.
+  if (stores.memories.list().length) embeddings.backfill().catch(() => {});
+  const deps = { embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   // ---- public ----
   app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));
@@ -534,12 +538,14 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const body = MemoryCreate.parse(req.body);
     const memory = stores.memories.create({ ...body, source: "manual" });
     stores.audit.record("memory.created", "owner", memory.id, { via: "vault", kind: memory.kind });
+    embeddings.backfill().catch(() => {});
     return { memory };
   });
   app.patch<{ Params: { id: string } }>("/api/memories/:id", async (req, reply) => {
     const memory = stores.memories.update(req.params.id, MemoryPatch.parse(req.body));
     if (!memory) return reply.code(404).send({ error: "not_found" });
     stores.audit.record("memory.updated", "owner", memory.id, { fields: Object.keys(req.body as object) });
+    embeddings.backfill().catch(() => {});
     return { memory };
   });
   app.delete<{ Params: { id: string } }>("/api/memories/:id", async (req, reply) => {
@@ -549,7 +555,9 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   });
   app.post("/api/memories/search", async (req) => {
     const { query } = (req.body ?? {}) as { query?: string };
-    return { memories: stores.memories.search(String(query ?? ""), 10) };
+    const q = String(query ?? "").slice(0, 500);
+    const semantic = await embeddings.similar(q, 10).catch(() => []);
+    return { memories: semantic.length ? stores.memories.retrieveHybrid(q, semantic, 10) : stores.memories.search(q, 10), recall: embeddings.state === "ready" ? "keyword+meaning" : "keyword" };
   });
   app.get("/api/memories/export", async (_req, reply) => {
     stores.audit.record("memory.exported", "owner");

@@ -91,6 +91,9 @@ ULTRON only keeps long-term memories you explicitly give it:
 - **Remove:** *"Forget that I prefer…"* removes the closest matching memory and tells you which one it removed.
 - **Review:** **Memory Vault** lists everything, with where it came from and when. You can edit, pin (always considered), export or forget each one.
 
+ULTRON finds memories by meaning, not just matching words: ask *"how hot should the oven be?"* and it can recall
+*"I bake bread at 230 degrees"*. This uses a small model on your PC (about 23 MB, downloaded automatically the first time).
+
 When ULTRON uses a memory in a reply, it appears as a small `memory:xxxxxxxx` tag under the message.
 Forgetting is permanent: the memory is deleted from the database and the search index (older backups you made yourself still contain it).
 

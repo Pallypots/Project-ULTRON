@@ -28,7 +28,7 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
   return [
     model,
     { id: "chat", label: "Text chat with streaming", status: "enabled", detail: "conversations saved on this computer" },
-    { id: "memory", label: "Long-term memory", status: "enabled", detail: "only what the owner explicitly asks to remember; editable in the Memory Vault" },
+    { id: "memory", label: "Long-term memory", status: "enabled", detail: "only what the owner explicitly asks to remember; recalled by keywords and by meaning (local model); editable in the Memory Vault" },
     voiceInput(stt),
     {
       id: "voice_output",

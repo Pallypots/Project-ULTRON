@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0 · 2026-10-30 · Meaning-based memory recall (local)
+- ULTRON now finds memories by *meaning*, not only shared words: "how hot should the oven be?" recalls "I bake bread at 230 degrees".
+- Runs on your PC with a small local model (all-MiniLM-L6-v2, ~23 MB, downloaded once on first use). No cloud. Falls back to keyword search if the model isn't available.
+- Results merge keyword and meaning matches; pinned memories always come first. Vectors are updated when a memory is edited and deleted with it.
+
 ## 0.10.1 · 2026-10-30 · Security review fixes
 - Fixed an auth bypass via percent-encoded paths (`/%61pi/...`), zip-bomb .docx, unsafe "open" of programs/links/UNC paths, mid-JSON truncation,
   fuzzy "forget", voice-triggered forget/cloud switch, unlimited tool calls, DPAPI transient failures, env-secret scrubbing. See SECURITY.md.

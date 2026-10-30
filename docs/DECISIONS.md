@@ -98,6 +98,12 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-022 · 2026-10-30 · Local embeddings for memory recall (hybrid with BM25)
+Supersedes the "later" in D-003. `Xenova/all-MiniLM-L6-v2` via the already-installed transformers.js (no new dependency), vectors stored as
+BLOBs in SQLite (`memory_vectors`, cascade-deleted with the memory, refreshed by content hash). Brute-force cosine is fine for thousands of
+memories; a vector index can come later. Keyword and vector rankings are merged with reciprocal-rank fusion so exact names still win.
+If the model can't load (offline first run), recall silently stays keyword-only. Verified in CI with the real model (`ULTRON_TEST_EMBED=1`).
+
 ### D-021 · 2026-10-30 · Kokoro fp16 by default (measured)
 A CI benchmark showed q8 at 1.4–2.0× real time on CPU (gaps between sentences) while fp16/fp32 ran at ~0.8× on both Windows and Linux,
 all intelligible. fp16 is half fp32's download for the same speed.

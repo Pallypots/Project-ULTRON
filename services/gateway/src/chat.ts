@@ -2,6 +2,7 @@ import { buildSystemPrompt, detectIntent, detectTimeIntent, ProviderError, type 
 import type { ToolEvent } from "@ultron/schemas";
 import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
 import { TOOLS } from "./actions/tools.ts";
+import type { EmbeddingService } from "./embeddings/index.ts";
 import type { Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
 import { currentCapabilities } from "./capabilities.ts";
@@ -23,6 +24,7 @@ export interface ChatDeps {
   ttsEngine?: () => string;
   ollama?: OllamaManager;
   actions?: ActionRunner;
+  embeddings?: EmbeddingService;
 }
 
 const MAX_TOOL_ROUNDS = 4;
@@ -141,6 +143,7 @@ export async function handleUserMessage(
       sourceMessageId: userMessage.id,
     });
     stores.audit.record("memory.created", "owner", memory.id, { via: "chat", kind: memory.kind });
+    deps.embeddings?.backfill().catch(() => {});
     emit({ type: "memory_saved", memory });
     const text =
       `Got it. I'll remember: "${memory.content}" [memory:${memory.id.slice(0, 8)}]` +
@@ -245,7 +248,9 @@ export async function handleUserMessage(
     return finish(resolution.reason, "error");
   }
 
-  const memories = stores.memories.retrieveForPrompt(content);
+  // Keyword recall always; meaning-based recall too once the local embedding model is ready.
+  const semantic = (await deps.embeddings?.similar(content).catch(() => [])) ?? [];
+  const memories = semantic.length ? stores.memories.retrieveHybrid(content, semantic) : stores.memories.retrieveForPrompt(content);
   if (memories.length) emit({ type: "memories", memories: memories.map(brief) });
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
   const provider = resolution.provider;

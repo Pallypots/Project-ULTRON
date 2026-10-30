@@ -18,6 +18,7 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | Conversations saved and restored after restart | ✅ working |
 | "Remember that…" / "Forget…" in chat, with a Memory Vault to view, edit, pin, export, delete | ✅ working |
 | Memories recalled in *new* conversations, cited as `[memory:xxxxxxxx]` | ✅ working |
+| Memory recall **by meaning** (local embeddings), merged with keyword search | ✅ working (real model tested in CI) |
 | Refuses to store passwords, card numbers, API keys, ID numbers | ✅ working |
 | **Local brain** on your PC via Ollama: detects your graphics card, recommends a model, one-click download, works offline | ✅ working (real model tested in CI) |
 | Switch brains by voice or chat ("switch your brain to local", "switch to Fable"), with a color skin per brain | ✅ working |

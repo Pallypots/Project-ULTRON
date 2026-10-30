@@ -6,6 +6,9 @@ import { buildGateway, type Gateway } from "../src/app.ts";
 
 export const tmpDataDir = () => mkdtempSync(join(tmpdir(), "ultron-gw-"));
 
+// Tests don't download the real embedding model (each gateway has its own temp data folder); see embeddings tests.
+process.env.ULTRON_EMBEDDINGS ??= "off";
+
 export async function startGateway(dataDir = tmpDataDir()) {
   const gw = await buildGateway({ dataDir, uiDir: null, mockDelayMs: 0, logLevel: "info" });
   const auth = { authorization: `Bearer ${gw.token}`, host: "localhost:7477" };
