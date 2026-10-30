@@ -31,7 +31,10 @@ export class KokoroEngine implements TtsEngine {
   private state: TtsStatus = { state: "not_loaded", detail: "The voice downloads the first time ULTRON speaks (about 90 MB, one time)." };
   private queue: Promise<unknown> = Promise.resolve();
 
-  constructor(private cacheDir: string) {}
+  constructor(
+    private cacheDir: string,
+    readonly dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16" = (process.env.ULTRON_KOKORO_DTYPE as "q8") ?? "q8",
+  ) {}
 
   status(): TtsStatus {
     return this.state;
@@ -51,7 +54,7 @@ export class KokoroEngine implements TtsEngine {
       const [{ KokoroTTS }, transformers] = await Promise.all([import("kokoro-js"), import("@huggingface/transformers")]);
       transformers.env.cacheDir = this.cacheDir;
       return (await KokoroTTS.from_pretrained(KOKORO_MODEL, {
-        dtype: "q8",
+        dtype: this.dtype,
         device: "cpu",
         progress_callback: (p: any) => {
           if (p.status === "progress" && p.total) {
