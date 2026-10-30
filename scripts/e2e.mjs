@@ -271,7 +271,10 @@ try {
   step("Hands-free can be turned off, and on/off is recorded in Activity");
 
   // ---- Files / second brain ----
-  const projects = mkdtempSync(join(tmpdir(), "ultron-e2e-projects-"));
+  // Windows temp lives in AppData, which ULTRON refuses to index; use a folder inside the repo there.
+  const projectsBase = process.platform === "win32" ? join(import.meta.dirname, "../.test-tmp") : tmpdir();
+  mkdirSync(projectsBase, { recursive: true });
+  const projects = mkdtempSync(join(projectsBase, "ultron-e2e-projects-"));
   mkdirSync(join(projects, "Free School Community"));
   writeFileSync(join(projects, "Free School Community", "launch-plan.md"), "Community launch: weekly AI workshops and onboarding checklist.");
   writeFileSync(join(projects, ".env"), "SECRET=never-index-me");

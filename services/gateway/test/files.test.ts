@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
+import { REPO_ROOT } from "../src/config.ts";
 import { basename, join } from "node:path";
 import { deflateRawSync } from "node:zlib";
 import { openStores } from "@ultron/memory";
@@ -9,6 +10,13 @@ import { chunkText, indexFolder, validateFolder } from "../src/files/indexer.ts"
 import { replyText, startGateway } from "./helpers.ts";
 
 process.env.ULTRON_ACTIONS_DRY_RUN = "1";
+
+// On Windows the temp folder is inside AppData, which ULTRON (rightly) refuses to index, so use a folder in the repo.
+const testBase = () => {
+  const base = process.platform === "win32" ? join(REPO_ROOT, ".test-tmp") : tmpdir();
+  mkdirSync(base, { recursive: true });
+  return base;
+};
 
 /** Builds a minimal .docx (zip with word/document.xml) for tests. */
 function makeDocx(paragraphs: string[]): Buffer {
@@ -37,7 +45,7 @@ function makeDocx(paragraphs: string[]): Buffer {
 }
 
 function makeProjectTree() {
-  const root = mkdtempSync(join(tmpdir(), "ultron-files-"));
+  const root = mkdtempSync(join(testBase(), "ultron-files-"));
   mkdirSync(join(root, "Free School Community"), { recursive: true });
   mkdirSync(join(root, "node_modules/junk"), { recursive: true });
   mkdirSync(join(root, ".hidden"));
@@ -142,7 +150,7 @@ describe("files through the gateway", () => {
   it("reading is limited to approved folders; opening needs approval; traversal and symlinks are blocked", async () => {
     const g = await setup();
     const id = await g.newConversation();
-    const outside = mkdtempSync(join(tmpdir(), "outside-"));
+    const outside = mkdtempSync(join(testBase(), "outside-"));
     writeFileSync(join(outside, "secret.txt"), "top secret");
     try {
       symlinkSync(outside, join(g.root, "Free School Community", "escape"), "junction");

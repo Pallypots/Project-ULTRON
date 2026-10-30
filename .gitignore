@@ -9,3 +9,4 @@ playwright-report/
 apps/desktop/src-tauri/target/
 backups/
 .model-cache/
+.test-tmp/

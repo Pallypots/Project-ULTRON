@@ -31,10 +31,11 @@ export async function validateFolder(input: string, dataDir: string): Promise<st
   if (real === root || real === root.replace(/[\\/]$/, "")) throw new FolderError("Indexing a whole drive isn't allowed. Pick a specific folder.");
   const home = homedir();
   if (real === home) throw new FolderError("Your entire user folder is too broad. Pick specific folders like Documents\\Projects.");
-  const blocked = [/^[a-z]:\\windows(\\|$)/, /^[a-z]:\\program files/, /^[a-z]:\\programdata/, /\\appdata(\\|$)/, /^\/(etc|usr|bin|sbin|proc|sys|dev|var|boot|root)(\/|$)/, /[\\/]\.ssh([\\/]|$)/, /[\\/]\.gnupg([\\/]|$)/];
-  if (blocked.some((re) => re.test(lower))) throw new FolderError("System and credential folders can't be indexed.");
   const dataReal = await realpath(dataDir).catch(() => dataDir);
   if (real === dataReal || real.startsWith(dataReal + sep) || dataReal.startsWith(real + sep)) throw new FolderError("ULTRON's own data folder can't be indexed.");
+  // AppData holds browser profiles, saved passwords and app secrets, so it's never indexable.
+  const blocked = [/^[a-z]:\\windows(\\|$)/, /^[a-z]:\\program files/, /^[a-z]:\\programdata/, /\\appdata(\\|$)/, /^\/(etc|usr|bin|sbin|proc|sys|dev|var|boot|root)(\/|$)/, /[\\/]\.ssh([\\/]|$)/, /[\\/]\.gnupg([\\/]|$)/];
+  if (blocked.some((re) => re.test(lower))) throw new FolderError("System and credential folders can't be indexed.");
   return real;
 }
 
