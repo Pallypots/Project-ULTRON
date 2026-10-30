@@ -7,6 +7,9 @@ export type Role = z.infer<typeof Role>;
 export const MessageStatus = z.enum(["streaming", "complete", "error", "cancelled"]);
 export type MessageStatus = z.infer<typeof MessageStatus>;
 
+export const InputMode = z.enum(["text", "voice"]);
+export type InputMode = z.infer<typeof InputMode>;
+
 export const Message = z.object({
   id: z.string(),
   conversationId: z.string(),
@@ -17,6 +20,7 @@ export const Message = z.object({
   model: z.string().nullable(),
   memoryIds: z.array(z.string()),
   sourceDeviceId: z.string().nullable(),
+  inputMode: InputMode,
   createdAt: z.string(),
 });
 export type Message = z.infer<typeof Message>;
@@ -73,6 +77,7 @@ export type MemoryPatch = z.infer<typeof MemoryPatch>;
 export const SendMessage = z.object({
   content: z.string().trim().min(1).max(20000),
   deviceId: z.string().max(100).optional(),
+  inputMode: InputMode.default("text"),
 });
 
 export const ProviderId = z.enum(["mock", "anthropic", "openai"]);
@@ -96,6 +101,31 @@ export type ChatEvent =
   | { type: "delta"; text: string }
   | { type: "done"; message: Message }
   | { type: "error"; message: string; code: string };
+
+export const SttEngineId = z.enum(["local", "openai", "mock"]);
+
+export const VoiceSettingsUpdate = z.object({
+  engine: SttEngineId,
+  model: z.string().trim().max(200).optional(),
+});
+
+export interface VoiceStatus {
+  engine: z.infer<typeof SttEngineId>;
+  model: string;
+  state: "ready" | "not_loaded" | "loading" | "error" | "not_configured";
+  detail: string;
+  progress?: number;
+  privacy: string;
+  maxSeconds: number;
+}
+
+export interface TranscribeResult {
+  text: string;
+  engine: string;
+  model: string;
+  audioSeconds: number;
+  elapsedMs: number;
+}
 
 export const Capability = z.object({
   id: z.string(),

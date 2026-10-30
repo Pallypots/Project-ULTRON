@@ -21,7 +21,7 @@ const shots = join(import.meta.dirname, "../docs/screenshots");
 mkdirSync(shots, { recursive: true });
 
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_LOG_LEVEL: "warn" },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_LOG_LEVEL: "warn" },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {
@@ -31,7 +31,11 @@ await new Promise((resolve, reject) => {
 });
 
 const base = `http://localhost:${port}`;
-const browser = await chromium.launch();
+const speech = join(import.meta.dirname, "../services/gateway/test/fixtures/jfk.wav");
+// Fake microphone that plays the JFK speech sample, with the permission prompt auto-accepted.
+const browser = await chromium.launch({
+  args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-audio-capture=${speech}`, "--autoplay-policy=no-user-gesture-required"],
+});
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const step = (name) => console.log(`✓ ${name}`);
 let failed = false;
@@ -80,6 +84,98 @@ try {
   await page.getByLabel(/Reduce motion/).check();
   if ((await page.evaluate(() => document.documentElement.dataset.contrast)) !== "high") throw new Error("high contrast not applied");
   step("Accessibility toggles apply");
+
+  // ---- Voice (UL-008) ----
+  await page.getByLabel("High contrast").uncheck();
+  await page.getByLabel(/Reduce motion/).uncheck();
+  await page.getByText("Ready").first().waitFor();
+  await page.getByRole("button", { name: "🎙 Test microphone" }).click();
+  await page.waitForFunction(() => {
+    const el = document.querySelector(".meter i");
+    return el && /scaleX\((0\.[1-9]|1)/.test(el.getAttribute("style") ?? "");
+  }, null, { timeout: 8000 });
+  await page.getByRole("button", { name: "■ Stop test" }).click();
+  step("Settings → Voice: microphone test meter responds to audio");
+
+  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByRole("button", { name: "+ New conversation" }).click();
+  const talk = page.getByRole("button", { name: /Push to talk/ });
+  const userVoiceMsgs = page.locator(".msg--user", { hasText: "🎙 voice" });
+  const lastVoiceText = async () => (await userVoiceMsgs.last().locator(".msg__body").innerText());
+  const level = (t) => Number(/level ([\d.]+)/.exec(t)?.[1] ?? 0);
+  const secs = (t) => Number(/of ([\d.]+) seconds/.exec(t)?.[1] ?? 0);
+
+  // 1) Hold the button.
+  const box2 = await talk.boundingBox();
+  await page.mouse.move(box2.x + box2.width / 2, box2.y + box2.height / 2);
+  await page.mouse.down();
+  await page.locator(".listening", { hasText: "Listening" }).waitFor();
+  if (!(await page.locator(".core--listening").count())) throw new Error("HUD core not in listening state");
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: join(shots, "06-push-to-talk-listening.png") });
+  await page.mouse.up();
+  await userVoiceMsgs.first().waitFor();
+  let t = await lastVoiceText();
+  if (secs(t) < 2 || level(t) < 0.005) throw new Error(`hold-to-talk captured no real audio: ${t}`);
+  await page.locator(".msg--assistant.msg--complete").last().waitFor();
+  step(`Hold-to-talk: mic audio captured and sent as a voice message (${secs(t)} s, level ${level(t)})`);
+  await page.screenshot({ path: join(shots, "07-voice-message-sent.png") });
+
+  // 2) Hold Space (focus outside text fields).
+  await page.locator(".messages").click({ position: { x: 5, y: 5 } });
+  await page.keyboard.down("Space");
+  await page.locator(".listening", { hasText: "Listening" }).waitFor();
+  await page.waitForTimeout(1500);
+  await page.keyboard.up("Space");
+  await userVoiceMsgs.nth(1).waitFor();
+  step("Hold Space: push-to-talk works from the keyboard");
+  await page.locator(".msg--assistant.msg--complete").nth(1).waitFor();
+
+  // 3) Esc cancels and discards.
+  const before = await userVoiceMsgs.count();
+  await talk.click();
+  await page.locator(".listening", { hasText: "Listening" }).waitFor();
+  await page.keyboard.press("Escape");
+  await page.locator(".listening").waitFor({ state: "detached" });
+  await page.waitForTimeout(800);
+  if ((await userVoiceMsgs.count()) !== before) throw new Error("Esc did not discard the recording");
+  step("Esc cancels a recording and nothing is sent");
+
+  // 4) Click to latch hands-free, click again to send.
+  await talk.click();
+  await page.locator(".listening", { hasText: "Listening" }).waitFor();
+  await page.waitForTimeout(1800);
+  await talk.click();
+  await userVoiceMsgs.nth(before).waitFor();
+  t = await lastVoiceText();
+  if (secs(t) < 1.5) throw new Error(`latched recording too short: ${t}`);
+  step("Click-to-start / click-to-send hands-free mode works");
+  await page.locator(".msg--assistant.msg--complete").last().waitFor();
+
+  // 5) Review-before-send mode puts the transcript in the box.
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel(/Send right after I stop talking/).uncheck();
+  await page.getByRole("button", { name: "Chat" }).click();
+  await talk.click();
+  await page.locator(".listening", { hasText: "Listening" }).waitFor();
+  await page.waitForTimeout(1200);
+  await talk.click();
+  await page.waitForFunction(() => document.querySelector("#composer")?.value.startsWith("Mock transcript"), null, { timeout: 8000 });
+  step("Review mode: transcript lands in the message box for editing");
+
+  await page.getByRole("button", { name: "Activity" }).click();
+  await page.getByText("Microphone used (push-to-talk)").first().waitFor();
+  step("Activity log records microphone use (not the audio or words)");
+
+  // 6) Microphone blocked → clear explanation.
+  const noMic = await chromium.launch();
+  const ctx = await noMic.newContext();
+  const denied = await ctx.newPage();
+  await denied.goto(`${base}/#chat`);
+  await denied.getByRole("button", { name: /Push to talk/ }).click();
+  await denied.getByText(/Microphone access is blocked|No microphone was found/).waitFor();
+  await noMic.close();
+  step("Blocked/missing microphone shows a plain-English fix");
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto(base);

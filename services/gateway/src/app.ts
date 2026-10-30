@@ -4,7 +4,8 @@ import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { loadPersona, type Persona } from "@ultron/agent-core";
 import { openStores, redact, type Stores } from "@ultron/memory";
-import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, type ChatEvent } from "@ultron/schemas";
+import { decodeWav, rms, WavError } from "@ultron/audio";
+import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, VoiceSettingsUpdate, type ChatEvent, type TranscribeResult, type VoiceStatus } from "@ultron/schemas";
 import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { currentCapabilities } from "./capabilities.ts";
@@ -12,8 +13,10 @@ import { ActiveStreams, handleUserMessage } from "./chat.ts";
 import { loadConfig, type GatewayConfig } from "./config.ts";
 import { readProviderSettings, resolveProvider, SECRET_FOR } from "./providers.ts";
 import { SecretStore } from "./secrets.ts";
+import { SttError, SttManager } from "./stt/index.ts";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
+export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
   app: FastifyInstance;
@@ -66,7 +69,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   if (recovered) stores.audit.record("recovery.interrupted_messages", "system", null, { count: recovered });
 
   const settings = () => readProviderSettings(stores.preferences);
-  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs };
+  const stt = new SttManager(config.dataDir, stores.preferences, secrets);
+  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current() };
 
   // ---- public ----
   app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));
@@ -78,7 +82,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   // ---- status ----
   app.get("/api/capabilities", async () => {
     const s = settings();
-    return { capabilities: currentCapabilities(s, resolveProvider(s, secrets, config.mockDelayMs)) };
+    return { capabilities: currentCapabilities(s, resolveProvider(s, secrets, config.mockDelayMs), stt.current()) };
   });
   app.get("/api/status", async () => {
     const s = settings();
@@ -168,13 +172,63 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       if (!reply.raw.writableFinished) ctl.abort();
     });
     try {
-      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, signal: ctl.signal, emit });
+      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, signal: ctl.signal, emit });
     } catch (err) {
       app.log.error(err);
       emit({ type: "error", code: "internal", message: "ULTRON hit an internal error. Details are in the log." });
     } finally {
       streams.finish(req.params.id);
       reply.raw.end();
+    }
+  });
+
+  // ---- voice ----
+  const voiceStatus = (): VoiceStatus => {
+    const engine = stt.current();
+    return { engine: engine.id, model: engine.model, ...engine.status(), privacy: engine.privacy, maxSeconds: MAX_VOICE_SECONDS };
+  };
+  app.get("/api/voice/status", async () => voiceStatus());
+  app.put("/api/voice/settings", async (req) => {
+    const body = VoiceSettingsUpdate.parse(req.body);
+    stores.preferences.set("voice", { engine: body.engine, model: body.model ?? "" });
+    stores.audit.record("settings.voice_changed", "owner", body.engine, { model: body.model ?? "" });
+    return voiceStatus();
+  });
+  app.post("/api/voice/prepare", async () => {
+    // Starts loading/downloading in the background; clients poll /api/voice/status for progress.
+    stt.current().prepare().catch((err) => app.log.warn({ err: (err as Error).message }, "speech model failed to load"));
+    return voiceStatus();
+  });
+  // Raw audio is processed in memory only and never written to disk. The audit log records that the mic was used, never what was said.
+  app.addContentTypeParser(["audio/wav", "audio/x-wav", "audio/wave"], { parseAs: "buffer", bodyLimit: 16_000_000 }, (_req, body, done) => done(null, body));
+  app.post("/api/voice/transcribe", { bodyLimit: 16_000_000 }, async (req, reply) => {
+    if (!Buffer.isBuffer(req.body)) return reply.code(415).send({ error: "unsupported_media_type", message: "Send audio as audio/wav." });
+    let decoded;
+    try {
+      decoded = decodeWav(new Uint8Array(req.body));
+    } catch (err) {
+      if (err instanceof WavError) return reply.code(400).send({ error: "bad_audio", message: err.message });
+      throw err;
+    }
+    if (decoded.seconds < 0.3) return reply.code(400).send({ error: "too_short", message: "That was too short to hear anything. Hold the talk button while you speak." });
+    if (decoded.seconds > MAX_VOICE_SECONDS) return reply.code(413).send({ error: "too_long", message: `Voice messages are limited to ${MAX_VOICE_SECONDS / 60} minutes.` });
+    const engine = stt.current();
+    const started = Date.now();
+    const level = rms(decoded.samples);
+    if (level < 0.002) {
+      stores.audit.record("voice.transcribed", "owner", null, { engine: engine.id, seconds: +decoded.seconds.toFixed(1), result: "silent" });
+      return reply.code(422).send({ error: "silent", message: "I didn't hear anything. Check that the right microphone is selected and not muted." });
+    }
+    try {
+      const text = await engine.transcribe(decoded.samples, new Uint8Array(req.body));
+      const elapsedMs = Date.now() - started;
+      stores.audit.record("voice.transcribed", "owner", null, { engine: engine.id, seconds: +decoded.seconds.toFixed(1), ms: elapsedMs, chars: text.length });
+      const result: TranscribeResult = { text, engine: engine.id, model: engine.model, audioSeconds: +decoded.seconds.toFixed(2), elapsedMs };
+      return result;
+    } catch (err) {
+      const e = err instanceof SttError ? err : new SttError(`Speech recognition failed: ${(err as Error).message}`, "failed");
+      stores.audit.record("voice.error", "system", null, { engine: engine.id, code: e.code });
+      return reply.code(e.code === "not_configured" ? 409 : 503).send({ error: e.code, message: e.message });
     }
   });
 

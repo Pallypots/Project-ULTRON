@@ -251,3 +251,21 @@ textarea { resize: vertical; }
   .ask, .add-memory { flex-direction: column; }
   .add-memory select { width: 100%; }
 }
+
+/* ---------- voice ---------- */
+.core__level { fill: none; stroke: var(--accent-strong); stroke-width: 2; opacity: 0; transform-origin: 100px 100px; transform: scale(calc(1 + var(--level, 0) * 1.1)); transition: transform 60ms linear; }
+.core--listening .core__level { opacity: 0.9; filter: drop-shadow(0 0 8px var(--accent)); }
+.core--listening .core__pulse { animation: none; transform: scale(calc(0.85 + var(--level, 0) * 0.9)); }
+.core--listening .core__ring--c { stroke: #fb7185; }
+.mic { min-width: 108px; }
+.mic--on { background: rgba(190, 18, 60, 0.45); border-color: #fb7185; color: #ffe4e6; box-shadow: 0 0 16px rgba(251, 113, 133, 0.45); }
+.listening { display: flex; align-items: center; gap: 10px; margin: 0 12px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(251, 113, 133, 0.55); background: rgba(127, 29, 29, 0.3); color: #ffe4e6; font-size: 0.9rem; }
+.listening--transcribing { border-color: var(--line-strong); background: rgba(14, 40, 74, 0.6); color: var(--text); }
+.listening__dot { width: 10px; height: 10px; border-radius: 50%; background: #fb7185; box-shadow: 0 0 10px #fb7185; animation: blink 1s infinite; flex: none; }
+.listening--transcribing .listening__dot { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.listening__meter { flex: 1; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; max-width: 220px; margin-left: auto; }
+.listening__meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #fb7185); transform-origin: left; }
+.meter { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); transform-origin: left; transition: transform 60ms linear; }
+.progress { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); }

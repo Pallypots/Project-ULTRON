@@ -9,6 +9,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@ultron/audio": "*",
     "@ultron/schemas": "*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

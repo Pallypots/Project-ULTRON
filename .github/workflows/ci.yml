@@ -9,14 +9,32 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # Runs the real local Whisper speech-recognition test (downloads the model once, then cached).
+      ULTRON_TEST_WHISPER: "1"
+      ULTRON_TEST_MODEL_DIR: ${{ github.workspace }}/.model-cache
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: .model-cache
+          key: whisper-models-v1-${{ runner.os }}
       - run: npm ci
       - run: npm run lint
       - run: npm test
       - run: npm run build
       - run: npm run doctor
+      - name: Browser end-to-end test (fake microphone)
+        run: |
+          npm install --no-save --no-audit --no-fund playwright
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-${{ matrix.os }}
+          path: docs/screenshots/

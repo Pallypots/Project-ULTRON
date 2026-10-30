@@ -1,7 +1,8 @@
-export type CoreState = "idle" | "thinking" | "speaking" | "offline" | "error";
+export type CoreState = "idle" | "listening" | "thinking" | "speaking" | "offline" | "error";
 
 const LABEL: Record<CoreState, string> = {
   idle: "Standing by",
+  listening: "Listening",
   thinking: "Thinking",
   speaking: "Responding",
   offline: "Offline",
@@ -9,10 +10,15 @@ const LABEL: Record<CoreState, string> = {
 };
 
 /** ULTRON's original HUD core: segmented rings that react to the assistant's real state. */
-export function Core({ state, size = 220 }: { state: CoreState; size?: number }) {
+export function Core({ state, size = 220, level = 0 }: { state: CoreState; size?: number; level?: number }) {
   const ticks = Array.from({ length: 60 }, (_, i) => i);
   return (
-    <div className={`core core--${state}`} style={{ width: size, height: size }} role="img" aria-label={`ULTRON status: ${LABEL[state]}`}>
+    <div
+      className={`core core--${state}`}
+      style={{ width: size, height: size, ["--level" as string]: level.toFixed(3) }}
+      role="img"
+      aria-label={`ULTRON status: ${LABEL[state]}`}
+    >
       <svg viewBox="0 0 200 200" aria-hidden="true">
         <defs>
           <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
@@ -31,6 +37,7 @@ export function Core({ state, size = 220 }: { state: CoreState; size?: number })
         <circle cx="100" cy="100" r="64" className="core__ring core__ring--b" />
         <circle cx="100" cy="100" r="50" className="core__ring core__ring--c" />
         <circle cx="100" cy="100" r="40" fill="url(#coreGlow)" className="core__pulse" />
+        <circle cx="100" cy="100" r="44" className="core__level" />
         <polygon points="100,74 122,87 122,113 100,126 78,113 78,87" className="core__hex" />
         <path d="M91 89v13a9 9 0 0 0 18 0V89" className="core__glyph" />
       </svg>

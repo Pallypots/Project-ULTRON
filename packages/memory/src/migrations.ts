@@ -77,4 +77,10 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE conversations;
     `,
   },
+  {
+    version: 2,
+    name: "message_input_mode",
+    up: `ALTER TABLE messages ADD COLUMN input_mode TEXT NOT NULL DEFAULT 'text' CHECK (input_mode IN ('text','voice'));`,
+    down: `ALTER TABLE messages DROP COLUMN input_mode;`,
+  },
 ];

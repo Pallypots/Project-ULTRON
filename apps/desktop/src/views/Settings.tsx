@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type ProviderSettings } from "../api.ts";
 import type { UiPrefs } from "../prefs.ts";
+import { VoiceSettings } from "./VoiceSettings.tsx";
 
 const PROVIDERS = [
   { id: "mock", name: "Built-in mock (offline)", help: "No account needed. Great for trying ULTRON; replies are canned." },
@@ -104,6 +105,8 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
         {msg && <div className={`banner ${msg.ok ? "banner--ok" : "banner--error"}`} role="status">{msg.text}</div>}
         <p className="muted small">Cost note: real models are billed by your provider per use. ULTRON limits each reply's length and how much history it sends, and you can stop any reply with Esc or the Stop button.</p>
       </form>
+
+      <VoiceSettings onSaved={onSaved} />
 
       <section className="panel form">
         <h2 className="panel__title">Display &amp; accessibility</h2>

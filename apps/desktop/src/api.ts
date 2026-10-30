@@ -1,4 +1,4 @@
-import type { AuditEvent, Capability, ChatEvent, Conversation, Memory, MemoryKind, Message } from "@ultron/schemas";
+import type { AuditEvent, Capability, ChatEvent, Conversation, InputMode, Memory, MemoryKind, Message, TranscribeResult, VoiceStatus } from "@ultron/schemas";
 
 let token: string | null = null;
 
@@ -74,14 +74,28 @@ export const api = {
   testProvider: () => call<{ ok: boolean; message: string; sample?: string }>("POST", "/api/settings/provider/test"),
   stopAll: () => call<{ stopped: number }>("POST", "/api/stop"),
   logs: () => call<string>("GET", "/api/logs/export"),
+  voiceStatus: () => call<VoiceStatus>("GET", "/api/voice/status"),
+  saveVoiceSettings: (s: { engine: VoiceStatus["engine"]; model?: string }) => call<VoiceStatus>("PUT", "/api/voice/settings", s),
+  prepareVoice: () => call<VoiceStatus>("POST", "/api/voice/prepare"),
 };
 
+export async function transcribe(wav: Uint8Array): Promise<TranscribeResult> {
+  const res = await fetch("/api/voice/transcribe", {
+    method: "POST",
+    headers: { authorization: `Bearer ${await getToken()}`, "content-type": "audio/wav" },
+    body: wav as BodyInit,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError((data as { message?: string }).message ?? `Transcription failed (${res.status})`, res.status);
+  return data as TranscribeResult;
+}
+
 /** Sends a message and calls `onEvent` for each streamed server event. */
-export async function sendMessage(conversationId: string, content: string, onEvent: (e: ChatEvent) => void, signal?: AbortSignal): Promise<void> {
+export async function sendMessage(conversationId: string, content: string, onEvent: (e: ChatEvent) => void, signal?: AbortSignal, inputMode: InputMode = "text"): Promise<void> {
   const res = await fetch(`/api/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: { authorization: `Bearer ${await getToken()}`, "content-type": "application/json" },
-    body: JSON.stringify({ content, deviceId: deviceId() }),
+    body: JSON.stringify({ content, deviceId: deviceId(), inputMode }),
     signal,
   });
   if (!res.ok || !res.body) {

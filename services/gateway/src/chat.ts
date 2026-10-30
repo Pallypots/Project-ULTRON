@@ -4,6 +4,7 @@ import type { ChatEvent, Memory, Message } from "@ultron/schemas";
 import { currentCapabilities } from "./capabilities.ts";
 import { readProviderSettings, resolveProvider } from "./providers.ts";
 import type { SecretStore } from "./secrets.ts";
+import type { SttEngine } from "./stt/index.ts";
 
 const HISTORY_TURNS = 30;
 const HISTORY_CHAR_BUDGET = 60_000;
@@ -13,6 +14,7 @@ export interface ChatDeps {
   secrets: SecretStore;
   persona: () => Persona;
   mockDelayMs: number;
+  stt?: () => SttEngine;
 }
 
 /** Tracks in-flight replies so the owner's stop button (and disconnects) can cancel them. */
@@ -58,7 +60,7 @@ export async function handleUserMessage(
   deps: ChatDeps,
   conversationId: string,
   content: string,
-  opts: { deviceId?: string; signal: AbortSignal; emit: (e: ChatEvent) => void },
+  opts: { deviceId?: string; inputMode?: Message["inputMode"]; signal: AbortSignal; emit: (e: ChatEvent) => void },
 ): Promise<void> {
   const { stores, emit } = { ...deps, emit: opts.emit };
   const settings = readProviderSettings(stores.preferences);
@@ -69,7 +71,7 @@ export async function handleUserMessage(
   const conv = stores.conversations.get(conversationId)!;
   if (conv.title === "New conversation") stores.conversations.rename(conversationId, content.length > 60 ? `${content.slice(0, 57).trimEnd()}…` : content);
 
-  const userMessage = stores.conversations.addMessage({ conversationId, role: "user", content, sourceDeviceId: opts.deviceId ?? null });
+  const userMessage = stores.conversations.addMessage({ conversationId, role: "user", content, sourceDeviceId: opts.deviceId ?? null, inputMode: opts.inputMode ?? "text" });
   const assistant = stores.conversations.addMessage({
     conversationId,
     role: "assistant",
@@ -134,7 +136,7 @@ export async function handleUserMessage(
 
   const memories = stores.memories.retrieveForPrompt(content);
   if (memories.length) emit({ type: "memories", memories: memories.map(brief) });
-  const capabilities = currentCapabilities(settings, resolution);
+  const capabilities = currentCapabilities(settings, resolution, deps.stt?.());
   const system = buildSystemPrompt(deps.persona(), {
     capabilities,
     memories,

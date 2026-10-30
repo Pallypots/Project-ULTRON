@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatEvent, Conversation, Message } from "@ultron/schemas";
 import { api, sendMessage, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
+import { usePushToTalk } from "../voice/usePushToTalk.ts";
+import { loadVoicePrefs } from "../voice/prefs.ts";
 
 interface UiMessage extends Message {
   citations?: { id: string; content: string }[];
@@ -67,7 +69,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
     return conversation.id;
   };
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text") => {
     if (!text.trim() || busy) return;
     setError(null);
     setBusy(true);
@@ -108,7 +110,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
             onCoreState("error");
             break;
         }
-      }, ctl.signal);
+      }, ctl.signal, inputMode);
     } catch (err) {
       if ((err as Error).name !== "AbortError") setError((err as Error).message);
       else patch((m) => ({ ...m, status: "cancelled" }));
@@ -121,6 +123,25 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, busy]);
+
+  const onTranscript = useCallback(
+    (text: string) => {
+      if (loadVoicePrefs().autoSend) send(text, "voice");
+      else {
+        setDraft((d) => (d ? `${d} ${text}` : text));
+        inputRef.current?.focus();
+      }
+    },
+    [send],
+  );
+  const ptt = usePushToTalk(onTranscript, !busy);
+
+  useEffect(() => {
+    if (ptt.state === "listening") onCoreState("listening");
+    else if (ptt.state === "transcribing") onCoreState("thinking");
+    else if (!busy) onCoreState("idle");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ptt.state]);
 
   useEffect(() => {
     if (seed) {
@@ -164,7 +185,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
 
       <section className="chat__main">
         <header className="chat__header">
-          <Core state={core} size={56} />
+          <Core state={core} size={56} level={ptt.level} />
           <div>
             <h1 className="chat__heading">{conversations.find((c) => c.id === activeId)?.title ?? "New conversation"}</h1>
             <p className="muted small">{status ? (status.provider === "mock" ? "Built-in mock model (canned replies)" : `${status.provider} · ${status.model}`) : ""}</p>
@@ -179,7 +200,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
           )}
           {messages.map((m) => (
             <article key={m.id} className={`msg msg--${m.role} msg--${m.status}`}>
-              <div className="msg__who">{m.role === "user" ? "You" : "ULTRON"}</div>
+              <div className="msg__who">{m.role === "user" ? (m.inputMode === "voice" ? "You · 🎙 voice" : "You") : "ULTRON"}</div>
               <div className="msg__body">
                 {m.content || (m.status === "streaming" ? <span className="typing" aria-label="ULTRON is thinking"><i /><i /><i /></span> : null)}
               </div>
@@ -199,6 +220,22 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
         </div>
 
         {error && <div className="banner banner--error" role="alert">{error}</div>}
+        {ptt.error && (
+          <div className="banner banner--error" role="alert">
+            {ptt.error} <button className="link" onClick={ptt.clearError}>Dismiss</button>
+          </div>
+        )}
+        {ptt.state !== "idle" && (
+          <div className={`listening listening--${ptt.state}`} role="status" aria-live="assertive">
+            <span className="listening__dot" aria-hidden="true" />
+            {ptt.state === "transcribing"
+              ? "Transcribing…"
+              : ptt.state === "starting"
+                ? "Opening microphone…"
+                : `Listening · ${Math.floor(ptt.seconds / 60)}:${String(Math.floor(ptt.seconds % 60)).padStart(2, "0")} · release to send, Esc to cancel`}
+            <span className="listening__meter" aria-hidden="true"><i style={{ transform: `scaleX(${Math.max(0.02, ptt.level)})` }} /></span>
+          </div>
+        )}
 
         <form className="composer" onSubmit={(e) => { e.preventDefault(); const t = draft; setDraft(""); send(t); }}>
           <label htmlFor="composer" className="sr-only">Message ULTRON</label>
@@ -207,7 +244,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
             ref={inputRef}
             value={draft}
             rows={2}
-            placeholder="Message ULTRON…  (Enter to send, Shift+Enter for a new line, Esc to stop)"
+            placeholder="Message ULTRON…  (Enter to send · Shift+Enter new line · Esc stop · click outside and hold Space to talk)"
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -224,7 +261,21 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
           ) : (
             <button type="submit" className="btn btn--primary" disabled={!draft.trim()}>Send</button>
           )}
-          <button type="button" className="btn btn--ghost" disabled title="Voice push-to-talk arrives in the next development cycle">🎙 Voice (soon)</button>
+          <button
+            type="button"
+            className={`btn mic ${ptt.state === "listening" ? "mic--on" : ""}`}
+            aria-pressed={ptt.state === "listening"}
+            aria-label="Push to talk: hold to speak, or click to start and click again to send. Shortcut: hold Space."
+            title="Hold to talk (or hold Space). Click once for hands-free; click again to send."
+            disabled={busy || ptt.state === "transcribing"}
+            onPointerDown={ptt.onPointerDown}
+            onPointerUp={ptt.onPointerUp}
+            onPointerLeave={ptt.onPointerUp}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (ptt.state === "idle") ptt.onPointerDown(e as unknown as React.PointerEvent); } }}
+            onKeyUp={(e) => { if (e.key === "Enter") ptt.onPointerUp(); }}
+          >
+            🎙 {ptt.state === "listening" ? "Listening" : "Talk"}
+          </button>
         </form>
       </section>
     </div>

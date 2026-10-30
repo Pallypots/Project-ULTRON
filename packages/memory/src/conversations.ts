@@ -1,4 +1,4 @@
-import type { Conversation, Message, MessageStatus, Role } from "@ultron/schemas";
+import type { Conversation, InputMode, Message, MessageStatus, Role } from "@ultron/schemas";
 import type { Db } from "./db.ts";
 import { now, uuid } from "./util.ts";
 
@@ -12,6 +12,7 @@ interface MessageRow {
   model: string | null;
   memory_ids: string;
   source_device_id: string | null;
+  input_mode: InputMode;
   created_at: string;
 }
 
@@ -25,6 +26,7 @@ const toMessage = (r: MessageRow): Message => ({
   model: r.model,
   memoryIds: JSON.parse(r.memory_ids) as string[],
   sourceDeviceId: r.source_device_id,
+  inputMode: r.input_mode,
   createdAt: r.created_at,
 });
 
@@ -78,15 +80,16 @@ export class ConversationStore {
     model?: string | null;
     memoryIds?: string[];
     sourceDeviceId?: string | null;
+    inputMode?: InputMode;
     id?: string;
   }): Message {
     const id = m.id ?? uuid();
     const ts = now();
     this.db
       .prepare(
-        "INSERT INTO messages (id, conversation_id, role, content, status, provider, model, memory_ids, source_device_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO messages (id, conversation_id, role, content, status, provider, model, memory_ids, source_device_id, input_mode, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(id, m.conversationId, m.role, m.content, m.status ?? "complete", m.provider ?? null, m.model ?? null, JSON.stringify(m.memoryIds ?? []), m.sourceDeviceId ?? null, ts);
+      .run(id, m.conversationId, m.role, m.content, m.status ?? "complete", m.provider ?? null, m.model ?? null, JSON.stringify(m.memoryIds ?? []), m.sourceDeviceId ?? null, m.inputMode ?? "text", ts);
     this.db.prepare("UPDATE conversations SET updated_at = ? WHERE id = ?").run(ts, m.conversationId);
     return this.getMessage(id)!;
   }

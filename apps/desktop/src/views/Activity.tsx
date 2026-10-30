@@ -13,6 +13,9 @@ const DESCRIBE: Record<string, string> = {
   "settings.key_removed": "API key removed",
   "system.stop_all": "Emergency stop used",
   "model.error": "Model error",
+  "voice.transcribed": "Microphone used (push-to-talk)",
+  "voice.error": "Speech recognition error",
+  "settings.voice_changed": "Voice settings changed",
   "recovery.interrupted_messages": "Recovered interrupted replies after restart",
 };
 
