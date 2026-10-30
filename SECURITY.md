@@ -9,6 +9,7 @@
 - **Honest capabilities.** The model is told the real capability state on every turn and instructed not to claim anything else.
 - **Kill switch.** "Stop all" and client disconnects abort in-flight model requests (no further tokens spent).
 - **Cost guards.** Max 16k output tokens per reply, history capped at 30 turns / 60k characters, one active reply per conversation.
+- **Actions are proposals.** Every tool call is validated against a schema, risk-classed (L0–L3) and policy-checked. External effects need a fresh click (never voice or model text); L3 is blocked; there's a kill switch; every action is recorded in `tool_executions` and the audit log. `open_website` launches the browser without a shell and only accepts plain http(s) URLs.
 - **Local-first brain.** With Local AI selected, prompts, memories and replies never leave the computer. Cloud brains are opt-in; switching to one is announced in chat, colored amber, and audited. Brain switching is a deterministic owner command; model output can't trigger it.
 - **Spoken replies.** Generated on the PC by default and never stored. The fallback uses only offline system voices.
 - **Microphone.** Opened only while push-to-talk is active, with a visible red Listening bar; all tracks stop immediately afterwards. Raw audio is processed in memory and never written to disk. The audit log records that the mic was used (engine, seconds, character count), never audio or words. Default engine is on-device Whisper; cloud transcription only if the owner selects it.
@@ -18,7 +19,7 @@
 | Gap | Plan |
 |---|---|
 | API keys stored as a JSON file (owner-only permissions), **not yet encrypted** with Windows DPAPI/keychain | UL-005b: DPAPI on Windows |
-| No tools/actions exist yet, so no policy engine yet | UL-010 adds risk levels L0–L3 and approvals before any action ships |
+| Approvals are click-only in the app; there is no secure way yet to approve from the phone | Phase 5 device pairing |
 | Prompt-injection test suite only covers memory commands (model output can't save/delete memories) | Extend with tool/connector threat scenarios in Phase 3 |
 | No per-provider spend budget / usage display | Phase 3–6 cost dashboard |
 | Backups are unencrypted copies of `ultron.db` | Encrypted backup option in Phase 7 |

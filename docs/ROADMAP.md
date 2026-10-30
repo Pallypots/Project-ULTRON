@@ -28,8 +28,9 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
   missed-while-off handling, pop-ups/notifications/spoken reminders; tool calling for Ollama, Claude, OpenAI
 
 ## Next
-1. ⏳ **UL-010** tool policy registry (risk levels L0–L3, approval modal), clock + reminders with a real scheduler, audit integration
-3. ⏳ Voice benchmark on the owner's PC (time to transcript / first audio, interruption reliability)
+1. ⏳ Local file search ("second brain") in folders the owner approves
+2. ⏳ Opt-in hands-free wake word ("Ultron")
+3. ⏳ Voice and local-brain benchmark on the owner's PC (time to first audio, interruption reliability, tokens/sec)
 Also queued: live-key provider validation on the owner's PC, Tauri build on Windows, persona editor, usage/cost display.
 
 ## Phase 2–7 (from the blueprint)

@@ -28,6 +28,10 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Spoken replies | `toSpeakable` cleanup, streaming `SentenceSplitter`, speak API (WAV, 204 for nothing to say, validation, browser-engine 409, token), capability text |
 | Real voice round trip (CI, `ULTRON_TEST_TTS=1`) | Kokoro speaks a sentence → resample → Whisper transcribes → key words must match |
 | E2E spoken replies (test tone) | voice message reply is spoken; Talk/Space interrupts instantly; Esc stops speech; Settings preview plays and stops |
+| Time parsing | durations, clock times (am/pm/24h/noon/tomorrow/tonight), reminder phrasings in both orders, timers, list/cancel, non-commands ignored |
+| Actions | policy matrix; read-only tool result fed back; website open waits for approval, runs once, double-approve refused, chat bubble synced; deny / Stop all / kill switch; unknown tool, invalid input, `javascript:`/`file:` URLs rejected; approval-looking text can't approve |
+| Reminders | set/list/cancel via chat, live `reminder_fired` event over `/api/events`, missed-while-off, input validation |
+| E2E actions | 3-second timer pops up; website action shows Approve and runs only after the click; Reminders page add/cancel; Activity table |
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30, cycle 2 (Linux cloud container, Node 22.22, Chromium via Playwright)

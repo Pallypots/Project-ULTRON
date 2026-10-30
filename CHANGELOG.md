@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 · 2026-10-30 · Cycle 3: UL-010 actions, approvals, reminders
+- Tool calling for local (Ollama), Claude and OpenAI brains; capped model ↔ tools loop; honest "waiting for approval" reporting.
+- Tools: current time (L0), create/list/cancel reminders (L1/L0), open a website (L2, approval required). L3 blocked.
+- Policy engine with approvals (chat chips and Activity), 10-minute expiry, kill switch, "ask before low-risk" option; Stop all cancels pending approvals.
+- Reminders and timers by voice/text (deterministic parser), scheduler, live event stream, pop-ups, Windows notifications, spoken reminders, Reminders page, missed-while-off.
+- Activity page lists every action with risk and who asked.
+- Migration 3: `tool_executions`, `reminders`, `messages.tool_events`.
+- Tests: 38 time-parsing cases, policy/approval/kill-switch/prompt-injection tests, live reminder event, 4 new browser steps; CI logs whether the real local model uses tools.
+
 ## 0.4.0 · 2026-10-30 · Cycle 3: UL-009 spoken replies (local voice)
 - Kokoro natural voices generated on the PC (default "George", British), one-time ~90 MB download with progress; Windows built-in voices as fallback.
 - Replies to voice messages are spoken sentence by sentence while the text streams; "always/never" options; speed control; voice preview.
