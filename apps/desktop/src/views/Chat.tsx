@@ -6,6 +6,7 @@ import { usePushToTalk } from "../voice/usePushToTalk.ts";
 import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
 import { SentenceSplitter } from "@ultron/audio";
 import { ToolChips } from "../ToolChips.tsx";
+import { useHandsFree } from "../voice/handsFree.ts";
 import { loadVoicePrefs } from "../voice/prefs.ts";
 
 interface UiMessage extends Message {
@@ -91,6 +92,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
       setMessages(messages);
       localStorage.setItem("ultron.activeConversation", id);
     } catch {
+      if (wanted.current === id) wanted.current = null;
       setActiveId(null);
       setMessages([]);
       localStorage.removeItem("ultron.activeConversation");
@@ -131,7 +133,8 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
     const splitter = mode === "always" || (mode === "voice" && inputMode === "voice") ? new SentenceSplitter() : null;
     setBusy(true);
     onCoreState("thinking");
-    const id = activeId ?? (await newConversation());
+    // wanted.current updates synchronously on "New conversation"/selection, so a fast Enter can't go to the old chat.
+    const id = wanted.current ?? activeId ?? (await newConversation());
     const ctl = new AbortController();
     abortRef.current = ctl;
     let assistantId = "";
@@ -202,6 +205,16 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
     [send],
   );
   const ptt = usePushToTalk(onTranscript, !busy, stopSpeaking);
+  const onWakeCommand = useCallback((text: string) => send(text, "voice"), [send]);
+  const hands = useHandsFree(onWakeCommand, busy || speaking || ptt.state !== "idle");
+  const HF_LABEL: Record<string, string> = {
+    starting: "Starting hands-free…",
+    listening: 'Hands-free · say "Ultron, …" (anything else is ignored and discarded)',
+    hearing: "Hands-free · hearing speech…",
+    checking: "Hands-free · checking for the wake word (on this PC)…",
+    awake: "Yes? I'm listening for your request…",
+    paused: "Hands-free · paused while ULTRON is busy",
+  };
 
   useEffect(() => {
     if (ptt.state === "listening") onCoreState("listening");
@@ -262,7 +275,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
 
       <section className="chat__main">
         <header className="chat__header">
-          <Core state={core} size={56} level={ptt.level || speakLevel} />
+          <Core state={core} size={56} level={ptt.level || speakLevel || (hands.state === "hearing" || hands.state === "awake" ? hands.level : 0)} />
           <div>
             <h1 className="chat__heading">{conversations.find((c) => c.id === activeId)?.title ?? "New conversation"}</h1>
             <p className="muted small">{status ? (status.where === "test" ? "Built-in test brain (canned replies)" : status.where === "local" ? `Local brain · ${status.model} · on this PC` : `Cloud brain · ${status.provider} · ${status.model}`) : ""}</p>
@@ -301,6 +314,19 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
         {ptt.error && (
           <div className="banner banner--error" role="alert">
             {ptt.error} <button className="link" onClick={ptt.clearError}>Dismiss</button>
+          </div>
+        )}
+        {hands.error && (
+          <div className="banner banner--error" role="alert">
+            {hands.error} <button className="link" onClick={hands.clearError}>Dismiss</button>
+          </div>
+        )}
+        {hands.on && ptt.state === "idle" && !speaking && (
+          <div className={`listening listening--hands listening--${hands.state}`} role="status" aria-live="polite">
+            <span className="listening__dot" aria-hidden="true" />
+            {HF_LABEL[hands.state] ?? ""}
+            <span className="listening__meter" aria-hidden="true"><i style={{ transform: `scaleX(${Math.max(0.02, hands.level)})` }} /></span>
+            <button type="button" className="btn btn--small" onClick={hands.stop}>Turn off</button>
           </div>
         )}
         {speakError && (
@@ -366,6 +392,15 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
             onKeyUp={(e) => { if (e.key === "Enter") ptt.onPointerUp(); }}
           >
             🎙 {ptt.state === "listening" ? "Listening" : "Talk"}
+          </button>
+          <button
+            type="button"
+            className={`btn ${hands.on ? "mic--hands" : ""}`}
+            aria-pressed={hands.on}
+            title='Hands-free: keeps the microphone on and responds when you start with "Ultron". Speech recognition runs on this PC; anything not addressed to ULTRON is discarded.'
+            onClick={() => (hands.on ? hands.stop() : hands.start())}
+          >
+            🎧 {hands.on ? "Hands-free on" : "Hands-free"}
           </button>
         </form>
       </section>

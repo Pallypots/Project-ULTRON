@@ -13,6 +13,7 @@
 - **Actions are proposals.** Every tool call is validated against a schema, risk-classed (L0–L3) and policy-checked. External effects need a fresh click (never voice or model text); L3 is blocked; there's a kill switch; every action is recorded in `tool_executions` and the audit log. `open_website` launches the browser without a shell and only accepts plain http(s) URLs.
 - **Local-first brain.** With Local AI selected, prompts, memories and replies never leave the computer. Cloud brains are opt-in; switching to one is announced in chat, colored amber, and audited. Brain switching is a deterministic owner command; model output can't trigger it.
 - **Spoken replies.** Generated on the PC by default and never stored. The fallback uses only offline system voices.
+- **Hands-free mode** is opt-in, visibly indicated, local-STT only, pauses while ULTRON speaks, and drops every phrase not addressed to ULTRON on the server (not returned, logged or stored). On/off is audited.
 - **Microphone.** Opened only while push-to-talk is active, with a visible red Listening bar; all tracks stop immediately afterwards. Raw audio is processed in memory and never written to disk. The audit log records that the mic was used (engine, seconds, character count), never audio or words. Default engine is on-device Whisper; cloud transcription only if the owner selects it.
 - **Audit trail** of memory changes, setting changes, blocked saves, stops and model errors.
 

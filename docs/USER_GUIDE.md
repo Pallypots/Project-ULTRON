@@ -47,6 +47,14 @@ Every action is listed in **Activity** with who asked for it and what happened.
 ULTRON can only see folders you added. It always skips hidden folders, system folders, `node_modules`, and secrets (`.env`, key files, password files).
 It can read files to answer you, but opening something on your screen needs your Approve click. **Remove** a folder to delete its index (your files are untouched).
 
+## Hands-free mode ("Ultron, …")
+Click **🎧 Hands-free** in Chat. A green bar shows whenever it's on. Start what you say with **"Ultron"**: "Ultron, set a timer for ten minutes",
+or just "Ultron" and then your request. Anything that doesn't start with ULTRON's name is thrown away immediately: not saved, not shown, not sent anywhere.
+- It works only with speech recognition on this PC (not the cloud option), and it pauses while ULTRON is talking so it can't trigger itself.
+- Turning it on and off is recorded in Activity. It stays on while the Chat screen is open; click **Turn off** (or the button again) to stop.
+- To interrupt ULTRON while it's talking, press Esc, Stop, or Talk.
+- Noisy rooms use more processor time (every phrase is checked). Push-to-talk is the lighter option.
+
 ## Memory: what ULTRON remembers
 ULTRON only keeps long-term memories you explicitly give it:
 

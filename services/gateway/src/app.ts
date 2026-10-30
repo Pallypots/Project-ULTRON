@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
-import { loadPersona, type Persona } from "@ultron/agent-core";
+import { loadPersona, matchWake, type Persona } from "@ultron/agent-core";
 import { openStores, redact, type Stores } from "@ultron/memory";
 import { decodeWav, rms, WavError } from "@ultron/audio";
 import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, TtsSettingsUpdate, VoiceSettingsUpdate, type ChatEvent, type TranscribeResult, type TtsStatusResponse, type VoiceStatus } from "@ultron/schemas";
@@ -25,7 +25,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.6.0";
+export const VERSION = "0.7.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -265,7 +265,16 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   });
   // Raw audio is processed in memory only and never written to disk. The audit log records that the mic was used, never what was said.
   app.addContentTypeParser(["audio/wav", "audio/x-wav", "audio/wave"], { parseAs: "buffer", bodyLimit: 16_000_000 }, (_req, body, done) => done(null, body));
-  app.post("/api/voice/transcribe", { bodyLimit: 16_000_000 }, async (req, reply) => {
+  // Hands-free mode on/off is recorded so the owner can see when the microphone was continuously open.
+  app.post("/api/voice/handsfree", async (req, reply) => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+    if (enabled && stt.current().id === "openai") return reply.code(409).send({ error: "cloud_stt", message: "Hands-free listening only works with speech recognition on this PC (Settings → Voice → On this PC), so ambient sound never leaves your computer." });
+    stores.audit.record(enabled ? "voice.handsfree_on" : "voice.handsfree_off", "owner");
+    return { enabled, wakeNames: persona.wakeNames };
+  });
+  app.post<{ Querystring: { mode?: string } }>("/api/voice/transcribe", { bodyLimit: 16_000_000 }, async (req, reply) => {
+    const wakeMode = req.query.mode === "wake";
+    if (wakeMode && stt.current().id === "openai") return reply.code(409).send({ error: "cloud_stt", message: "Hands-free listening needs on-PC speech recognition." });
     if (!Buffer.isBuffer(req.body)) return reply.code(415).send({ error: "unsupported_media_type", message: "Send audio as audio/wav." });
     let decoded;
     try {
@@ -280,12 +289,20 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const started = Date.now();
     const level = rms(decoded.samples);
     if (level < 0.002) {
+      if (wakeMode) return { addressed: false };
       stores.audit.record("voice.transcribed", "owner", null, { engine: engine.id, seconds: +decoded.seconds.toFixed(1), result: "silent" });
       return reply.code(422).send({ error: "silent", message: "I didn't hear anything. Check that the right microphone is selected and not muted." });
     }
     try {
       const text = await engine.transcribe(decoded.samples, new Uint8Array(req.body));
       const elapsedMs = Date.now() - started;
+      if (wakeMode) {
+        // Speech not addressed to ULTRON is dropped right here: not logged, not returned, not kept.
+        const command = matchWake(text, persona.wakeNames);
+        if (command === null) return { addressed: false };
+        stores.audit.record("voice.transcribed", "owner", null, { engine: engine.id, seconds: +decoded.seconds.toFixed(1), ms: elapsedMs, chars: command.length, mode: "wake" });
+        return { addressed: true, text: command, engine: engine.id, model: engine.model, audioSeconds: +decoded.seconds.toFixed(2), elapsedMs };
+      }
       stores.audit.record("voice.transcribed", "owner", null, { engine: engine.id, seconds: +decoded.seconds.toFixed(1), ms: elapsedMs, chars: text.length });
       const result: TranscribeResult = { text, engine: engine.id, model: engine.model, audioSeconds: +decoded.seconds.toFixed(2), elapsedMs };
       return result;

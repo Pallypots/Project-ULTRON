@@ -1,6 +1,7 @@
 export * from "./persona.ts";
 export * from "./intents.ts";
 export * from "./time-intents.ts";
+export * from "./wake.ts";
 export * from "./providers/types.ts";
 export { MockProvider } from "./providers/mock.ts";
 export { AnthropicProvider, DEFAULT_ANTHROPIC_MODEL } from "./providers/anthropic.ts";

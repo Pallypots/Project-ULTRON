@@ -11,6 +11,7 @@ export class MockSttEngine implements SttEngine {
   }
   async prepare(): Promise<void> {}
   async transcribe(samples: Float32Array): Promise<string> {
-    return `Mock transcript of ${(samples.length / 16000).toFixed(1)} seconds of audio at level ${rms(samples).toFixed(3)}`;
+    // Tests can prefix a wake word (e.g. "Ultron, ") to exercise hands-free mode end to end.
+    return `${process.env.ULTRON_MOCK_TRANSCRIPT_PREFIX ?? ""}Mock transcript of ${(samples.length / 16000).toFixed(1)} seconds of audio at level ${rms(samples).toFixed(3)}`;
   }
 }

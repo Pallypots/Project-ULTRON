@@ -50,7 +50,11 @@ That needs the owner's PC and is listed as an open item, not claimed.
 - **Fallback:** Windows built-in voices via `speechSynthesis`, restricted to `localService` voices (online "natural" voices are hidden for privacy).
 - **Privacy:** speech audio is generated in memory and never stored.
 
+## Hands-free (v0.7)
+Energy VAD in the browser (20 ms frames, adaptive noise floor, 60 ms to start, 700 ms of quiet to end, 10 s max, 0.4 s min) → WAV →
+`POST /api/voice/transcribe?mode=wake` → local Whisper → `matchWake()` → `{addressed:false}` (dropped) or the command text. See D-018.
+
 ## Not done yet
-- Wake word ("Ultron"): opt-in, Phase 6. Never always-on by default.
+- Voice barge-in during hands-free (currently Esc/Talk interrupt).
 - Streaming partial transcripts while speaking (current flow transcribes after release).
 - Benchmarks on the owner's hardware.

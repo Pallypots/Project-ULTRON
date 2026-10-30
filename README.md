@@ -29,7 +29,8 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | **Reminders & timers** ("remind me at 5pm to…", "set a timer for 10 minutes"): pop-up, Windows notification, spoken; missed-while-off shown | ✅ working |
 | **Actions with a safety policy**: read-only runs, low-risk is logged, anything external waits for your **Approve** click; kill switch | ✅ working |
 | **Files ("second brain")**: search and read folders you approve (text, code, Word docs); "pull up my …"; opening needs approval | ✅ working |
-| Wake word, connected accounts, phone access | ⏳ planned (see [ROADMAP](docs/ROADMAP.md)) |
+| **Hands-free mode** (opt-in): say "Ultron, …" with no button; recognized on your PC, anything else discarded | ✅ working |
+| Connected accounts (GitHub, YouTube, email, calendar), phone access | ⏳ planned (see [ROADMAP](docs/ROADMAP.md)) |
 
 ## Start it on Windows (no coding needed)
 

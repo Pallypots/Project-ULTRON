@@ -198,6 +198,7 @@ export const api = {
   approveAction: (id: string) => call<{ action: ActionRecord }>("POST", `/api/actions/${id}/approve`),
   denyAction: (id: string) => call<{ action: ActionRecord }>("POST", `/api/actions/${id}/deny`),
   saveActionPolicy: (p: ActionPolicy) => call<{ policy: ActionPolicy }>("PUT", "/api/settings/actions", p),
+  setHandsFree: (enabled: boolean) => call<{ enabled: boolean; wakeNames: string[] }>("POST", "/api/voice/handsfree", { enabled }),
   voiceStatus: () => call<VoiceStatus>("GET", "/api/voice/status"),
   saveVoiceSettings: (s: { engine: VoiceStatus["engine"]; model?: string }) => call<VoiceStatus>("PUT", "/api/voice/settings", s),
   prepareVoice: () => call<VoiceStatus>("POST", "/api/voice/prepare"),
@@ -220,6 +221,19 @@ export async function speak(text: string, signal?: AbortSignal): Promise<ArrayBu
     throw new ApiError((data as { message?: string }).message ?? `Speech failed (${res.status})`, res.status);
   }
   return res.arrayBuffer();
+}
+
+/** Hands-free: the server checks for the wake word and returns words only when they were addressed to ULTRON. */
+export async function transcribeWake(wav: Uint8Array, requireWakeWord: boolean): Promise<{ addressed: boolean; text?: string }> {
+  const res = await fetch(`/api/voice/transcribe${requireWakeWord ? "?mode=wake" : ""}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${await getToken()}`, "content-type": "audio/wav" },
+    body: wav as BodyInit,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 422 || res.status === 400) return { addressed: false };
+  if (!res.ok) throw new ApiError((data as { message?: string }).message ?? `Listening failed (${res.status})`, res.status);
+  return requireWakeWord ? (data as { addressed: boolean; text?: string }) : { addressed: true, text: (data as { text: string }).text };
 }
 
 export async function transcribe(wav: Uint8Array): Promise<TranscribeResult> {

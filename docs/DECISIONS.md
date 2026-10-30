@@ -83,5 +83,12 @@ folders), symlinks are never followed, secrets are skipped by name, every read/o
 folder, file content is returned to the model as `untrusted_file_content`, and opening on screen is an L2 action needing approval. Incremental re-index
 by mtime/size at startup and every 30 minutes.
 
+### D-018 · 2026-10-30 · Wake word via local VAD + local Whisper + server-side matching (no extra model)
+openWakeWord would need a custom-trained "Ultron" model and another runtime; instead a lightweight energy VAD (adaptive noise floor, 300 ms pre-roll,
+700 ms end-of-phrase) cuts phrases, the on-PC Whisper transcribes each, and the gateway checks for the wake name at the start of the utterance (tolerant
+to typical mishearings). Non-addressed phrases are dropped on the server and never returned, logged or stored. Refused when speech recognition is set to
+the cloud. Trade-offs: more CPU than a dedicated wake-word model, about 1–3 s latency per phrase, and no voice barge-in while ULTRON speaks (Esc/Talk interrupt).
+Revisit with a trained openWakeWord model if CPU or latency is a problem on the owner's hardware.
+
 ### D-010 · SSE (not WebSocket) for streaming replies
 Simpler, works through proxies, trivially testable. WebSocket/WebRTC will be introduced for voice (Phase 2) and multi-device push (Phase 5).

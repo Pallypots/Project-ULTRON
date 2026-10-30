@@ -34,6 +34,9 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | E2E actions | 3-second timer pops up; website action shows Approve and runs only after the click; Reminders page add/cancel; Activity table |
 | Files | .docx text, chunking; indexes names/contents; skips `.env`, password files, hidden, `node_modules`, binary; incremental re-index and deletion; folder validation (relative, drive root, home, system, data dir, missing); owner search/open; brain search; read only via indexed ids; `..` traversal and symlink escape blocked; open needs approval; removing a folder removes its index |
 | E2E files | system folder refused; project folder indexed; search; secret never indexed; "pull up …" in chat uses `search_files` |
+| Wake word | variants and mishearings at utterance start, fillers ("hey", "ok"), name mid-sentence ignored, custom names |
+| Hands-free API | non-addressed speech returns `{addressed:false}` and leaves no trace in Activity; addressed returns only the command; refused with cloud STT; on/off audited |
+| E2E hands-free | toggle on → fake-mic speech prefixed "Ultron," becomes a voice message (wake word stripped) and gets a reply; toggle off; Activity entry |
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30, cycle 2 (Linux cloud container, Node 22.22, Chromium via Playwright)

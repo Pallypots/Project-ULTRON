@@ -29,8 +29,10 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 
 - ✅ **Files / second brain**: approved folders, safe indexer (.docx, text, code), search/read tools, open-on-screen with approval, Files page
 
+- ✅ **Hands-free wake word** (opt-in): local VAD + local Whisper, server-side wake matching, non-addressed speech discarded
+
 ## Next
-1. ⏳ Opt-in hands-free wake word ("Ultron")
+1. ⏳ Connected Life Hub: connector framework + GitHub read-only (blueprint §17, UL-CON-001…004)
 2. ⏳ PDF text in the file index; meaning-based (embedding) search for files and memory
 3. ⏳ Voice and local-brain benchmark on the owner's PC (time to first audio, interruption reliability, tokens/sec)
 Also queued: live-key provider validation on the owner's PC, Tauri build on Windows, persona editor, usage/cost display.

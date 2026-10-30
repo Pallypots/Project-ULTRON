@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0 · 2026-10-30 · Cycle 3: hands-free wake word
+- Opt-in Hands-free mode in Chat: voice-activity detection cuts phrases; on-PC Whisper transcribes; "Ultron, …" (and common mishearings) wakes ULTRON;
+  "Ultron" alone opens an 8-second follow-up window. Non-addressed speech is dropped on the server, never returned or logged.
+- Refused with cloud speech recognition; pauses while ULTRON speaks; on/off recorded in Activity; clear green indicator with live level.
+- Fix: pressing Enter right after "New conversation" could send to the previous conversation.
+- Tests: 13 wake-word cases, server wake-mode privacy tests, 2 browser steps (fake microphone).
+
 ## 0.6.0 · 2026-10-30 · Cycle 3: local files ("second brain")
 - Approve folders on the Files page; ULTRON indexes names and text contents (plus Word .docx) locally with incremental re-scans.
 - Tools: `search_files` and `read_file` (read-only, approved folders only, content passed as untrusted data); `open_on_screen` (needs approval).

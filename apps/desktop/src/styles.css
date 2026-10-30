@@ -310,3 +310,9 @@ body, .panel, .btn, .nav__item { transition: border-color 0.6s, box-shadow 0.6s,
 .badge { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--warn); color: #1c1003; font-size: 0.72rem; font-weight: 700; text-align: center; }
 .badge--soft { background: var(--line-strong); color: var(--text); }
 .file-hit > span:first-child { display: grid; gap: 2px; }
+.listening--hands { border-color: rgba(52, 211, 153, 0.6); background: rgba(6, 78, 59, 0.3); color: #d1fae5; }
+.listening--hands .listening__dot { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+.listening--hands .listening__meter i { background: var(--ok); }
+.listening--paused .listening__dot { animation: none; opacity: 0.5; }
+.listening--awake { border-color: var(--accent); }
+.mic--hands { background: rgba(6, 78, 59, 0.45); border-color: var(--ok); color: #d1fae5; box-shadow: 0 0 14px rgba(52, 211, 153, 0.4); }

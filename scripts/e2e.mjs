@@ -31,7 +31,7 @@ const ollamaUrl = await new Promise((resolve, reject) => {
 });
 
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_LOG_LEVEL: "warn" },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_LOG_LEVEL: "warn" },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {
@@ -199,11 +199,11 @@ try {
   await page.locator(".listening", { hasText: "Listening" }).waitFor();
   await page.waitForTimeout(1200);
   await talk.click();
-  await page.waitForFunction(() => document.querySelector("#composer")?.value.startsWith("Mock transcript"), null, { timeout: 8000 });
+  await page.waitForFunction(() => document.querySelector("#composer")?.value.includes("Mock transcript"), null, { timeout: 8000 });
   step("Review mode: transcript lands in the message box for editing");
 
   await page.getByRole("button", { name: "Activity" }).click();
-  await page.getByText("Microphone used (push-to-talk)").first().waitFor();
+  await page.getByText(/Microphone used/).first().waitFor();
   step("Activity log records microphone use (not the audio or words)");
 
   // 6) Microphone blocked → clear explanation.
@@ -251,6 +251,24 @@ try {
   await page.getByRole("button", { name: "Activity" }).click();
   await page.locator("td", { hasText: "Open example.com" }).first().waitFor();
   step("Activity lists actions with risk level and who asked");
+
+  // ---- Hands-free wake word ----
+  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByRole("button", { name: "+ New conversation" }).click();
+  await page.getByText("Say hello, ask a question").waitFor();
+  await page.getByRole("button", { name: "🎧 Hands-free" }).click();
+  await page.locator(".listening--hands").waitFor();
+  await page.screenshot({ path: join(shots, "14-hands-free.png") });
+  await page.locator(".msg--user", { hasText: "🎙 voice" }).first().waitFor({ timeout: 30000 });
+  const heard = await page.locator(".msg--user .msg__body").first().innerText();
+  if (/^ultron/i.test(heard)) throw new Error(`wake word was not stripped: ${heard}`);
+  await page.locator(".msg--assistant.msg--complete").first().waitFor();
+  step(`Hands-free: speech addressed to "Ultron" is picked up without pressing anything ("${heard.slice(0, 40)}…")`);
+  await page.getByRole("button", { name: "Hands-free on" }).click();
+  await page.locator(".listening--hands").waitFor({ state: "detached" });
+  await page.getByRole("button", { name: "Activity" }).click();
+  await page.getByText("Hands-free listening turned ON").first().waitFor();
+  step("Hands-free can be turned off, and on/off is recorded in Activity");
 
   // ---- Files / second brain ----
   const projects = mkdtempSync(join(tmpdir(), "ultron-e2e-projects-"));
