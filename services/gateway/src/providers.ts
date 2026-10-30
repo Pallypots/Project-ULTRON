@@ -2,6 +2,7 @@ import {
   AnthropicProvider,
   DEFAULT_ANTHROPIC_MODEL,
   MockProvider,
+  OllamaProvider,
   OpenAICompatibleProvider,
   type ModelProvider,
 } from "@ultron/agent-core";
@@ -17,6 +18,7 @@ export interface ProviderSettings {
 
 export const SECRET_FOR: Record<ProviderId, string | null> = {
   mock: null,
+  ollama: null,
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
 };
@@ -30,6 +32,16 @@ export function readProviderSettings(prefs: PreferenceStore): ProviderSettings {
   });
 }
 
+/** Saves the active provider and remembers its model so voice switching can return to it. */
+export function saveProviderSettings(prefs: PreferenceStore, next: ProviderSettings): void {
+  prefs.set("provider", next);
+  const last = prefs.get<Record<string, { model: string; baseUrl: string }>>("provider_models", {});
+  if (next.model || next.baseUrl) last[next.provider] = { model: next.model, baseUrl: next.baseUrl };
+  prefs.set("provider_models", last);
+}
+
+export const isLocalProvider = (p: ProviderId) => p === "ollama" || p === "mock";
+
 export type ProviderResolution = { ok: true; provider: ModelProvider } | { ok: false; reason: string };
 
 export function resolveProvider(s: ProviderSettings, secrets: SecretStore, mockDelayMs: number): ProviderResolution {
@@ -37,6 +49,9 @@ export function resolveProvider(s: ProviderSettings, secrets: SecretStore, mockD
     switch (s.provider) {
       case "mock":
         return { ok: true, provider: new MockProvider(mockDelayMs) };
+      case "ollama":
+        if (!s.model) return { ok: false, reason: "Local AI is selected but no local model is chosen. Pick or download one in Settings → Language model." };
+        return { ok: true, provider: new OllamaProvider({ model: s.model, baseUrl: s.baseUrl }) };
       case "anthropic": {
         const apiKey = secrets.get("ANTHROPIC_API_KEY");
         if (!apiKey) return { ok: false, reason: "Claude is selected but no Anthropic API key is saved. Add one in Settings." };

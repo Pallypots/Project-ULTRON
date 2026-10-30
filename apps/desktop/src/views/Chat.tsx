@@ -34,9 +34,13 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
     return conversations;
   }, []);
 
+  // The conversation the owner most recently picked; late responses for any other one are ignored.
+  const wanted = useRef<string | null>(null);
   const open = useCallback(async (id: string) => {
+    wanted.current = id;
     try {
       const { messages } = await api.conversation(id);
+      if (wanted.current !== id) return;
       setActiveId(id);
       setMessages(messages);
       localStorage.setItem("ultron.activeConversation", id);
@@ -61,6 +65,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
 
   const newConversation = async () => {
     const { conversation } = await api.createConversation();
+    wanted.current = conversation.id;
     await loadList();
     setActiveId(conversation.id);
     setMessages([]);
@@ -94,6 +99,10 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
             break;
           case "memory_forgotten":
             patch((m) => ({ ...m, notice: "Removed from Memory Vault" }));
+            break;
+          case "brain_changed":
+            patch((m) => ({ ...m, notice: e.where === "local" ? `Brain: local ${e.model}` : e.where === "cloud" ? `Brain: cloud ${e.model}` : "Brain: test" }));
+            onChanged();
             break;
           case "memory_blocked":
             patch((m) => ({ ...m, notice: "Not saved: sensitive data" }));
@@ -188,7 +197,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
           <Core state={core} size={56} level={ptt.level} />
           <div>
             <h1 className="chat__heading">{conversations.find((c) => c.id === activeId)?.title ?? "New conversation"}</h1>
-            <p className="muted small">{status ? (status.provider === "mock" ? "Built-in mock model (canned replies)" : `${status.provider} · ${status.model}`) : ""}</p>
+            <p className="muted small">{status ? (status.where === "test" ? "Built-in test brain (canned replies)" : status.where === "local" ? `Local brain · ${status.model} · on this PC` : `Cloud brain · ${status.provider} · ${status.model}`) : ""}</p>
           </div>
         </header>
 

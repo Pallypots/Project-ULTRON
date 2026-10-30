@@ -11,11 +11,15 @@ import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { currentCapabilities } from "./capabilities.ts";
 import { ActiveStreams, handleUserMessage } from "./chat.ts";
 import { loadConfig, type GatewayConfig } from "./config.ts";
-import { readProviderSettings, resolveProvider, SECRET_FOR } from "./providers.ts";
+import { isLocalProvider, readProviderSettings, resolveProvider, saveProviderSettings, SECRET_FOR } from "./providers.ts";
+import { detectHardware } from "./local-ai/hardware.ts";
+import { OllamaManager } from "./local-ai/ollama.ts";
+import { recommendModel } from "./local-ai/recommend.ts";
+import { z } from "zod";
 import { SecretStore } from "./secrets.ts";
 import { SttError, SttManager } from "./stt/index.ts";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -70,7 +74,9 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   const settings = () => readProviderSettings(stores.preferences);
   const stt = new SttManager(config.dataDir, stores.preferences, secrets);
-  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current() };
+  const savedModels = stores.preferences.get<Record<string, { model: string; baseUrl: string }>>("provider_models", {});
+  const ollama = new OllamaManager(savedModels.ollama?.baseUrl || process.env.ULTRON_OLLAMA_URL || undefined);
+  const deps = { stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ollama };
 
   // ---- public ----
   app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));
@@ -92,6 +98,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       provider: s.provider,
       model: r.ok ? r.provider.model : s.model,
       providerReady: r.ok,
+      where: s.provider === "mock" ? "test" : isLocalProvider(s.provider) ? "local" : "cloud",
       providerProblem: r.ok ? null : r.reason,
       activeReplies: streams.size,
       counts: { conversations: stores.conversations.list().length, memories: stores.memories.list().length },
@@ -110,7 +117,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   app.put("/api/settings/provider", async (req) => {
     const body = ProviderSettingsUpdate.parse(req.body);
     const next = { provider: body.provider, model: body.model ?? "", baseUrl: body.baseUrl ?? "" };
-    stores.preferences.set("provider", next);
+    saveProviderSettings(stores.preferences, next);
+    if (body.provider === "ollama") ollama.setUrl(next.baseUrl);
     const secretName = SECRET_FOR[body.provider];
     if (secretName && body.apiKey) secrets.set(secretName, body.apiKey);
     stores.audit.record("settings.provider_changed", "owner", body.provider, { model: next.model, keyUpdated: Boolean(body.apiKey) });
@@ -140,6 +148,43 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     } catch (err) {
       return { ok: false, message: (err as Error).message };
     }
+  });
+
+  // ---- local AI (Ollama) ----
+  app.get("/api/local-ai/status", async () => {
+    const hw = await detectHardware();
+    const version = await ollama.version();
+    const models = version ? await ollama.models().catch(() => []) : [];
+    const s = settings();
+    return {
+      ollama: { running: Boolean(version), version, url: ollama.url },
+      models,
+      pulls: ollama.pullStates(),
+      hardware: {
+        ramGb: +(hw.ramBytes / 1024 ** 3).toFixed(1),
+        cpuThreads: hw.cpuThreads,
+        gpus: hw.gpus.map((g) => ({ name: g.name, vramGb: +(g.vramBytes / 1024 ** 3).toFixed(1), vendor: g.vendor })),
+        usableGpu: hw.usableGpu ? { name: hw.usableGpu.name, vramGb: +(hw.usableGpu.vramBytes / 1024 ** 3).toFixed(1) } : null,
+      },
+      recommendation: recommendModel(hw),
+      active: s.provider === "ollama" ? s.model : null,
+    };
+  });
+  const ModelName = z.object({ model: z.string().trim().min(1).max(200).regex(/^[a-zA-Z0-9._:/-]+$/, "Model names use letters, numbers, dots, dashes, colons and slashes.") });
+  app.post("/api/local-ai/pull", async (req, reply) => {
+    const { model } = ModelName.parse(req.body);
+    if (!(await ollama.version())) return reply.code(409).send({ error: "ollama_not_running", message: "Ollama isn't running. Install it from ollama.com/download or start the Ollama app." });
+    stores.audit.record("local_ai.download_started", "owner", model);
+    return ollama.startPull(model);
+  });
+  app.post("/api/local-ai/pull/cancel", async (req) => ({ cancelled: ollama.cancelPull(ModelName.parse(req.body).model) }));
+  app.post("/api/local-ai/use", async (req, reply) => {
+    const { model } = ModelName.parse(req.body);
+    const installed = (await ollama.models().catch(() => [])).map((m) => m.name);
+    if (!installed.includes(model)) return reply.code(409).send({ error: "not_installed", message: `"${model}" isn't downloaded yet.` });
+    saveProviderSettings(stores.preferences, { provider: "ollama", model, baseUrl: ollama.url });
+    stores.audit.record("settings.brain_switched", "owner", "ollama", { model, via: "settings" });
+    return { ok: true };
   });
 
   // ---- conversations ----

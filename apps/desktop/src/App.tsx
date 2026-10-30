@@ -42,6 +42,11 @@ export function App() {
     location.hash = view;
   }, [view]);
 
+  // Each kind of brain gets its own skin: local = cyan, cloud = amber, test = violet.
+  useEffect(() => {
+    if (status) document.documentElement.dataset.brain = status.where;
+  }, [status?.where]);
+
   const go = (v: View) => setView(v);
   const effectiveCore: CoreState = online === false ? "offline" : coreState;
 
@@ -89,7 +94,7 @@ function ConnectionPill({ online, status }: { online: boolean | null; status: St
       <span className="pill__dot" aria-hidden="true" />
       <span>
         {label}
-        {online && status && <small> · {status.provider === "mock" ? "mock model" : status.model}</small>}
+        {online && status && <small> · {status.where === "test" ? "test brain" : `${status.where === "local" ? "local" : "cloud"} · ${status.model}`}</small>}
       </span>
     </div>
   );

@@ -22,6 +22,9 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Voice API | transcribe with engine, token required, 415/400/422/413 for non-audio/too-short/silent/too-long, audit has no words, engine status/privacy/settings, `inputMode` persisted |
 | Real Whisper (CI only, `ULTRON_TEST_WHISPER=1`) | downloads `Xenova/whisper-base.en`, transcribes the JFK sample, asserts "ask not what your country can do for you…" |
 | E2E voice (fake mic playing the JFK sample) | mic test meter moves; hold-to-talk captures real audio and sends a voice message; hold Space; Esc discards; click-latch; review mode fills the box; activity logs mic use; blocked mic shows a fix |
+| Local AI | Ollama provider streaming, `think:false`, `<think>` text hidden, retry without `think`, plain-English errors; hardware → model table; integrated GPUs ignored; brain-switch intents (and non-intents); brain resolution with/without keys; status, download progress, bad names, use-before-download refused, switching by chat |
+| Real local brain (CI Linux, `ULTRON_TEST_OLLAMA=1`) | installs Ollama, downloads `gemma4:e2b`, "switch your brain to local", asks a question, expects "Paris" and no thinking tags |
+| E2E local brain (fake Ollama) | Local AI panel detects engine + hardware, downloads with progress, Use it → cyan skin + status pill; local reply; test ↔ local switching changes skins; cloud refused without key |
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30, cycle 2 (Linux cloud container, Node 22.22, Chromium via Playwright)

@@ -2,7 +2,9 @@ import { buildSystemPrompt, detectIntent, ProviderError, type ChatTurn, type Per
 import type { Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
 import { currentCapabilities } from "./capabilities.ts";
-import { readProviderSettings, resolveProvider } from "./providers.ts";
+import { readProviderSettings, resolveProvider, saveProviderSettings } from "./providers.ts";
+import { resolveBrain } from "./brains.ts";
+import type { OllamaManager } from "./local-ai/ollama.ts";
 import type { SecretStore } from "./secrets.ts";
 import type { SttEngine } from "./stt/index.ts";
 
@@ -15,6 +17,7 @@ export interface ChatDeps {
   persona: () => Persona;
   mockDelayMs: number;
   stt?: () => SttEngine;
+  ollama?: OllamaManager;
 }
 
 /** Tracks in-flight replies so the owner's stop button (and disconnects) can cancel them. */
@@ -125,6 +128,33 @@ export async function handleUserMessage(
       emit({ type: "memory_forgotten", memory: { id: target.id, content: target.content } });
       text = `Forgotten. I deleted: "${target.content}". It won't be used again.` + (matches.length > 1 ? " If you meant a different one, check the Memory Vault." : "");
     }
+    emit({ type: "delta", text });
+    return finish(text, "complete");
+  }
+
+  if (intent.type === "switch_brain") {
+    let installedLocal: string[] | null = null;
+    if (deps.ollama && (await deps.ollama.version())) installedLocal = (await deps.ollama.models().catch(() => [])).map((m) => m.name);
+    const target = resolveBrain(intent.target, {
+      current: settings,
+      lastModels: stores.preferences.get("provider_models", {}),
+      installedLocal,
+      keys: { anthropic: deps.secrets.has("ANTHROPIC_API_KEY"), openai: deps.secrets.has("OPENAI_API_KEY") },
+    });
+    let text: string;
+    if (target.ok) {
+      // Use the Ollama server ULTRON is actually talking to.
+      if (target.settings.provider === "ollama" && deps.ollama) target.settings.baseUrl = deps.ollama.url;
+      saveProviderSettings(stores.preferences, target.settings);
+      stores.audit.record("settings.brain_switched", "owner", target.settings.provider, { model: target.settings.model, via: "chat" });
+      emit({ type: "brain_changed", provider: target.settings.provider, model: target.settings.model, where: target.where });
+      text =
+        target.where === "local"
+          ? `Brain switched: ${target.label}, running entirely on this computer. Nothing we say leaves the machine now.`
+          : target.where === "cloud"
+            ? `Brain switched: ${target.label}. Heads-up: from now on your messages and relevant memories are sent to ${target.settings.provider === "anthropic" ? "Anthropic" : "OpenAI"}. Say "go local" to come back.`
+            : "Brain switched to the built-in test brain. Replies will be canned until you switch back.";
+    } else text = target.message;
     emit({ type: "delta", text });
     return finish(text, "complete");
   }

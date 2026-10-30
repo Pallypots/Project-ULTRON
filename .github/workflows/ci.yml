@@ -23,6 +23,12 @@ jobs:
         with:
           path: .model-cache
           key: whisper-models-v1-${{ runner.os }}
+      - name: Install Ollama (Linux) for the real local-brain test
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:11434/api/version && break; sleep 1; done
+          echo "ULTRON_TEST_OLLAMA=1" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run lint
       - run: npm test

@@ -80,7 +80,7 @@ export const SendMessage = z.object({
   inputMode: InputMode.default("text"),
 });
 
-export const ProviderId = z.enum(["mock", "anthropic", "openai"]);
+export const ProviderId = z.enum(["mock", "ollama", "anthropic", "openai"]);
 export type ProviderId = z.infer<typeof ProviderId>;
 
 export const ProviderSettingsUpdate = z.object({
@@ -98,6 +98,7 @@ export type ChatEvent =
   | { type: "memory_saved"; memory: Memory }
   | { type: "memory_forgotten"; memory: Pick<Memory, "id" | "content"> }
   | { type: "memory_blocked"; reason: string }
+  | { type: "brain_changed"; provider: string; model: string; where: "local" | "cloud" | "test" }
   | { type: "delta"; text: string }
   | { type: "done"; message: Message }
   | { type: "error"; message: string; code: string };

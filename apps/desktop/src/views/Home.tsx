@@ -4,7 +4,7 @@ import { api, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
 import type { View } from "../App.tsx";
 
-const SUGGESTIONS = ["What can you do right now?", "Remember that I prefer short answers in the morning", "What do you remember about me?"];
+const SUGGESTIONS = ["What can you do right now?", "Remember that I prefer short answers in the morning", "Switch your brain to local"];
 
 export function HomeView({ status, core, onAsk, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onNavigate: (v: View) => void }) {
   const [caps, setCaps] = useState<Capability[]>([]);
@@ -42,9 +42,15 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
           {status.providerProblem} <button className="link" onClick={() => onNavigate("settings")}>Open Settings</button>
         </div>
       )}
-      {status?.provider === "mock" && (
+      {status?.where === "test" && (
         <div className="banner" role="status">
-          You're on the built-in <strong>mock model</strong>: chat, history and memory all work, but replies are canned. <button className="link" onClick={() => onNavigate("settings")}>Connect a real model</button>
+          You're on the built-in <strong>test brain</strong>: chat, history, memory and voice all work, but replies are canned.{" "}
+          <button className="link" onClick={() => onNavigate("settings")}>Set up Local AI (free, private, runs on this PC)</button>
+        </div>
+      )}
+      {status?.where === "cloud" && (
+        <div className="banner" role="status">
+          <strong>Cloud brain</strong> ({status.model}): your messages go to {status.provider === "anthropic" ? "Anthropic" : "OpenAI"}. Say "go local" to switch back.
         </div>
       )}
 
@@ -67,7 +73,7 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
           <dl className="stats">
             <div><dt>Conversations</dt><dd>{status?.counts.conversations ?? "–"}</dd></div>
             <div><dt>Memories</dt><dd>{status?.counts.memories ?? "–"}</dd></div>
-            <div><dt>Model</dt><dd className="stats__small">{status ? (status.provider === "mock" ? "Mock (offline)" : status.model) : "–"}</dd></div>
+            <div><dt>Model</dt><dd className="stats__small">{status ? (status.where === "test" ? "Test brain" : `${status.model} (${status.where})`) : "–"}</dd></div>
             <div><dt>Version</dt><dd className="stats__small">{status?.version ?? "–"}</dd></div>
           </dl>
           <div className="row">

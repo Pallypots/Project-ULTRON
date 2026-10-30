@@ -20,8 +20,18 @@ const dataDir = mkdtempSync(join(tmpdir(), "ultron-e2e-"));
 const shots = join(import.meta.dirname, "../docs/screenshots");
 mkdirSync(shots, { recursive: true });
 
+// Stand-in for the local AI engine (Ollama) so the local-brain UI can be exercised without a real model.
+const fakeOllama = spawn(process.execPath, ["--import", "tsx", "scripts/fake-ollama.ts"], { stdio: ["ignore", "pipe", "inherit"] });
+const ollamaUrl = await new Promise((resolve, reject) => {
+  fakeOllama.stdout.on("data", (d) => {
+    const m = /FAKE_OLLAMA_URL=(\S+)/.exec(String(d));
+    if (m) resolve(m[1]);
+  });
+  setTimeout(() => reject(new Error("fake Ollama did not start")), 20000);
+});
+
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_LOG_LEVEL: "warn" },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_LOG_LEVEL: "warn" },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {
@@ -38,6 +48,12 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const passed = [];
+const recent = [];
+page.on("response", (r) => {
+  if (!r.url().includes("/api/health")) recent.push(`${r.request().method()} ${r.url().replace(/.*\/api/, "/api")} ${r.status()}`);
+  if (recent.length > 25) recent.shift();
+});
+page.on("pageerror", (e) => recent.push(`pageerror: ${e.message}`));
 const step = (name) => {
   passed.push(name);
   console.log(`✓ ${name}`);
@@ -181,6 +197,47 @@ try {
   await noMic.close();
   step("Blocked/missing microphone shows a plain-English fix");
 
+  // ---- Local brain (UL-011) ----
+  const brain = () => page.evaluate(() => document.documentElement.dataset.brain);
+  if ((await brain()) !== "test") throw new Error(`expected test skin, got ${await brain()}`);
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel(/Local AI on this PC/).check();
+  await page.getByText("Local AI engine running").waitFor();
+  await page.getByText("This computer:").waitFor();
+  await page.getByText("Recommended for this PC").waitFor();
+  await page.getByLabel("Other model name").fill("qwen3:8b");
+  await page.getByRole("button", { name: "Download", exact: true }).click();
+  await page.getByRole("button", { name: "Use it" }).waitFor({ timeout: 15000 });
+  step("Local AI panel: engine detected, hardware shown, model downloaded with progress");
+  await page.getByRole("button", { name: "Use it" }).click();
+  await page.getByText("Now using qwen3:8b locally.").waitFor();
+  await page.waitForFunction(() => document.documentElement.dataset.brain === "local", null, { timeout: 8000 });
+  await page.locator(".pill", { hasText: "local · qwen3:8b" }).waitFor({ timeout: 8000 });
+  await page.screenshot({ path: join(shots, "08-local-ai-setup.png") });
+  step("Switched to the local brain: status pill and cyan local skin");
+
+  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByRole("button", { name: "+ New conversation" }).click();
+  await page.getByText("Say hello, ask a question").waitFor();
+  const say = async (text) => {
+    const n = await page.locator(".msg--assistant.msg--complete").count();
+    await page.getByLabel("Message ULTRON").fill(text);
+    await page.getByLabel("Message ULTRON").press("Enter");
+    await page.locator(".msg--assistant.msg--complete").nth(n).waitFor();
+    return page.locator(".msg--assistant .msg__body").nth(n).innerText();
+  };
+  if ((await say("Hello there")) !== "Hello from local.") throw new Error("local brain did not answer");
+  step("Chat answered by the local model (thinking hidden)");
+  await say("Ultron, switch to the test brain");
+  await page.waitForFunction(() => document.documentElement.dataset.brain === "test", null, { timeout: 8000 });
+  const back = await say("go local");
+  if (!/running entirely on this computer/.test(back)) throw new Error(`unexpected: ${back}`);
+  await page.waitForFunction(() => document.documentElement.dataset.brain === "local", null, { timeout: 8000 });
+  const cloud = await say("switch your brain to Fable 5");
+  if (!/needs an Anthropic API key/.test(cloud)) throw new Error(`unexpected: ${cloud}`);
+  await page.screenshot({ path: join(shots, "09-brain-switching.png") });
+  step("Brain switching by chat: test ↔ local skins change; cloud refused without a key");
+
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto(base);
   await mobile.getByText("Online").first().waitFor();
@@ -195,10 +252,12 @@ try {
 } catch (err) {
   failed = true;
   console.error("✗ E2E failed:", err.message);
+  console.error("  recent requests:\n   " + recent.join("\n   "));
   await page.screenshot({ path: join(shots, "failure.png") }).catch(() => {});
 } finally {
   await browser.close();
   server.kill();
+  fakeOllama.kill();
 }
 if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Browser E2E (${process.platform})::${failed ? "FAILED" : "all steps passed"}: ${passed.join(" | ")}`);
 process.exit(failed ? 1 : 0);

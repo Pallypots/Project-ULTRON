@@ -1,0 +1,45 @@
+// End-to-end with a REAL local model through Ollama. Needs Ollama running and network for the first pull,
+// so it only runs when ULTRON_TEST_OLLAMA=1 (CI sets it on Linux). Model: ULTRON_TEST_OLLAMA_MODEL or gemma4:e2b.
+import { afterAll, describe, expect, it } from "vitest";
+import { replyText, startGateway } from "./helpers.ts";
+
+const enabled = process.env.ULTRON_TEST_OLLAMA === "1";
+const MODEL = process.env.ULTRON_TEST_OLLAMA_MODEL ?? "gemma4:e2b";
+
+describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
+  let g: Awaited<ReturnType<typeof startGateway>>;
+  afterAll(async () => g?.close());
+
+  it("downloads the model, switches to it by chat, and answers locally", async () => {
+    g = await startGateway();
+    const t0 = Date.now();
+    const status = (await g.api("GET", "/api/local-ai/status")).body;
+    expect(status.ollama.running).toBe(true);
+    if (!status.models.some((m: any) => m.name === MODEL)) {
+      await g.api("POST", "/api/local-ai/pull", { model: MODEL });
+      for (;;) {
+        const p = (await g.api("GET", "/api/local-ai/status")).body.pulls.find((x: any) => x.model === MODEL);
+        if (p.status !== "downloading") {
+          expect(p.status, p.detail).toBe("success");
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
+    const pullMs = Date.now() - t0;
+    const id = await g.newConversation();
+    const sw = replyText(await g.chat(id, "Ultron, switch your brain to local"));
+    expect(sw).toMatch(/running entirely on this computer/);
+    const t1 = Date.now();
+    const events = await g.chat(id, "In one short sentence, what is the capital of France?");
+    const ms = Date.now() - t1;
+    const err = events.find((e) => e.type === "error");
+    expect(err, JSON.stringify(err)).toBeUndefined();
+    const text = replyText(events);
+    const summary = `model=${MODEL} pull+setup=${pullMs}ms reply=${ms}ms text="${text.replace(/\s+/g, " ").slice(0, 200)}"`;
+    console.log(`[ollama] ${summary}`);
+    if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Real local brain (${process.platform})::${summary}`);
+    expect(text).toMatch(/paris/i);
+    expect(text).not.toMatch(/<\/?think>/);
+  }, 1_200_000);
+});

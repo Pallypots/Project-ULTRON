@@ -51,5 +51,17 @@ services can replace this without UI changes.
 See [VOICE.md](VOICE.md#voice-transport-livekit-vs-direct-provider-realtime-blueprint-phase-2-comparison). LiveKit is the leading candidate if
 client-side barge-in plus streamed TTS can't meet latency targets on the owner's hardware.
 
+### D-013 · 2026-10-30 · Local-first brain via Ollama
+Owner requirement: ULTRON must be able to run "truly independently" of cloud AI. Ollama is the local engine: one Windows installer, automatic NVIDIA/AMD GPU
+use, model management, and a stable HTTP API. We use its native `/api/chat` (not the OpenAI-compatible endpoint) to control thinking (`think: false`)
+and hide reasoning text. Alternatives considered: bundling llama.cpp via `node-llama-cpp` (no separate install, but we'd own GPU backend selection and model
+management); LM Studio (GUI-first, still supported through the OpenAI-compatible provider). Model recommendations come from detected VRAM/RAM and only
+use tags confirmed in Ollama's docs on this date (`gemma4:e2b`, `qwen3:4b`, `qwen3:8b`, `gpt-oss:20b`, `gemma4:31b`); owners can type any library tag.
+Cloud brains remain optional. Switching to one is announced in chat, colored amber, and audited.
+
+### D-014 · 2026-10-30 · Brain switching is a deterministic command, not a model decision
+"switch your brain to X" is parsed by code (like memory commands), resolved against what's actually installed/configured, and refused with a reason
+otherwise. A model (or injected text) can't switch providers by itself.
+
 ### D-010 · SSE (not WebSocket) for streaming replies
 Simpler, works through proxies, trivially testable. WebSocket/WebRTC will be introduced for voice (Phase 2) and multi-device push (Phase 5).

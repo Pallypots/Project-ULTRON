@@ -42,14 +42,30 @@ export interface Status {
   provider: string;
   model: string;
   providerReady: boolean;
+  where: "local" | "cloud" | "test";
   providerProblem: string | null;
   activeReplies: number;
   counts: { conversations: number; memories: number };
   persona: { name: string };
 }
 
+export interface LocalAiStatus {
+  ollama: { running: boolean; version: string | null; url: string };
+  models: { name: string; sizeBytes: number; parameterSize: string | null; family: string | null }[];
+  pulls: { model: string; status: "downloading" | "success" | "error" | "cancelled"; detail: string; completedBytes: number; totalBytes: number }[];
+  hardware: { ramGb: number; cpuThreads: number; gpus: { name: string; vramGb: number; vendor: string }[]; usableGpu: { name: string; vramGb: number } | null };
+  recommendation: { primary: ModelSuggestion; alternatives: ModelSuggestion[]; summary: string };
+  active: string | null;
+}
+interface ModelSuggestion {
+  model: string;
+  label: string;
+  approxDownloadGb: number;
+  why: string;
+}
+
 export interface ProviderSettings {
-  provider: "mock" | "anthropic" | "openai";
+  provider: "mock" | "ollama" | "anthropic" | "openai";
   model: string;
   baseUrl: string;
   keys: Record<string, boolean>;
@@ -74,6 +90,10 @@ export const api = {
   testProvider: () => call<{ ok: boolean; message: string; sample?: string }>("POST", "/api/settings/provider/test"),
   stopAll: () => call<{ stopped: number }>("POST", "/api/stop"),
   logs: () => call<string>("GET", "/api/logs/export"),
+  localAiStatus: () => call<LocalAiStatus>("GET", "/api/local-ai/status"),
+  pullLocalModel: (model: string) => call("POST", "/api/local-ai/pull", { model }),
+  cancelLocalPull: (model: string) => call("POST", "/api/local-ai/pull/cancel", { model }),
+  useLocalModel: (model: string) => call("POST", "/api/local-ai/use", { model }),
   voiceStatus: () => call<VoiceStatus>("GET", "/api/voice/status"),
   saveVoiceSettings: (s: { engine: VoiceStatus["engine"]; model?: string }) => call<VoiceStatus>("PUT", "/api/voice/settings", s),
   prepareVoice: () => call<VoiceStatus>("POST", "/api/voice/prepare"),

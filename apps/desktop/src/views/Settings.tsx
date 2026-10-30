@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type ProviderSettings } from "../api.ts";
 import type { UiPrefs } from "../prefs.ts";
 import { VoiceSettings } from "./VoiceSettings.tsx";
+import { LocalAiPanel } from "./LocalAiPanel.tsx";
 
 const PROVIDERS = [
+  { id: "ollama", name: "Local AI on this PC (Ollama), recommended", help: "Free, private and works offline: the AI runs entirely on this computer. Set it up below." },
   { id: "mock", name: "Built-in mock (offline)", help: "No account needed. Great for trying ULTRON; replies are canned." },
   { id: "anthropic", name: "Claude (Anthropic API)", help: "Needs an Anthropic API key from console.anthropic.com → API Keys. Note: a Claude.ai subscription does not include API usage; API calls are billed separately." },
   { id: "openai", name: "OpenAI or local model (OpenAI-compatible)", help: "For OpenAI, use a key from platform.openai.com. For a local model (Ollama, LM Studio), set the server URL, e.g. http://localhost:11434/v1, and the model name you installed. A ChatGPT subscription does not include API usage." },
@@ -18,9 +20,12 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
 
+  const touched = useRef(false);
   const load = async () => {
     const s = await api.providerSettings();
     setCurrent(s);
+    // Don't overwrite a choice the owner already made while this was loading.
+    if (touched.current) return;
     setProvider(s.provider);
     setModel(s.model);
     setBaseUrl(s.baseUrl);
@@ -35,6 +40,7 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
     try {
       const r = await api.saveProviderSettings({ provider, model: model.trim(), baseUrl: baseUrl.trim(), apiKey: apiKey.trim() || undefined });
       setApiKey("");
+      touched.current = false;
       await load();
       onSaved();
       setMsg(r.ok ? { ok: true, text: "Saved. Use “Test connection” to confirm it works." } : { ok: false, text: r.problem ?? "Saved, but not ready yet." });
@@ -62,24 +68,26 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
       <header className="page__header">
         <div>
           <h1>Settings</h1>
-          <p className="muted">Choose ULTRON's brain and how it looks. API keys stay on this computer and are never shown again after saving.</p>
+          <p className="muted">Choose ULTRON's brain and how it looks. Local AI keeps everything on this computer. Cloud brains are optional; their API keys stay on this computer and are never shown again after saving.</p>
         </div>
       </header>
 
       <form className="panel form" onSubmit={save}>
-        <h2 className="panel__title">Language model</h2>
+        <h2 className="panel__title">Language model (ULTRON's brain)</h2>
+        <p className="muted small">Tip: you can also switch by voice or chat, e.g. "switch your brain to local" or "switch to Fable".</p>
         <fieldset className="radios">
           <legend className="sr-only">Provider</legend>
           {PROVIDERS.map((p) => (
             <label key={p.id} className={`radio ${provider === p.id ? "is-checked" : ""}`}>
-              <input type="radio" name="provider" value={p.id} checked={provider === p.id} onChange={() => setProvider(p.id)} />
+              <input type="radio" name="provider" value={p.id} checked={provider === p.id} onChange={() => { touched.current = true; setProvider(p.id); }} />
               <span>{p.name}</span>
             </label>
           ))}
         </fieldset>
         <p className="muted small">{info.help}</p>
 
-        {provider !== "mock" && (
+        {provider === "ollama" && <LocalAiPanel onChanged={() => { api.providerSettings().then(setCurrent).catch(() => {}); onSaved(); }} />}
+        {provider !== "mock" && provider !== "ollama" && (
           <>
             <label className="field">
               <span>Model {provider === "anthropic" ? "(leave blank for the default: claude-opus-5-5)" : "(required, e.g. the exact model name from your provider)"}</span>
@@ -95,7 +103,7 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
             </label>
           </>
         )}
-        <div className="row">
+        <div className="row" hidden={provider === "ollama"}>
           <button className="btn btn--primary" type="submit">Save</button>
           <button className="btn" type="button" onClick={test} disabled={testing}>{testing ? "Testing…" : "Test connection"}</button>
           {keyName && current?.keys[keyName] && (

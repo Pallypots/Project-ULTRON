@@ -26,10 +26,22 @@ Forgetting is permanent: the memory is deleted from the database and the search 
 ULTRON refuses to store passwords, PINs, card or bank numbers, API keys and ID numbers, even if asked.
 Health, money and similar details are stored only if you ask, and are marked **sensitive**.
 
+## Local AI: a brain that runs on your PC
+1. Install **Ollama** (free) from <https://ollama.com/download>. It runs quietly in the background.
+2. ULTRON → **Settings → Language model → Local AI on this PC**. ULTRON shows your graphics card and RAM and recommends a model that fits.
+3. Click **Download** (one time; 2–20 GB depending on the model), then **Use this brain**.
+
+Everything then runs on your computer; you can unplug the internet. Bigger models are smarter but need a stronger graphics card.
+You can download others by name from <https://ollama.com/library>.
+
+**Switching brains:** say or type "switch your brain to local", "go offline", "switch to the test brain", or, if you've added an API key,
+"switch to Claude" or "switch to Fable". The color changes so you always know: **cyan = local**, **amber = cloud** (your messages leave the PC), **violet = test**.
+
 ## Choosing a brain (Settings)
 | Option | Needs | Notes |
 |---|---|---|
-| Built-in mock | nothing | Canned replies. Everything else (history, memory) works. |
+| **Local AI (Ollama)** | Ollama installed + one model download | Recommended. Free, private, offline. |
+| Built-in test brain | nothing | Canned replies. Everything else (history, memory) works. |
 | Claude | Anthropic API key (console.anthropic.com) | Default model `claude-opus-5-5`; you can type another model ID. |
 | OpenAI / local | OpenAI key, or a local server URL + model name | Works with Ollama and LM Studio (`http://localhost:11434/v1`). |
 

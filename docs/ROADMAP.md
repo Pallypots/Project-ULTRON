@@ -18,8 +18,12 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 - ✅ **UL-008** microphone permission, push-to-talk (hold / Space / click-latch / Esc), local Whisper + OpenAI transcription, mic picker and test,
   voice transcript persistence (`inputMode`), LiveKit vs direct-provider comparison (benchmark on owner hardware still open)
 
+## Cycle 3 (overnight 2026-10-30)
+- ✅ **UL-011** local-first brain: Ollama provider, hardware detection, model recommendation, one-click download with progress,
+  brain switching by voice/chat, per-brain skins; real model verified in CI
+
 ## Next
-1. ⏳ **UL-009** spoken replies (streamed TTS), barge-in/interruption, voice selection
+1. ⏳ **UL-009** spoken replies with a **local** voice (streamed TTS), barge-in/interruption, voice selection
 2. ⏳ **UL-010** tool policy registry (risk levels L0–L3, approval modal), clock + reminders with a real scheduler, audit integration
 3. ⏳ Voice benchmark on the owner's PC (time to transcript / first audio, interruption reliability)
 Also queued: live-key provider validation on the owner's PC, Tauri build on Windows, persona editor, usage/cost display.

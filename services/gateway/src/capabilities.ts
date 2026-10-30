@@ -17,7 +17,12 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
         id: "model",
         label: "Language model",
         status: "enabled",
-        detail: resolution.provider.id === "mock" ? "built-in offline mock (no real AI reasoning)" : `${resolution.provider.id} / ${resolution.provider.model}`,
+        detail:
+          resolution.provider.id === "mock"
+            ? "built-in offline mock (no real AI reasoning)"
+            : resolution.provider.id === "ollama"
+              ? `local model ${resolution.provider.model}, running on this computer (works offline)`
+              : `cloud: ${resolution.provider.id} / ${resolution.provider.model} (messages are sent to that provider)`,
       }
     : { id: "model", label: "Language model", status: "not_configured", detail: resolution.reason };
   return [
@@ -27,6 +32,7 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
     voiceInput(stt),
     { id: "voice_output", label: "Spoken replies", status: "not_implemented", detail: "planned next (UL-009)" },
     { id: "tools", label: "Actions/tools (reminders, files, apps)", status: "not_implemented", detail: "tool policy registry is planned; no actions can be taken yet" },
+    { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
     { id: "integrations", label: "Connected accounts (email, calendar, GitHub, YouTube...)", status: "not_implemented", detail: "none connected" },
     { id: "screen", label: "Screen viewing", status: "disabled", detail: "not available" },
     { id: "remote", label: "Phone / remote access", status: "disabled", detail: "local computer only for now" },

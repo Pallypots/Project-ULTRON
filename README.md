@@ -5,6 +5,9 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 
 > ULTRON is software, not a sentient being. It has a personality, not feelings.
 
+**Local-first:** ULTRON's brain, ears and memory can all run on your own computer with no cloud account and no internet
+(after one-time downloads). Cloud brains (Claude, OpenAI) are optional extras you can switch to by voice, never a requirement.
+
 ![Home HUD](docs/screenshots/01-home.png)
 
 ## What works today (v0.1, dev cycle 1)
@@ -16,7 +19,9 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | "Remember that…" / "Forget…" in chat, with a Memory Vault to view, edit, pin, export, delete | ✅ working |
 | Memories recalled in *new* conversations, cited as `[memory:xxxxxxxx]` | ✅ working |
 | Refuses to store passwords, card numbers, API keys, ID numbers | ✅ working |
-| Choose the brain: built-in mock (no account), Claude, OpenAI, or a local model (Ollama/LM Studio) | ✅ built; mock is tested, real providers **not yet tested with a live key** |
+| **Local brain** on your PC via Ollama: detects your graphics card, recommends a model, one-click download, works offline | ✅ working (real model tested in CI) |
+| Switch brains by voice or chat ("switch your brain to local", "switch to Fable"), with a color skin per brain | ✅ working |
+| Optional cloud brains: Claude, OpenAI | ✅ built, **not yet tested with a live key** |
 | Original cyan HUD interface, high-contrast and reduced-motion modes, phone-width layout | ✅ working |
 | Online/offline indicator, emergency **Stop all**, activity/audit log, redacted log export | ✅ working |
 | Voice input: push-to-talk (hold button or Space), speech recognized **on your PC** by Whisper, or OpenAI | ✅ working (see [Voice](docs/VOICE.md)) |
@@ -30,12 +35,12 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 3. Double-click **`Start-ULTRON.bat`**.
    The first run installs components and builds the interface, which takes 1–2 minutes. ULTRON then opens in its own window.
    Keep the small black launcher window open; closing it stops ULTRON.
-4. ULTRON starts on the free built-in **mock model** so you can try everything immediately.
-   To give it a real brain, open **Settings**, choose Claude or OpenAI/local, paste your API key, click **Save**, then **Test connection**.
+4. ULTRON starts on a built-in **test brain** (canned replies) so you can try everything immediately.
+5. Give it a real, **free, private brain**: install **Ollama** from <https://ollama.com/download> (one installer).
+   Then in ULTRON go to **Settings → Language model → Local AI on this PC**, click **Download** on the recommended model, then **Use this brain**.
+   Or just say/type **"switch your brain to local"** once a model is downloaded.
 
-> A Claude.ai or ChatGPT subscription does **not** include API access. API usage is billed separately by Anthropic/OpenAI.
-> For free, private, offline use you can install [Ollama](https://ollama.com), then choose "OpenAI or local model" with
-> server URL `http://localhost:11434/v1` and your model's name.
+> Cloud brains are optional. A Claude.ai or ChatGPT subscription does **not** include API access; API usage is billed separately.
 
 Something wrong? In the ULTRON folder, open PowerShell and run `npm run doctor`. It checks everything and explains fixes in plain English.
 
