@@ -120,6 +120,7 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
       <SpeechSettings />
 
       <ActionsSettings />
+      <WindowsSettings />
 
       <section className="panel form">
         <h2 className="panel__title">Display &amp; accessibility</h2>
@@ -165,6 +166,38 @@ function ActionsSettings() {
         <span className="small muted">Windows notifications for reminders: {notify === "granted" ? "on" : notify === "denied" ? "blocked in browser settings" : notify === "unsupported" ? "not supported" : "off"}</span>
         {notify === "default" && <button type="button" className="btn btn--small" onClick={() => Notification.requestPermission().then(setNotify)}>Turn on</button>}
       </div>
+    </section>
+  );
+}
+
+function WindowsSettings() {
+  const [s, setS] = useState<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean } | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    api.shortcuts().then(setS).catch(() => {});
+  }, []);
+  if (!s?.supported) return null;
+  const run = async (fn: () => Promise<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>, ok: string) => {
+    try {
+      setS(await fn());
+      setMsg(ok);
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  };
+  return (
+    <section className="panel form" aria-labelledby="win-title">
+      <h2 className="panel__title" id="win-title">Windows</h2>
+      <label className="toggle">
+        <input type="checkbox" checked={s.startAtLogin} onChange={(e) => run(() => api.setStartAtLogin(e.target.checked), e.target.checked ? "ULTRON will start quietly when you sign in to Windows." : "ULTRON won't start at sign-in anymore.")} />
+        <span>Start ULTRON when I sign in to Windows (runs in the background; reminders keep working)</span>
+      </label>
+      <div className="row">
+        <button type="button" className="btn" onClick={() => run(() => api.createDesktopShortcut(), "Desktop shortcut created: look for the ULTRON icon.")}>
+          {s.desktopShortcut ? "Recreate desktop shortcut" : "Add ULTRON icon to the desktop"}
+        </button>
+      </div>
+      {msg && <p className="small muted" role="status">{msg}</p>}
     </section>
   );
 }

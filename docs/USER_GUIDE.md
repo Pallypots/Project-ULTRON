@@ -65,6 +65,10 @@ or just "Ultron" and then your request. Anything that doesn't start with ULTRON'
 ULTRON stores titles and links only (no code or issue bodies) and deletes them after 30 days. **Disconnect** deletes the token and everything it stored.
 YouTube, Reddit and Discord are listed as "coming next" with what each needs.
 
+## Windows conveniences
+Settings → **Windows**: **Add ULTRON icon to the desktop** (double-click it to start ULTRON), and **Start ULTRON when I sign in** (starts quietly in
+the background so reminders and GitHub updates keep working; open it from the desktop icon).
+
 ## Good morning briefing
 Say "Ultron, good morning", "brief me" or "what's my day like?" (or tap **Good morning, brief me** on Home). ULTRON gathers today's reminders,
 anything missed while it was off, actions waiting for your approval, and GitHub highlights from the last 24 hours. It tells you plainly which sources

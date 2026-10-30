@@ -19,6 +19,7 @@ import { ReminderScheduler } from "./actions/scheduler.ts";
 import { FileService, openWithDefaultApp } from "./files/service.ts";
 import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
+import { Shortcuts } from "./system/shortcuts.ts";
 import { OllamaManager } from "./local-ai/ollama.ts";
 import { recommendModel } from "./local-ai/recommend.ts";
 import { z } from "zod";
@@ -473,6 +474,29 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const { ids } = z.object({ ids: z.union([z.array(z.string()).max(500), z.literal("all")]) }).parse(req.body);
     stores.connectors.markRead(ids);
     return { ok: true };
+  });
+
+  // ---- Windows conveniences ----
+  const shortcuts = new Shortcuts();
+  app.get("/api/system/shortcuts", async () => shortcuts.state());
+  app.post("/api/system/start-at-login", async (req, reply) => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+    try {
+      const s = shortcuts.setStartAtLogin(enabled);
+      stores.audit.record(enabled ? "system.start_at_login_on" : "system.start_at_login_off", "owner");
+      return s;
+    } catch (err) {
+      return reply.code(400).send({ error: "unsupported", message: (err as Error).message });
+    }
+  });
+  app.post("/api/system/desktop-shortcut", async (_req, reply) => {
+    try {
+      const s = shortcuts.createDesktopShortcut();
+      stores.audit.record("system.desktop_shortcut", "owner");
+      return s;
+    } catch (err) {
+      return reply.code(400).send({ error: "unsupported", message: (err as Error).message });
+    }
   });
 
   // ---- actions & approvals ----

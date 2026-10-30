@@ -1,6 +1,8 @@
 # ULTRON Windows launcher: checks prerequisites, installs/builds on first run, starts the service,
 # and opens ULTRON in its own app window (Microsoft Edge app mode; falls back to the default browser).
+param([switch]$Background)
 $ErrorActionPreference = "Stop"
+if ($args -contains "--background") { $Background = $true }
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $port = if ($env:ULTRON_PORT) { $env:ULTRON_PORT } else { 7477 }
 $url = "http://localhost:$port"
@@ -15,6 +17,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 
 try {
   if ((Invoke-WebRequest "$url/api/health" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) {
+    if ($Background) { exit 0 }
     Say "ULTRON is already running. Opening it..."
     $edge = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
     if (Test-Path $edge) { Start-Process $edge "--app=$url" } else { Start-Process $url }
@@ -34,6 +37,8 @@ for ($i = 0; $i -lt 40; $i++) {
 }
 
 $edge = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
-if (Test-Path $edge) { Start-Process $edge "--app=$url --window-size=1400,900" } else { Start-Process $url }
+if (-not $Background) {
+  if (Test-Path $edge) { Start-Process $edge "--app=$url --window-size=1400,900" } else { Start-Process $url }
+}
 Say "ULTRON is online at $url. Keep this window open; close it (or press Ctrl+C) to stop ULTRON."
 Wait-Process -Id $server.Id

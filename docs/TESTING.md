@@ -42,6 +42,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | E2E connections (fake GitHub) | bad token refused; connect; choose repo; feed; Important filter; "what's new on github?" tool; disconnect clears feed |
 | Personality & briefing | overrides saved/applied (prompt, wake words, status), reset; invalid wake words, out-of-range tone, editing boundaries and HTML names rejected; briefing includes reminders, pending approvals, "github not connected", unconnected calendar/weather |
 | E2E personality & briefing | salutation saved → Home says ", sir."; "Good morning, brief me" runs `daily_briefing` and reports unconnected sources; reset |
+| Windows (CI only) | DPAPI secrets round-trip with no plaintext on disk; shortcuts created/removed; `Start-ULTRON.bat --background` brings ULTRON online and serves the interface |
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30, cycle 2 (Linux cloud container, Node 22.22, Chromium via Playwright)
@@ -61,7 +62,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 These are cloud CI machines, not the owner's PC. Expect different numbers on your hardware; the first ever use also includes the one-time download.
 
 ## Not yet verified
-- Running on an actual Windows PC (CI covers Windows for unit tests once the repo is pushed to GitHub; the launcher `.bat`/`.ps1` needs a manual run).
+- The Edge app window opening on a real desktop (CI runs the launcher in background mode on Windows and checks ULTRON serves the UI; the owner has also launched it successfully on Windows).
 - Real microphone hardware and Edge's permission prompt on the owner's PC (E2E uses Chromium's fake microphone).
 - Real Claude/OpenAI/Ollama calls (no keys in the dev environment). Use Settings → **Test connection**.
 - Tauri shell build.

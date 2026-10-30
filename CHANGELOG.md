@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.2 · 2026-10-30 · Windows conveniences
+- ULTRON icon (.ico) generated from the logo; Settings → Windows: desktop shortcut and start-at-sign-in (background mode).
+- `Start-ULTRON.bat --background` starts ULTRON without opening a window.
+- CI now runs the real Windows launcher and checks ULTRON comes online and serves the interface.
+
 ## 0.9.1 · 2026-10-30 · Security: secrets encrypted at rest on Windows
 - API keys and connector tokens are encrypted with Windows DPAPI (current user). Old plain files upgrade automatically; undecryptable files are set aside with a clear Home warning.
 
