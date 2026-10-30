@@ -73,7 +73,10 @@ describe("chat", () => {
     expect(events.at(-1)!.type).toBe("done");
     const conv = await api("GET", `/api/conversations/${id}`);
     expect(conv.body.messages.map((m: any) => [m.role, m.status])).toEqual([["user", "complete"], ["assistant", "complete"]]);
-    expect(conv.body.conversation.title).toBe("Hello ULTRON");
+    // Small talk doesn't name the conversation; the first real message does.
+    expect(conv.body.conversation.title).toBe("New conversation");
+    await chat(id, "Help me plan a birthday dinner");
+    expect((await api("GET", `/api/conversations/${id}`)).body.conversation.title).toBe("Help me plan a birthday dinner");
   });
 
   it("explains clearly when the chosen provider isn't configured", async () => {

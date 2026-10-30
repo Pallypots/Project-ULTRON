@@ -100,7 +100,8 @@ export async function handleUserMessage(
   const modelId = resolution.ok ? resolution.provider.model : settings.model;
 
   const conv = stores.conversations.get(conversationId)!;
-  if (conv.title === "New conversation") stores.conversations.rename(conversationId, content.length > 60 ? `${content.slice(0, 57).trimEnd()}…` : content);
+  // Title from the first message with substance ("hey ultron" says nothing about the conversation, and titles feed catch-up).
+  if (conv.title === "New conversation" && !isSmallTalk(content)) stores.conversations.rename(conversationId, content.length > 60 ? `${content.slice(0, 57).trimEnd()}…` : content);
 
   const userMessage = stores.conversations.addMessage({ conversationId, role: "user", content, sourceDeviceId: opts.deviceId ?? null, inputMode: opts.inputMode ?? "text" });
   const assistant = stores.conversations.addMessage({
@@ -361,5 +362,12 @@ export function recentMemories(stores: Stores, already: { id: string }[], now = 
     .filter((m) => !have.has(m.id) && m.sensitivity !== "sensitive" && now - new Date(m.createdAt).getTime() < 14 * 86_400_000)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 4);
+}
+
+/** Greetings and pleasantries that shouldn't become a conversation's title. */
+export function isSmallTalk(text: string): boolean {
+  const t = text.toLowerCase().replace(/\bultron\b/g, "").replace(/[^\p{L}\s']/gu, " ").replace(/\s+/g, " ").trim();
+  if (!t) return true;
+  return /^(?:(?:hi|hey|hello|yo|sup|hiya|howdy|ok|okay|thanks|thank you|cheers|good (?:morning|afternoon|evening|night)|morning|evening|i'm back|im back|what's up|whats up|how are you|how's it going|you there|are you there)\s*)+$/.test(t);
 }
 

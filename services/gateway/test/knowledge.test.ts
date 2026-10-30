@@ -5,7 +5,7 @@ import { buildSystemPrompt, loadPersona } from "@ultron/agent-core";
 import { calculate, tidy } from "../src/actions/calc.ts";
 import { toolByName } from "../src/actions/tools.ts";
 import { fetchPage, htmlToText, isPrivateAddress } from "../src/actions/knowledge.ts";
-import { humanAgo, recentMemories } from "../src/chat.ts";
+import { humanAgo, isSmallTalk, recentMemories } from "../src/chat.ts";
 import { replyText, startGateway } from "./helpers.ts";
 
 // One local fake for Wikipedia, Open-Meteo and a couple of web pages.
@@ -175,6 +175,11 @@ describe("personality and catching up", () => {
     expect(p).toMatch(/save_memory/);
     expect(buildSystemPrompt(persona, { ...base, rapport: { lastChat: null, recentTopics: [] } })).toMatch(/first conversation/);
     expect(buildSystemPrompt({ ...persona, tone: { ...persona.tone, humor: 0.1 } }, base)).not.toMatch(/occasional joke/);
+  });
+
+  it("doesn't title conversations after small talk", () => {
+    for (const t of ["Hey Ultron!", "good morning", "Ultron, I'm back", "hi, how are you?", "thanks"]) expect(isSmallTalk(t), t).toBe(true);
+    for (const t of ["hey, can you check the weather", "good morning, brief me", "Planning the Oogie port release"]) expect(isSmallTalk(t), t).toBe(false);
   });
 
   it("phrases time like a person", () => {
