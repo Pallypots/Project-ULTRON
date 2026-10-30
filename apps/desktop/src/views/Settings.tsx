@@ -4,6 +4,7 @@ import type { UiPrefs } from "../prefs.ts";
 import { VoiceSettings } from "./VoiceSettings.tsx";
 import { LocalAiPanel } from "./LocalAiPanel.tsx";
 import { SpeechSettings } from "./SpeechSettings.tsx";
+import { PersonaSettings } from "./PersonaSettings.tsx";
 
 const PROVIDERS = [
   { id: "ollama", name: "Local AI on this PC (Ollama), recommended", help: "Free, private and works offline: the AI runs entirely on this computer. Set it up below." },
@@ -132,10 +133,7 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
         </label>
       </section>
 
-      <section className="panel">
-        <h2 className="panel__title">Personality</h2>
-        <p className="muted small">ULTRON's name, traits and tone live in <code>config/persona.json</code>. An in-app editor is planned; for now the defaults are warm, witty, efficient, perceptive and candid.</p>
-      </section>
+      <PersonaSettings onSaved={onSaved} />
     </div>
   );
 }

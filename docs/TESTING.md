@@ -40,6 +40,8 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Connectors | GitHub event mapping (first-line titles, failed runs urgent), bad token / rate limit / unknown repo errors, connect read test, repo validation, sync + dedupe on re-sync, Important filter, rate-limit backoff keeps last good sync, brain gets feed status, hostile issue title stays data, disconnect deletes token + events |
 | Real GitHub (CI, `ULTRON_TEST_GITHUB=1`) | syncs this repository with the Actions read-only token; checks event shapes and links |
 | E2E connections (fake GitHub) | bad token refused; connect; choose repo; feed; Important filter; "what's new on github?" tool; disconnect clears feed |
+| Personality & briefing | overrides saved/applied (prompt, wake words, status), reset; invalid wake words, out-of-range tone, editing boundaries and HTML names rejected; briefing includes reminders, pending approvals, "github not connected", unconnected calendar/weather |
+| E2E personality & briefing | salutation saved → Home says ", sir."; "Good morning, brief me" runs `daily_briefing` and reports unconnected sources; reset |
 | E2E (browser) | home online, remember in chat, recall in new conversation with citation tag, survives reload, vault delete, activity entry, accessibility toggles, phone width, offline banner after service stops |
 
 ## Results, 2026-10-30, cycle 2 (Linux cloud container, Node 22.22, Chromium via Playwright)

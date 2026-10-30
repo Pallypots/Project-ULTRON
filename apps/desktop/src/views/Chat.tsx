@@ -235,7 +235,9 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
   useEffect(() => {
     if (seed) {
       clearSeed();
-      send(seed);
+      // Questions from Home or a feed card are new topics: start a fresh conversation so they never collide
+      // with a reply still finishing in the previous one.
+      newConversation().then(() => send(seed));
     }
   }, [seed, clearSeed, send]);
 

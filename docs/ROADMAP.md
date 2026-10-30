@@ -34,6 +34,8 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 - ✅ **UL-CON-001…004** connector framework (canonical events, dedupe, cursors, health, retention, disconnect-deletes), GitHub read-only
   connector, Connections page, feed, Home "What's new", `connected_updates` tool; real GitHub API contract test in CI
 
+- ✅ **Morning briefing** tool and **Personality editor** (overrides stored in the database; safety boundaries fixed)
+
 ## Next
 1. ⏳ UL-CON-005 GitHub drafts (issue/comment drafts shown for approval before posting)
 2. ⏳ UL-CON-006 YouTube subscriptions (needs the owner's Google Cloud OAuth client)

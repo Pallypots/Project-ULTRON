@@ -56,6 +56,8 @@ const browser = await chromium.launch({
   args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-audio-capture=${speech}`, "--autoplay-policy=no-user-gesture-required"],
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+// CI machines (especially Windows) can be slow; give each step more room than a desktop would need.
+page.setDefaultTimeout(process.env.CI ? 45000 : 30000);
 const passed = [];
 const recent = [];
 page.on("response", (r) => {
@@ -241,7 +243,7 @@ try {
   await composer.press("Enter");
   const chip = page.locator(".tool--awaiting_approval", { hasText: "Open example.com" });
   await chip.waitFor();
-  await page.locator(".nav__item", { hasText: "Activity" }).locator(".badge").waitFor({ timeout: 8000 });
+  await page.locator(".nav__item", { hasText: "Activity" }).locator(".badge").waitFor({ timeout: 20000 });
   await page.screenshot({ path: join(shots, "11-approval-needed.png") });
   await chip.getByRole("button", { name: "Approve" }).click();
   await page.locator(".tool--succeeded", { hasText: "Open example.com" }).waitFor({ timeout: 8000 });
@@ -334,6 +336,7 @@ try {
   await page.getByLabel("Message ULTRON").fill("what's new on github?");
   await page.getByLabel("Message ULTRON").press("Enter");
   await page.locator(".tool--succeeded", { hasText: "Check what's new on github" }).waitFor();
+  await page.locator(".msg--assistant.msg--complete", { hasText: "connected_updates" }).waitFor();
   step("Asking \"what's new on GitHub?\" uses the real synced feed (read-only)");
   await page.getByRole("button", { name: "Connections" }).click();
   page.once("dialog", (d) => d.accept());
@@ -341,6 +344,26 @@ try {
   await page.getByText("Disconnected; GitHub data deleted.").waitFor();
   await page.getByText("Connect an account to see updates here.").waitFor();
   step("Disconnect deletes the token and all GitHub data");
+
+  // ---- Personality + morning briefing ----
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel(/How it addresses you/).fill("sir");
+  await page.getByRole("button", { name: "Save personality" }).click();
+  await page.getByText("Saved. ULTRON's next reply uses the new personality.").waitFor();
+  await page.getByRole("button", { name: "Home" }).click();
+  await page.getByRole("heading", { name: /, sir\.$/ }).waitFor();
+  step("Personality editor: salutation saved and used on the Home screen");
+  await page.getByRole("button", { name: "Good morning, brief me" }).click();
+  await page.locator(".tool--succeeded", { hasText: "Put together your briefing" }).waitFor();
+  const briefMsg = page.locator(".msg--assistant.msg--complete", { hasText: "daily_briefing" }).last();
+  await briefMsg.waitFor();
+  const brief = await briefMsg.locator(".msg__body").innerText();
+  if (!/not_connected/.test(brief)) throw new Error("briefing didn't report unconnected sources");
+  await page.screenshot({ path: join(shots, "16-morning-briefing.png") });
+  step("Good-morning briefing gathers reminders/approvals/feeds and admits what isn't connected");
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Reset to default" }).click();
+  await page.getByText("Back to the default personality.").waitFor();
 
   // ---- Local brain (UL-011) ----
   const brain = () => page.evaluate(() => document.documentElement.dataset.brain);

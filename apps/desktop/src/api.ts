@@ -48,7 +48,7 @@ export interface Status {
   providerProblem: string | null;
   activeReplies: number;
   counts: { conversations: number; memories: number };
-  persona: { name: string };
+  persona: { name: string; wakeNames: string[]; salutation: string };
 }
 
 export interface Reminder {
@@ -59,6 +59,14 @@ export interface Reminder {
   source: string;
   createdAt: string;
   firedAt: string | null;
+}
+export interface PersonaInfo {
+  name: string;
+  ownerSalutation: string;
+  wakeNames: string[];
+  traits: string[];
+  tone: { humor: number; sarcasm: number; formality: number; verbosity: "brief" | "adaptive" | "detailed" };
+  boundaries: string[];
 }
 export interface ConnectorInfo {
   id: string;
@@ -212,6 +220,9 @@ export const api = {
   pullLocalModel: (model: string) => call("POST", "/api/local-ai/pull", { model }),
   cancelLocalPull: (model: string) => call("POST", "/api/local-ai/pull/cancel", { model }),
   useLocalModel: (model: string) => call("POST", "/api/local-ai/use", { model }),
+  persona: () => call<{ persona: PersonaInfo }>("GET", "/api/persona"),
+  savePersona: (p: Partial<Omit<PersonaInfo, "boundaries" | "traits">>) => call<{ persona: PersonaInfo }>("PUT", "/api/persona", p),
+  resetPersona: () => call<{ persona: PersonaInfo }>("DELETE", "/api/persona"),
   connectors: () => call<{ connectors: ConnectorInfo[] }>("GET", "/api/connectors"),
   connectGithub: (token: string) => call<{ connector: ConnectorInfo }>("POST", "/api/connectors/github/connect", { token }),
   githubRepos: () => call<{ repos: { fullName: string; private: boolean }[] }>("GET", "/api/connectors/github/repos"),

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 · 2026-10-30 · Cycle 3: morning briefing, personality editor
+- `daily_briefing` tool: today's reminders, missed reminders, pending approvals, GitHub highlights; explicitly lists unconnected sources.
+- Settings → Personality: name, salutation, wake words, humor/sarcasm/formality sliders, verbosity; reset; boundaries not editable. Home greets you by your salutation.
+- Questions from Home or a feed card open a fresh conversation (no more "still answering" collisions).
+- CI: longer step timeouts for slower Windows runners; failures reported as annotations.
+
 ## 0.8.0 · 2026-10-30 · Cycle 3: Connected Life Hub v1 (GitHub read-only)
 - Connector framework: canonical event schema with dedupe keys, urgency and "why surfaced", per-account cursor/health, 30-day retention, capability flags.
 - GitHub connector (fine-grained token, read-only): commits, PRs, issues, failed workflow runs, releases for chosen repos; rate-limit backoff; 15-minute sync.

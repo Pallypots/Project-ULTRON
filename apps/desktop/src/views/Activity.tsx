@@ -29,6 +29,8 @@ const DESCRIBE: Record<string, string> = {
   "action.denied": "Action denied",
   "actions.paused": "Actions paused",
   "actions.policy_changed": "Action rules changed",
+  "persona.changed": "Personality changed",
+  "persona.reset": "Personality reset to default",
   "connector.connected": "Account connected",
   "connector.disconnected": "Account disconnected (data deleted)",
   "connector.repos_changed": "Watched repos changed",

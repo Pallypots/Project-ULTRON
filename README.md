@@ -31,6 +31,8 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | **Files ("second brain")**: search and read folders you approve (text, code, Word docs); "pull up my …"; opening needs approval | ✅ working |
 | **Hands-free mode** (opt-in): say "Ultron, …" with no button; recognized on your PC, anything else discarded | ✅ working |
 | **Connections → GitHub** (read-only): watched repos' commits, PRs, issues, failed builds, releases in a feed; "what's new?" | ✅ working (real API tested in CI) |
+| **"Good morning" briefing**: reminders, missed items, approvals waiting, GitHub highlights, and what isn't connected | ✅ working |
+| **Personality editor**: name, how it addresses you (e.g. "sir"), humor/sarcasm/formality, wake words | ✅ working |
 | YouTube, Reddit, Discord, email, calendar, phone access | ⏳ planned (see [ROADMAP](docs/ROADMAP.md)) |
 
 ## Start it on Windows (no coding needed)

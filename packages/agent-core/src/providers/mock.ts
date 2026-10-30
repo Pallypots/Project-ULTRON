@@ -42,7 +42,8 @@ export class MockProvider implements ModelProvider {
     const explicit = /^mock-tool\s+(\w+)\s*(\{.*\})?\s*$/s.exec(text);
     if (explicit) return { name: explicit[1]!, args: explicit[2] ? (JSON.parse(explicit[2]) as Record<string, unknown>) : {} };
     if (has("get_current_time") && /\bwhat(?:'s| is) the (?:time|date)|what time is it|what day is it/i.test(text)) return { name: "get_current_time", args: {} };
-    if (has("connected_updates") && /what'?s new|any updates|catch me up/i.test(text)) return { name: "connected_updates", args: /github/i.test(text) ? { source: "github" } : {} };
+    if (has("daily_briefing") && /good morning|brief me|what'?s my day|catch me up/i.test(text)) return { name: "daily_briefing", args: {} };
+    if (has("connected_updates") && /what'?s new|any updates/i.test(text)) return { name: "connected_updates", args: /github/i.test(text) ? { source: "github" } : {} };
     const files = /\b(?:search (?:my )?files for|find (?:my )?files about|pull up)\s+(.+?)[?.!]*$/i.exec(text);
     if (files && has("search_files")) return { name: "search_files", args: { query: files[1] } };
     const url = /\bopen\s+(https?:\/\/\S+)/i.exec(text);

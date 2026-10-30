@@ -4,7 +4,7 @@ import { api, type FeedEvent, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
 import type { View } from "../App.tsx";
 
-const SUGGESTIONS = ["What can you do right now?", "Remember that I prefer short answers in the morning", "Switch your brain to local"];
+const SUGGESTIONS = ["Good morning, brief me", "What can you do right now?", "Remember that I prefer short answers in the morning", "Switch your brain to local"];
 
 export function HomeView({ status, core, onAsk, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onNavigate: (v: View) => void }) {
   const [caps, setCaps] = useState<Capability[]>([]);
@@ -26,7 +26,7 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
         <Core state={core} size={260} />
         <div className="home__intro">
           <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
-          <h1>{greet}.</h1>
+          <h1>{greet}{status?.persona.salutation ? `, ${status.persona.salutation}` : ""}.</h1>
           <p className="muted">ULTRON is running on this computer. Ask anything, or tell it what to remember.</p>
           <form className="ask" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onAsk(q.trim()); }}>
             <label htmlFor="home-ask" className="sr-only">Ask ULTRON</label>

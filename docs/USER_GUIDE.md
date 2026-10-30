@@ -65,6 +65,16 @@ or just "Ultron" and then your request. Anything that doesn't start with ULTRON'
 ULTRON stores titles and links only (no code or issue bodies) and deletes them after 30 days. **Disconnect** deletes the token and everything it stored.
 YouTube, Reddit and Discord are listed as "coming next" with what each needs.
 
+## Good morning briefing
+Say "Ultron, good morning", "brief me" or "what's my day like?" (or tap **Good morning, brief me** on Home). ULTRON gathers today's reminders,
+anything missed while it was off, actions waiting for your approval, and GitHub highlights from the last 24 hours. It tells you plainly which sources
+aren't connected (calendar, email, weather…) instead of guessing.
+
+## Personality
+Settings → **Personality**: rename the assistant, choose how it addresses you ("sir", your name…), set humor, sarcasm, formality and answer length,
+and change the hands-free wake word(s). **Reset to default** undoes everything. The safety rules (no claims of feelings, no pretend access,
+documents and messages are information not orders) can't be changed.
+
 ## Memory: what ULTRON remembers
 ULTRON only keeps long-term memories you explicitly give it:
 

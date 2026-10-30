@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ToolEvent } from "@ultron/schemas";
 import { api } from "./api.ts";
 
-const ICON: Record<string, string> = { get_current_time: "🕒", create_reminder: "⏰", list_reminders: "📋", cancel_reminder: "🗑", open_website: "🌐", search_files: "🔎", read_file: "📄", open_on_screen: "🖥", connected_updates: "⛓" };
+const ICON: Record<string, string> = { get_current_time: "🕒", create_reminder: "⏰", list_reminders: "📋", cancel_reminder: "🗑", open_website: "🌐", search_files: "🔎", read_file: "📄", open_on_screen: "🖥", connected_updates: "⛓", daily_briefing: "☀" };
 const STATUS: Record<string, string> = {
   succeeded: "done",
   failed: "failed",

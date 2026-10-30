@@ -23,6 +23,28 @@ export function loadPersona(file: string): Persona {
   return Persona.parse(JSON.parse(readFileSync(file, "utf8")));
 }
 
+/** What the owner may change in the app. Safety boundaries are deliberately not editable. */
+export const PersonaOverrides = z
+  .object({
+    name: z.string().trim().min(1).max(30).regex(/^[\p{L}\p{N} .'-]+$/u, "Use letters, numbers and spaces."),
+    ownerSalutation: z.string().trim().max(40),
+    wakeNames: z.array(z.string().trim().min(2).max(20).regex(/^[A-Za-z]+$/, "Wake words must be a single word of letters.")).min(1).max(3),
+    traits: z.array(z.string().trim().min(1).max(30)).max(8),
+    tone: z.object({
+      humor: z.number().min(0).max(1),
+      sarcasm: z.number().min(0).max(1),
+      formality: z.number().min(0).max(1),
+      verbosity: z.enum(["brief", "adaptive", "detailed"]),
+    }).partial(),
+  })
+  .partial()
+  .strict();
+export type PersonaOverrides = z.infer<typeof PersonaOverrides>;
+
+export function applyOverrides(base: Persona, o: PersonaOverrides): Persona {
+  return Persona.parse({ ...base, ...o, tone: { ...base.tone, ...(o.tone ?? {}) }, boundaries: base.boundaries });
+}
+
 const level = (v: number, low: string, mid: string, high: string) => (v < 0.34 ? low : v < 0.67 ? mid : high);
 
 /** Builds the system prompt from the persona, the real capability state, and retrieved memories. */

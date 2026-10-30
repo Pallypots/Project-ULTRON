@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
-import { loadPersona, matchWake, type Persona } from "@ultron/agent-core";
+import { applyOverrides, loadPersona, matchWake, PersonaOverrides, type Persona } from "@ultron/agent-core";
 import { openStores, redact, type Stores } from "@ultron/memory";
 import { decodeWav, rms, WavError } from "@ultron/audio";
 import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, TtsSettingsUpdate, VoiceSettingsUpdate, type ChatEvent, type TranscribeResult, type TtsStatusResponse, type VoiceStatus } from "@ultron/schemas";
@@ -27,7 +27,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.8.0";
+export const VERSION = "0.9.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -45,7 +45,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const token = loadOrCreateToken(config.dataDir);
   const recovered = stores.conversations.recoverInterrupted();
   const streams = new ActiveStreams();
-  let persona: Persona = loadPersona(config.personaFile);
+  const loadEffectivePersona = (): Persona => applyOverrides(loadPersona(config.personaFile), stores.preferences.get("persona_overrides", {}));
+  let persona: Persona = loadEffectivePersona();
 
   // Every log line passes through redaction (pattern-based plus exact known secret values).
   const logLines: string[] = [];
@@ -125,7 +126,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       pendingApprovals: stores.actions.pending().length,
       upcomingReminders: stores.reminders.upcoming().length,
       counts: { conversations: stores.conversations.list().length, memories: stores.memories.list().length },
-      persona: { name: persona.name },
+      persona: { name: persona.name, wakeNames: persona.wakeNames, salutation: persona.ownerSalutation },
     };
   });
 
@@ -538,8 +539,22 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   });
 
   app.post("/api/persona/reload", async () => {
-    persona = loadPersona(config.personaFile);
+    persona = loadEffectivePersona();
     return { ok: true, name: persona.name };
+  });
+  app.get("/api/persona", async () => ({ persona, defaults: loadPersona(config.personaFile), overrides: stores.preferences.get("persona_overrides", {}) }));
+  app.put("/api/persona", async (req) => {
+    const o = PersonaOverrides.parse(req.body);
+    stores.preferences.set("persona_overrides", o);
+    persona = loadEffectivePersona();
+    stores.audit.record("persona.changed", "owner", null, { fields: Object.keys(o) });
+    return { persona };
+  });
+  app.delete("/api/persona", async () => {
+    stores.preferences.set("persona_overrides", {});
+    persona = loadEffectivePersona();
+    stores.audit.record("persona.reset", "owner");
+    return { persona };
   });
 
   // ---- UI ----
