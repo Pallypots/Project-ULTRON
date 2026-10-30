@@ -48,7 +48,11 @@ export class FileService {
       })
       .catch((err: Error) => {
         this.log(`indexing failed: ${err.message}`);
-        if (this.store.folder(id)) this.store.setFolderStatus(id, "error", `Indexing failed: ${err.message}`);
+        try {
+          if (this.store.folder(id)) this.store.setFolderStatus(id, "error", `Indexing failed: ${err.message}`);
+        } catch {
+          // database already closed (ULTRON shutting down); nothing left to record
+        }
       })
       .finally(() => this.running.delete(id));
     return true;

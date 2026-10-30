@@ -1,7 +1,7 @@
 # Overnight build report (Oct 30, 2026, 1:50 a.m. → 7 a.m.)
 
 You asked for ULTRON to run **truly locally**, inspired by the "Jarvis" video, and gave me the night with no approvals.
-ULTRON went from v0.2 to **v0.10**. Everything below is pushed to **github.com/Pallypots/Project-ULTRON**.
+ULTRON went from v0.2 to **v0.11**. Everything below is pushed to **github.com/Pallypots/Project-ULTRON**.
 
 ## The headline
 ULTRON's brain, ears, voice and memory can now all run **on your own PC with no cloud and no internet** (after one-time downloads).
@@ -16,7 +16,8 @@ Cloud brains (Claude, OpenAI) are optional extras you can switch to by voice, ne
 | Second brain | none | **Files**: add folders; ULTRON searches/reads them ("pull up the free school community"). Secrets and system folders are always skipped |
 | Connected accounts | none | **GitHub** (read-only feed of your repos + "what's new?") and **issue drafts you approve before posting** |
 | Daily use | — | **"Good morning" briefing**, **Personality editor** (e.g. call you "sir"), desktop icon, start-at-sign-in |
-| Security | keys in a plain file | keys **encrypted with Windows DPAPI**; independent security review (see below) |
+| Memory | keyword matching | + **recall by meaning** with a small local model: "how hot should the oven be?" finds "I bake bread at 230 degrees" |
+| Security | keys in a plain file | keys **encrypted with Windows DPAPI**; independent security review found 8 issues, **all fixed** with tests (see SECURITY.md) |
 
 ## Proof (real tests, not mock-ups)
 Every push runs on GitHub's **Windows and Linux** machines. Real results recorded tonight:
@@ -29,8 +30,9 @@ Every push runs on GitHub's **Windows and Linux** machines. Real results recorde
 | Whisper on the JFK clip (Windows + Linux) | word-perfect, ~2.4 s for 11 s of audio |
 | **GitHub connector against your real repo** | found 20 commits and the 4 failed CI runs from earlier tonight |
 | **`Start-ULTRON.bat` on real Windows** | brought ULTRON online and served the interface |
+| **Meaning-based memory recall** with the real local model (Linux CI) | "how should recipes mention warming the oven?" → *"I prefer instructions that say whether preheating is needed"*; "when is my sibling's special day?" → *"My sister's birthday is March 3"* (no shared keywords; ~1.6 s including model load) |
 | DPAPI key encryption, desktop/start-up shortcuts (Windows) | pass |
-| Automated tests | **152 passed** (+6 real-model tests that run in CI) |
+| Automated tests | **163 passed** (+7 real-model tests that run in CI) |
 | Browser end-to-end test (real Chromium, fake microphone) | **39 steps** pass on Windows and Linux |
 
 Speed note from CI (basic 4-core machines, no graphics card): the voice now generates faster than real time (fp16 Kokoro, ~0.8×; it was 1.4–2× before I benchmarked).
@@ -70,6 +72,6 @@ The small local brain took ~45–80 s per answer **on those weak machines**. You
 ## What's next (my suggestion)
 1. Measure on your hardware and tune the default local model and voice.
 2. YouTube connector (needs your Google OAuth client) and phone access over Tailscale (secure, private).
-3. Meaning-based search for memories and files (local embeddings), PDF text in Files.
+3. Meaning-based search for *files* too (memories already have it), PDF text in Files.
 
 Full details: [CHANGELOG](../CHANGELOG.md) · [User guide](USER_GUIDE.md) · [Decisions](DECISIONS.md) · [Testing](TESTING.md) · [Security](../SECURITY.md)
