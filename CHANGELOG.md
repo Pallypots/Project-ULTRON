@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.3 · 2026-10-30 · Faster voice, faster local connections
+- Kokoro now uses fp16 by default: ~2× faster than the old 8-bit model on CPU (benchmarked in CI on Windows and Linux), so speech doesn't pause between sentences.
+- ULTRON listens on both loopback addresses (127.0.0.1 and ::1), avoiding slow "localhost" fallbacks on Windows.
+- The launcher waits up to 2 minutes for a slow first start before opening the window.
+
 ## 0.9.2 · 2026-10-30 · Windows conveniences
 - ULTRON icon (.ico) generated from the logo; Settings → Windows: desktop shortcut and start-at-sign-in (background mode).
 - `Start-ULTRON.bat --background` starts ULTRON without opening a window.

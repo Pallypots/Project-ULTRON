@@ -42,7 +42,7 @@ That needs the owner's PC and is listed as an open item, not claimed.
 
 ## Spoken replies (v0.4, UL-009)
 - **Engine:** Kokoro-82M (Apache-2.0) via `kokoro-js`, sharing ULTRON's transformers.js/ONNX Runtime (npm `overrides` dedupes it, so there's no second
-  500 MB runtime). Model `onnx-community/Kokoro-82M-v1.0-ONNX` (q8, ~90 MB) downloads once into `<data>/models`; voices ship with the package.
+  500 MB runtime). Model `onnx-community/Kokoro-82M-v1.0-ONNX` (fp16, ~165 MB) downloads once into `<data>/models`; voices ship with the package.
 - **Streaming:** the UI splits the reply into sentences as tokens arrive (`SentenceSplitter`) and requests `POST /api/voice/speak` per sentence. The next
   sentence is generated while the current one plays.
 - **Barge-in:** opening the mic (Talk / Space), Esc, Stop, or sending a new message stops playback and aborts pending generations. The mic is
@@ -53,6 +53,19 @@ That needs the owner's PC and is listed as an open item, not claimed.
 ## Hands-free (v0.7)
 Energy VAD in the browser (20 ms frames, adaptive noise floor, 60 ms to start, 700 ms of quiet to end, 10 s max, 0.4 s min) → WAV →
 `POST /api/voice/transcribe?mode=wake` → local Whisper → `matchWake()` → `{addressed:false}` (dropped) or the command text. See D-018.
+
+### Kokoro precision benchmark (CI, 2026-10-30)
+Real-time factor (generation time ÷ audio length; below 1 = faster than speaking), same sentence, all intelligible to Whisper:
+
+| Precision | Windows (GitHub runner) | Linux (GitHub runner) |
+|---|---|---|
+| q8 | 1.98 | 1.38 |
+| fp32 | 0.86 | 0.79 |
+| **fp16 (default)** | **0.87** | **0.77** |
+| q4 | 1.58 | 0.77 |
+
+The 8-bit model is the smallest download but the slowest on CPU, so fp16 is the default (half of fp32's size, same speed).
+Override with `ULTRON_KOKORO_DTYPE`. The owner's PC will differ; measure there.
 
 ## Not done yet
 - Voice barge-in during hands-free (currently Esc/Talk interrupt).

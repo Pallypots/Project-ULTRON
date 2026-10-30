@@ -28,12 +28,13 @@ export class KokoroEngine implements TtsEngine {
   readonly voices = KOKORO_VOICES;
   private tts: Kokoro | null = null;
   private loading: Promise<Kokoro> | null = null;
-  private state: TtsStatus = { state: "not_loaded", detail: "The voice downloads the first time ULTRON speaks (about 90 MB, one time)." };
+  private state: TtsStatus = { state: "not_loaded", detail: "The voice downloads the first time ULTRON speaks (about 165 MB, one time)." };
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(
     private cacheDir: string,
-    readonly dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16" = (process.env.ULTRON_KOKORO_DTYPE as "q8") ?? "q8",
+    // fp16 benchmarked fastest-for-size on CPU in CI (RTF ~0.8 on Windows and Linux vs ~1.4–2.0 for q8); see docs/VOICE.md.
+    readonly dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16" = (process.env.ULTRON_KOKORO_DTYPE as "fp16") ?? "fp16",
   ) {}
 
   status(): TtsStatus {

@@ -98,6 +98,10 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-021 · 2026-10-30 · Kokoro fp16 by default (measured)
+A CI benchmark showed q8 at 1.4–2.0× real time on CPU (gaps between sentences) while fp16/fp32 ran at ~0.8× on both Windows and Linux,
+all intelligible. fp16 is half fp32's download for the same speed.
+
 ### D-020 · 2026-10-30 · Windows DPAPI for secrets at rest
 `ProtectedData.Protect` (CurrentUser scope, fixed entropy) via Windows PowerShell 5.1 (present on every Windows install, has System.Security), with
 plaintext sent over stdin. No native module, no extra dependency. Costs ~0.5 s per load/save, which only happens at startup and when a key changes.
