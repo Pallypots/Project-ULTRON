@@ -37,9 +37,10 @@ export class OllamaProvider implements ModelProvider {
     if (opts.fetchImpl) this.fetchImpl = opts.fetchImpl;
   }
 
-  private thinkSetting(): boolean | "low" {
-    // gpt-oss can't fully disable reasoning; others accept false.
-    return this.model.startsWith("gpt-oss") ? "low" : false;
+  private thinkSetting(deep?: boolean): boolean | "low" | "high" {
+    // gpt-oss can't fully disable reasoning; others accept false. Deep thinking turns reasoning on (hidden from the answer).
+    if (this.model.startsWith("gpt-oss")) return deep ? "high" : "low";
+    return deep ? true : false;
   }
 
   async *stream(req: ModelRequest): AsyncIterable<string> {
@@ -51,7 +52,7 @@ export class OllamaProvider implements ModelProvider {
   }
 
   private async *run(req: ModelRequest, tools?: ToolSpec[]): AsyncIterable<ProviderEvent> {
-    const body = (think: boolean | "low" | undefined) =>
+    const body = (think: boolean | "low" | "high" | undefined) =>
       JSON.stringify({
         model: this.model,
         stream: true,
@@ -61,7 +62,7 @@ export class OllamaProvider implements ModelProvider {
         ...(think === undefined ? {} : { think }),
       });
 
-    let res = await this.post(body(this.thinkSetting()), req.signal);
+    let res = await this.post(body(this.thinkSetting(req.deep)), req.signal);
     // Older Ollama versions or non-thinking models may reject the `think` field: retry without it.
     if (res.status === 400) {
       const text = await res.text();

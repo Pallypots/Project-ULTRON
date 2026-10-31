@@ -69,6 +69,11 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     ciNote("Local brain personality", `reply=${Date.now() - t4}ms text="${hi.replace(/\s+/g, " ").slice(0, 300)}"`);
     expect(hi).not.toMatch(/<\/?think>/);
 
+    // Informational: deep thinking on a classic trick question (intuitive answer 10 cents is wrong; it's 5 cents).
+    const t6 = Date.now();
+    const bat = replyText(await g.chat(await g.newConversation(), "Think hard about this: a bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost?")).replace(/\s+/g, " ");
+    ciNote("Local brain deep thinking", `correct=${/\b(5 cents|\$0?\.05|five cents)\b/i.test(bat)} took=${Date.now() - t6}ms ending="…${bat.slice(-220)}"`);
+
     // Informational: the note ULTRON writes itself about a finished conversation.
     const t5 = Date.now();
     const persona = () => loadPersona(new URL("../../../config/persona.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));

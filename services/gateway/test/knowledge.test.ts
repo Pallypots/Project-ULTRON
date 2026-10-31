@@ -5,7 +5,7 @@ import { buildSystemPrompt, loadPersona } from "@ultron/agent-core";
 import { calculate, tidy } from "../src/actions/calc.ts";
 import { toolByName } from "../src/actions/tools.ts";
 import { fetchPage, htmlToText, isPrivateAddress } from "../src/actions/knowledge.ts";
-import { humanAgo, isSmallTalk, recentMemories } from "../src/chat.ts";
+import { humanAgo, isSmallTalk, recentMemories, wantsDeepThinking } from "../src/chat.ts";
 import { Greeter } from "../src/greeting.ts";
 import { replyText, startGateway } from "./helpers.ts";
 
@@ -196,6 +196,12 @@ describe("personality and catching up", () => {
   it("doesn't title conversations after small talk", () => {
     for (const t of ["Hey Ultron!", "good morning", "Ultron, I'm back", "hi, how are you?", "thanks"]) expect(isSmallTalk(t), t).toBe(true);
     for (const t of ["hey, can you check the weather", "good morning, brief me", "Planning the Oogie port release"]) expect(isSmallTalk(t), t).toBe(false);
+  });
+
+  it("notices when the owner wants careful thinking", () => {
+    for (const t of ["Think hard about whether I should take the job", "take your time with this one", "walk me through it step by step", "really think about it"]) expect(wantsDeepThinking(t), t).toBe(true);
+    for (const t of ["what do you think?", "I think it's raining", "tell me a joke"]) expect(wantsDeepThinking(t), t).toBe(false);
+    expect(buildSystemPrompt(persona, { ...base, rapport: { lastChat: null, recentTopics: [], deep: true } })).toMatch(/think this one through carefully/);
   });
 
   it("phrases time like a person", () => {

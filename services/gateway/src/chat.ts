@@ -283,6 +283,8 @@ export async function handleUserMessage(
     return finish(resolution.reason, "error");
   }
 
+  const deep = wantsDeepThinking(content);
+  if (deep) stores.audit.record("model.deep_thinking", "owner", assistant.id, { provider: providerId });
   // Keyword recall always; meaning-based recall too once the local embedding model is ready.
   const semantic = (await deps.embeddings?.similar(content).catch(() => [])) ?? [];
   const memories = semantic.length ? stores.memories.retrieveHybrid(content, semantic) : stores.memories.retrieveForPrompt(content);
@@ -301,7 +303,7 @@ export async function handleUserMessage(
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
-    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: agendaFor(stores) },
+    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: agendaFor(stores), deep },
   });
   const turns: ChatTurn[] = turnsSoFar;
 
@@ -311,7 +313,7 @@ export async function handleUserMessage(
   try {
     // Model ↔ tools loop, bounded so a confused model can't spin (cost and safety cap).
     for (let round = 0; round <= MAX_TOOL_ROUNDS && !opts.signal.aborted; round++) {
-      const req = { system, messages: turns, memories, capabilities, signal: opts.signal };
+      const req = { system, messages: turns, memories, capabilities, signal: opts.signal, deep };
       const events = useTools && round < MAX_TOOL_ROUNDS ? provider.streamWithTools!({ ...req, tools: toolSpecs }) : textOnly(provider.stream(req));
       const calls: ToolCall[] = [];
       let roundText = "";
@@ -477,5 +479,10 @@ export function agendaFor(stores: Stores, now = new Date()): string[] {
     .filter((r) => new Date(r.dueAt).getTime() - now.getTime() < 12 * 3_600_000)
     .map((r) => `reminder "${r.text}" at ${new Date(r.dueAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`);
   return [...todos, ...soon].slice(0, 6);
+}
+
+/** "Think hard about…", "take your time", "step by step": the owner wants quality over speed for this message. */
+export function wantsDeepThinking(text: string): boolean {
+  return /\b(think (?:hard|harder|deeply|carefully|it through|this through|about it properly)|take your time|deep(?:ly)? think|thinking cap|reason (?:it |this )?(?:out|through)|step[- ]by[- ]step|really think)\b/i.test(text);
 }
 

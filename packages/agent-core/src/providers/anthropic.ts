@@ -49,7 +49,7 @@ export class AnthropicProvider implements ModelProvider {
           max_tokens: 16000,
           system: req.system,
           messages: toAnthropicMessages(req.messages),
-          output_config: { effort: "low" },
+          output_config: { effort: req.deep ? "high" : "low" },
           betas: ["server-side-fallback-2026-07-01"],
           fallbacks: "default",
           ...(tools?.length ? { tools: tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters, eager_input_streaming: true })) } : {}),

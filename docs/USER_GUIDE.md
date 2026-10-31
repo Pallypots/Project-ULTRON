@@ -91,6 +91,10 @@ ULTRON has a character: witty, a little theatrical, warm, and curious about your
 in a spoken style. When you open the app after a while, ULTRON greets you first on the Home screen with a line about what's been going on
 (on a slow PC this can take a minute to appear). Change any of it in Settings → **Personality** (the **Character** box is plain English: "talks like a pirate" works).
 
+## Hard questions: "think hard about…"
+Start with "think hard about…", "take your time" or "walk me through it step by step" and ULTRON reasons carefully before answering (it takes
+longer, especially on a local brain). Its reasoning stays hidden; you get the answer and how confident it is.
+
 ## Everyday help
 Clear commands like these are answered instantly by ULTRON itself, without waiting for the AI brain: "open github.com",
 "add milk and eggs to my list", "what's on my list?", "what's the weather?", "what's 15% of 80?". Anything chattier goes to the brain.

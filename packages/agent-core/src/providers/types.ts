@@ -28,6 +28,8 @@ export interface ModelRequest {
   /** Live capability state, also embedded in `system`; lets offline providers answer "what can you do?". */
   capabilities?: Capability[];
   signal?: AbortSignal;
+  /** The owner asked for careful reasoning ("think hard about…"): let models that can reason do so, at the cost of speed. */
+  deep?: boolean;
 }
 
 /** Every LLM backend implements this. Roles (fast chat, deep reasoning, vision, embeddings) map onto instances. */

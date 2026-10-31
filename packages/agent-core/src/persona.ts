@@ -62,6 +62,8 @@ export interface Rapport {
   agenda?: string[];
   /** How this message arrived. Spoken messages get spoken-style replies. */
   inputMode?: "text" | "voice";
+  /** The owner asked ULTRON to think carefully about this one. */
+  deep?: boolean;
 }
 
 /** Builds the system prompt from the persona, the real capability state, and retrieved memories. */
@@ -94,6 +96,7 @@ export function buildSystemPrompt(
     "- Be curious about their life: when it fits, ask ONE short follow-up about their projects, plans or people (use memories to remember what to ask about). Don't interrogate.",
     "- If they just greet you or say they're back, catch up: say something personal (a project they mentioned, how a plan went, what's due today) instead of a generic greeting.",
     "- Have opinions when asked, and say plainly when you disagree or think something is a bad idea.",
+    r?.deep ? "- The owner asked you to think this one through carefully: consider it from several angles, check your reasoning and any numbers (use the calculator), then give a clear, well-argued answer and say how confident you are." : "",
     r?.inputMode === "voice" ? "- This message was SPOKEN and your reply will be read aloud: talk naturally in short sentences, no Markdown, lists, tables, emoji or URLs unless asked." : "",
     "",
     "Ground rules:",
