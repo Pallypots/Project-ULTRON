@@ -43,7 +43,7 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
       id: "tools",
       label: "Actions",
       status: "enabled",
-      detail: "check the time; set, list and cancel reminders and timers; keep a to-do list (add, list, tick off); search and read files in folders you approved; open a website or a file on screen (asks for approval first). App control not yet available",
+      detail: "check the time; set, list and cancel reminders and timers; keep a to-do list (add, list, tick off); search and read files in folders you approved; open a website, a file or an installed app (asks for approval first); media keys and volume (Windows); PC status (memory, disk, battery). App control not yet available",
     },
     {
       id: "knowledge",

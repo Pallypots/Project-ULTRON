@@ -3,6 +3,7 @@ import type { ToolEvent } from "@ultron/schemas";
 import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
 import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
 import { calculate } from "./actions/calc.ts";
+import { findApps } from "./actions/system.ts";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
 import type { Stores } from "@ultron/memory";
@@ -221,6 +222,8 @@ export async function handleUserMessage(
 
   // Everyday commands answered by code: instant, and reliable even on a small local model.
   let quick = intent.type === "chat" && !timeIntent && deps.actions ? detectQuickCommand(content) : null;
+  // "open X" is only a quick command if X really is an installed app; otherwise the brain decides what was meant.
+  if (quick?.type === "open_app" && !findApps(quick.name).length) quick = null;
   // Maths the calculator can't parse goes to the brain instead of answering with an error.
   if (quick?.type === "calculate") {
     try {
@@ -456,6 +459,16 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       if (tomorrow) lines.push(`Tomorrow: ${tomorrow.conditions}, ${tomorrow.low} to ${tomorrow.high}.`);
       if (today?.chance_of_rain && parseInt(today.chance_of_rain) >= 50) lines.push("Take an umbrella. I'd hate for you to rust.");
       return lines.join(" ");
+    }
+    case "media": {
+      const r = await run("media_control", { action: q.action, ...(q.steps ? { steps: q.steps } : {}) });
+      if (r.status !== "succeeded") return failed(r);
+      return { play_pause: "Done. Play/pause.", next: "Skipping ahead.", previous: "Going back a track.", mute: "Toggled mute.", volume_up: "Turned it up.", volume_down: "Turned it down." }[q.action];
+    }
+    case "open_app": {
+      const r = await run("open_app", { app: q.name });
+      if (r.status === "awaiting_approval") return `Opening apps needs your OK: click Approve on the card below.`;
+      return r.status === "succeeded" ? `Opened ${r.data?.opened ?? q.name}.` : failed(r);
     }
     case "calculate": {
       const r = await run("calculate", { expression: q.expression });

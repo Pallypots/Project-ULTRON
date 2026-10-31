@@ -8,6 +8,7 @@ import { openTarget, openWithDefaultApp, type FileService } from "../files/servi
 import type { ConnectorService } from "../connectors/service.ts";
 import { KNOWLEDGE_TOOLS, homeLocation, weatherFor } from "./knowledge.ts";
 import { TODO_TOOLS } from "./todos.ts";
+import { SYSTEM_TOOLS } from "./system.ts";
 
 /**
  * Risk levels (blueprint §7):
@@ -365,5 +366,5 @@ const githubCreateIssue: ToolDef<z.infer<typeof GithubIssue>> = {
   },
 };
 
-export const TOOLS: ToolDef[] = [...KNOWLEDGE_TOOLS, ...TODO_TOOLS, githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
+export const TOOLS: ToolDef[] = [...KNOWLEDGE_TOOLS, ...TODO_TOOLS, ...SYSTEM_TOOLS, githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
 export const toolByName = (name: string) => TOOLS.find((t) => t.name === name);

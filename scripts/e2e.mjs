@@ -17,6 +17,10 @@ try {
 
 const port = 7499;
 const dataDir = mkdtempSync(join(tmpdir(), "ultron-e2e-"));
+// A pretend Start menu, so "open notepad" has something to find on any OS.
+const startMenu = join(dataDir, "..", `ultron-e2e-startmenu-${process.pid}`);
+mkdirSync(startMenu, { recursive: true });
+writeFileSync(join(startMenu, "Notepad.lnk"), "");
 const shots = join(import.meta.dirname, "../docs/screenshots");
 mkdirSync(shots, { recursive: true });
 
@@ -40,7 +44,7 @@ const [githubUrl, githubToken] = await new Promise((resolve, reject) => {
 });
 
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_EMBEDDINGS: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_GITHUB_API: githubUrl, ULTRON_LOG_LEVEL: "warn" },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_EMBEDDINGS: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_GITHUB_API: githubUrl, ULTRON_LOG_LEVEL: "warn", ULTRON_START_MENU_DIRS: startMenu },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {
@@ -280,6 +284,15 @@ try {
   await page.screenshot({ path: join(shots, "19-todo-list.png") });
   await page.getByRole("button", { name: "Chat" }).click();
   step("To-do list: items added by chat appear in the app and can be ticked off");
+
+  await page.getByRole("button", { name: "Send", exact: true }).waitFor();
+  await composer.fill("open notepad");
+  await composer.press("Enter");
+  const appCard = page.locator(".tool--awaiting_approval", { hasText: 'Open the app "Notepad"' });
+  await appCard.getByText("Notepad.lnk").first().waitFor();
+  await appCard.getByRole("button", { name: "Approve" }).click();
+  await page.locator(".tool--succeeded", { hasText: 'Open the app "Notepad"' }).waitFor();
+  step('"Open notepad": approval card names the exact Start-menu app, opens only after Approve');
 
   await page.getByRole("button", { name: "Reminders" }).click();
   await page.locator(".reminder--past", { hasText: "3-second timer" }).waitFor();

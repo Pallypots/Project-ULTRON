@@ -7,7 +7,9 @@ export type QuickCommand =
   | { type: "add_todo"; items: string[] }
   | { type: "list_todos" }
   | { type: "weather"; place: string | null }
-  | { type: "calculate"; expression: string };
+  | { type: "calculate"; expression: string }
+  | { type: "media"; action: "play_pause" | "next" | "previous" | "mute" | "volume_up" | "volume_down"; steps?: number }
+  | { type: "open_app"; name: string };
 
 const LEAD = /^\s*(?:(?:hey|ok|okay)\s+)?(?:ultron[\s,:!.-]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?/i;
 const TAIL = /(?:[\s,]+please)?[\s?.!]*$/i;
@@ -25,6 +27,21 @@ export function detectQuickCommand(message: string): QuickCommand | null {
 
   const open = /^open(?: up)?(?: the (?:website|site|page|link))?\s+(\S+)$/i.exec(m);
   if (open && DOMAIN.test(open[1]!)) return { type: "open_url", url: /^https?:\/\//i.test(open[1]!) ? open[1]! : `https://${open[1]}` };
+  // "open spotify", "launch notepad": the gateway only uses this if such an app really is in the Start menu.
+  const app = /^(?:open|launch|start|run)(?: up)?(?: the)?\s+([\p{L}\p{N}][\p{L}\p{N} .+&'-]{0,40}?)(?:\s+app)?$/iu.exec(m);
+  if (app && !/\b(my|file|folder|document|website|page|link|door|doors|window)\b/i.test(app[1]!)) return { type: "open_app", name: app[1]!.trim() };
+
+  if (/^(?:pause|resume|unpause)(?: the)?(?: music| song| video| track| it| playback)?$|^play(?: the)? (?:music|it)$|^(?:play|pause)$/i.test(m)) return { type: "media", action: "play_pause" };
+  if (/^(?:next|skip)(?: this| the)?(?: song| track)?$|^skip (?:this|it)$/i.test(m)) return { type: "media", action: "next" };
+  if (/^(?:previous|last|go back a|back a)(?: song| track)$|^play the (?:previous|last) (?:song|track)$/i.test(m)) return { type: "media", action: "previous" };
+  if (/^(?:mute|unmute)(?: the)?(?: sound| audio| volume| music)?$/i.test(m)) return { type: "media", action: "mute" };
+  const vol = /^(?:turn (?:it|the volume|the music|the sound) (up|down)|volume (up|down)|(louder|quieter)|turn it (up|down))(?: a (lot|little|bit))?$/i.exec(m);
+  if (vol) {
+    const dir = (vol[1] ?? vol[2] ?? vol[3] ?? vol[4])!.toLowerCase();
+    const up = dir === "up" || dir === "louder";
+    const steps = vol[5]?.toLowerCase() === "lot" ? 12 : vol[5] ? 3 : 5;
+    return { type: "media", action: up ? "volume_up" : "volume_down", steps };
+  }
 
   const add = /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:my|the)\s+(?:to-?do\s+|shopping\s+)?list$/i.exec(m);
   if (add) {

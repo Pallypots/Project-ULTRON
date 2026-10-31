@@ -11,12 +11,14 @@ describe("tool focusing for small local models", () => {
     expect(names(["what's 15% of 80?"])).toEqual(["calculate"]);
     expect(names(["will I need an umbrella?"])).toEqual(["get_weather"]);
     expect(names(["summarize https://example.com/a"])).toEqual(["open_website", "read_webpage"]);
+    expect(names(["pause the music"])).toEqual(["media_control"]);
+    expect(names(["am I running out of disk space?"])).toEqual(["pc_status"]);
     expect(names(["add milk to my list"])).toContain("add_todo");
     expect(names(["my sister's birthday is March 3"])).toEqual(["save_memory"]);
     expect(names(["tell me a joke"])).toEqual([]);
   });
   it("keeps the previous message's tools for follow-ups like 'yes, do it'", () => {
-    expect(names(["open https://example.com", "yes please"])).toEqual(["open_website", "read_webpage"]);
+    expect(names(["open https://example.com", "yes please"])).toEqual(["find_apps", "open_app", "open_website", "read_webpage"]);
   });
 });
 

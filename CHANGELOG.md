@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0 · 2026-10-31 · Controls your PC
+- **Media and volume** (Windows): "pause the music", "next song", "skip this", "turn it up a lot", "quieter", "mute". Works with whatever
+  is playing (Spotify, YouTube in the browser…). Instant, low-risk and logged.
+- **Open apps:** "open Spotify", "launch Notepad", "start Visual Studio Code". ULTRON finds the app in your Start menu and shows exactly which
+  shortcut it will open; nothing runs until you click Approve. Only Start-menu shortcuts can be opened this way.
+- **"How's my PC doing?"** memory and disk use, battery, uptime and CPU.
+
 ## 0.15.0 · 2026-10-31 · Thinks harder, remembers better, never leaves you in silence
 - **Deep thinking on request:** "think hard about…", "take your time", "step by step" lets the brain reason before answering (local models
   that support it think silently first; Claude uses high effort). Slower, better for hard questions. Everyday chat stays fast.

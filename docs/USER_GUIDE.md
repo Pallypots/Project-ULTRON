@@ -95,6 +95,13 @@ in a spoken style. When you open the app after a while, ULTRON greets you first 
 Start with "think hard about…", "take your time" or "walk me through it step by step" and ULTRON reasons carefully before answering (it takes
 longer, especially on a local brain). Its reasoning stays hidden; you get the answer and how confident it is.
 
+## Controlling your PC (Windows)
+- **Music and volume:** "pause the music", "next song", "previous track", "turn it up", "turn it down a bit", "mute". These happen straight
+  away (they're easy to undo) and are listed in Activity.
+- **Apps:** "open Spotify", "launch Notepad". The card shows exactly which Start-menu app will open; click **Approve**. ULTRON can only open
+  apps that are in your Start menu.
+- **Your PC:** "how's my PC doing?", "am I running out of disk space?", "how much battery have I got?"
+
 ## Everyday help
 Clear commands like these are answered instantly by ULTRON itself, without waiting for the AI brain: "open github.com",
 "add milk and eggs to my list", "what's on my list?", "what's the weather?", "what's 15% of 80?". Anything chattier goes to the brain.

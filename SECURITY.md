@@ -45,6 +45,10 @@ connection (low impact: only GET, response treated as data).
 Models can claim actions they never took. Every action appears as a card from the action log (never from model text), and replies that
 claim an action when none ran get a visible correction plus a `model.unbacked_claim` audit entry.
 
+## Opening apps (v0.16)
+`open_app` (L2, approval every time) can only launch `.lnk`/`.url` shortcuts found inside the two Start-menu folders, re-checked at run time;
+the approval card shows the exact shortcut path. Media keys (L1) only send play/pause/next/previous/mute/volume key presses.
+
 ## Known gaps (tracked)
 | Gap | Plan |
 |---|---|
