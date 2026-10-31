@@ -123,8 +123,8 @@ on the PC. Remove a phone in Settings → Phone access and it's locked out at on
 ## "Look at my screen"
 Ask "Ultron, what's on my screen?" or "look at my screen, what's this error?" and ULTRON takes **one** screenshot of your main screen and
 shows it to the brain to answer. It never looks unless you ask, the picture isn't saved, and the chat shows a 📸 chip each time. With a
-local brain the picture never leaves your PC. Your brain must be able to see images: locally, download e.g. **gemma3:4b** (or
-**qwen2.5vl:7b** on a stronger PC) in Settings → Local AI; Claude can too. ULTRON tells you if the current brain can't.
+local brain the picture never leaves your PC. Your brain must be able to see images: the recommended small local brain
+(**gemma4:e2b**) can, as can Claude; for some other local models ULTRON tells you it can't and suggests one that can.
 
 ## Controlling your PC (Windows)
 - **Music and volume:** "pause the music", "next song", "previous track", "turn it up", "turn it down a bit", "mute". These happen straight
