@@ -82,13 +82,39 @@ describe("phone access over Tailscale", () => {
     expect((await phone("GET", "/api/status", { token: second })).status).toBe(403);
   });
 
-  it("gives up on a pairing after five wrong codes", async () => {
-    const { g, phone } = await setup();
+  it("locks out whoever guesses wrong five times, without spoiling pairing for the owner", async () => {
+    const { g } = await setup();
     await g.api("PUT", "/api/remote", { enabled: true, host: HOST });
     const { code } = (await g.api("POST", "/api/remote/pairing")).body;
     const wrong = code === "999999" ? "888888" : "999999";
-    for (let i = 0; i < 5; i++) await phone("POST", "/api/pair", { payload: { code: wrong } });
-    expect((await phone("POST", "/api/pair", { payload: { code } })).body.message).toMatch(/No pairing is open/);
+    const pairAs = async (who: string, c: string) =>
+      (await g.gw.app.inject({ method: "POST", url: "/api/pair", headers: { host: HOST, "tailscale-user-login": who }, payload: { code: c } })).json();
+    for (let i = 0; i < 5; i++) await pairAs("mallory@example.com", wrong);
+    // Mallory is locked out, even with the right code...
+    expect((await pairAs("mallory@example.com", code)).message).toMatch(/Too many wrong codes/);
+    // ...but the owner can still pair.
+    expect((await pairAs("owner@example.com", code)).token).toBeTruthy();
+  });
+
+  it("refuses '#' tricks and keeps safety settings tightening-only from a phone (found by review)", async () => {
+    const { g, phone } = await setup();
+    await g.api("PUT", "/api/remote", { enabled: true, host: HOST });
+    const { token } = (await phone("POST", "/api/pair", { payload: { code: (await g.api("POST", "/api/remote/pairing")).body.code } })).body;
+    // Over a real socket, "/api/remote#x" would reach /api/remote; the gateway now refuses any "#".
+    const { request } = await import("node:http");
+    await g.gw.app.listen({ port: 0, host: "127.0.0.1" });
+    const port = (g.gw.app.server.address() as { port: number }).port;
+    const status = await new Promise<number>((resolve) => {
+      const r = request({ host: "127.0.0.1", port, method: "GET", path: "/api/remote#x", headers: { host: HOST, authorization: `Bearer ${token}` } }, (res) => resolve(res.statusCode!));
+      r.end();
+    });
+    expect(status).toBe(400);
+    // The phone can pause actions (kill switch) but can't loosen safety again or change voice/routines/persona.
+    expect((await phone("PUT", "/api/settings/actions", { token, payload: { paused: true, confirmLowRisk: true } })).status).toBe(200);
+    expect((await phone("PUT", "/api/settings/actions", { token, payload: { paused: false, confirmLowRisk: true } })).body.error).toBe("pc_only");
+    expect((await phone("PUT", "/api/settings/actions", { token, payload: { paused: true, confirmLowRisk: false } })).body.error).toBe("pc_only");
+    for (const [m, url] of [["PUT", "/api/voice/settings"], ["PUT", "/api/routines"], ["PUT", "/api/persona"], ["POST", "/api/files/open"], ["PUT", "/api/connectors/github/repos"]] as const)
+      expect((await phone(m, url, { token, payload: {} })).body.error, url).toBe("pc_only");
   });
 
   it("classifies PC-only routes", () => {

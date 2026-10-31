@@ -234,7 +234,9 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   // ---- phone access (pairing) ----
   app.post("/api/pair", async (req, reply) => {
     const body = z.object({ code: z.string().regex(/^\d{6}$/, "The code is 6 digits."), name: z.string().trim().max(40).default("Phone") }).parse(req.body);
-    const r = remote.claim(body.code, body.name);
+    // `tailscale serve` names the tailnet user making the request; wrong codes are counted per user.
+    const who = String(req.headers["tailscale-user-login"] ?? "unknown").slice(0, 200);
+    const r = remote.claim(body.code, body.name, who);
     if (!r.ok) {
       stores.audit.record("remote.pair_failed", "system", null, {});
       return reply.code(403).send({ error: "pair_failed", message: r.reason });
@@ -693,8 +695,12 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const r = await actions.resolve(req.params.id, false);
     return "failure" in r ? reply.code(r.code).send({ error: "cannot_deny", message: r.failure }) : { action: r };
   });
-  app.put("/api/settings/actions", async (req) => {
+  app.put("/api/settings/actions", async (req, reply) => {
     const body = z.object({ paused: z.boolean(), confirmLowRisk: z.boolean() }).parse(req.body);
+    // From a phone, safety can only be tightened (pause, ask more), never loosened.
+    const cur = actions.policy();
+    if (!isLoopbackRequest(req) && ((cur.paused && !body.paused) || (cur.confirmLowRisk && !body.confirmLowRisk)))
+      return reply.code(403).send({ error: "pc_only", message: "Loosening action safety can only be done on the PC itself." });
     stores.preferences.set("actions", body);
     stores.audit.record(body.paused ? "actions.paused" : "actions.policy_changed", "owner", null, body);
     return { policy: body };

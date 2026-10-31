@@ -16,7 +16,8 @@ export interface RemoteSettings {
 }
 
 const PAIR_TTL_MS = 5 * 60_000;
-const PAIR_MAX_ATTEMPTS = 5;
+const PAIR_MAX_ATTEMPTS = 5; // per person (Tailscale tells us who), so someone else on the tailnet can't lock the owner out
+const PAIR_MAX_TOTAL = 20; // overall cap: guessing stays hopeless (20 in a million)
 const HOST_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 
 export const hashToken = (t: string) => createHash("sha256").update(t).digest("hex");
@@ -25,11 +26,12 @@ export const hashToken = (t: string) => createHash("sha256").update(t).digest("h
 export function isPcOnly(method: string, path: string): boolean {
   if (/^\/api\/(remote|logs\/export|memories\/export)(\/|$)/.test(path)) return true;
   if (method === "GET" || method === "HEAD") return false;
-  return /^\/api\/(settings\/provider|connectors\/github(\/connect)?$|files\/folders|system\/|local-ai\/(pull|use)|persona\/reload|calendar$|settings\/search)/.test(path);
+  // Anything that adds credentials, widens access, sends audio to the cloud, or acts on the PC's screen stays on the PC.
+  return /^\/api\/(settings\/(provider|search|checkin)|connectors\/github|files\/(folders|open)|system\/|local-ai\/(pull|use)|persona|calendar|voice\/(settings|tts\/settings)|routines)(\/|$)/.test(path);
 }
 
 export class RemoteAccess {
-  private pairing: { code: string; expiresAt: number; attempts: number } | null = null;
+  private pairing: { code: string; expiresAt: number; attempts: number; byWho: Map<string, number> } | null = null;
   private lastTouch = new Map<string, number>();
 
   constructor(private stores: Stores) {}
@@ -72,7 +74,7 @@ export class RemoteAccess {
   /** Starts pairing: a 6-digit code shown on the PC, valid for 5 minutes and 5 attempts. */
   startPairing(): { code: string; expiresAt: string } {
     const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-    this.pairing = { code, expiresAt: Date.now() + PAIR_TTL_MS, attempts: 0 };
+    this.pairing = { code, expiresAt: Date.now() + PAIR_TTL_MS, attempts: 0, byWho: new Map() };
     return { code, expiresAt: new Date(this.pairing.expiresAt).toISOString() };
   }
 
@@ -81,14 +83,16 @@ export class RemoteAccess {
   }
 
   /** Exchanges the code for a new device key (shown once). Wrong codes count; too many ends the pairing. */
-  claim(code: string, name: string): { ok: true; token: string; device: Device } | { ok: false; reason: string } {
+  claim(code: string, name: string, who = "unknown"): { ok: true; token: string; device: Device } | { ok: false; reason: string } {
     const p = this.pairing;
     if (!p || Date.now() >= p.expiresAt) return { ok: false, reason: "No pairing is open. On your PC, go to Settings → Phone access → Pair a phone." };
+    if ((p.byWho.get(who) ?? 0) >= PAIR_MAX_ATTEMPTS) return { ok: false, reason: "Too many wrong codes. Start pairing again on your PC." };
     const a = Buffer.from(code.trim());
     const b = Buffer.from(p.code);
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      if (++p.attempts >= PAIR_MAX_ATTEMPTS) this.pairing = null;
-      return { ok: false, reason: this.pairing ? "That code isn't right. Check the code on your PC screen." : "Too many wrong codes. Start pairing again on your PC." };
+      p.byWho.set(who, (p.byWho.get(who) ?? 0) + 1);
+      if (++p.attempts >= PAIR_MAX_TOTAL) this.pairing = null;
+      return { ok: false, reason: this.pairing && (p.byWho.get(who) ?? 0) < PAIR_MAX_ATTEMPTS ? "That code isn't right. Check the code on your PC screen." : "Too many wrong codes. Start pairing again on your PC." };
     }
     this.pairing = null; // one device per code
     const token = randomBytes(32).toString("base64url");

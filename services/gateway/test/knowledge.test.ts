@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { buildSystemPrompt, loadPersona } from "@ultron/agent-core";
 import { calculate, tidy } from "../src/actions/calc.ts";
 import { toolByName } from "../src/actions/tools.ts";
-import { fetchPage, htmlToText, isPrivateAddress } from "../src/actions/knowledge.ts";
+import { fetchPage, htmlToText, isPrivateAddress, publicOnly } from "../src/actions/knowledge.ts";
 import { humanAgo, isSmallTalk, recentMemories, wantsDeepThinking } from "../src/chat.ts";
 import { Greeter } from "../src/greeting.ts";
 import { replyText, startGateway } from "./helpers.ts";
@@ -120,7 +120,14 @@ describe("Wikipedia and weather", () => {
 describe("reading web pages", () => {
   it("never reads this computer or the local network", async () => {
     for (const ip of ["127.0.0.1", "10.1.2.3", "192.168.0.10", "172.20.0.1", "169.254.169.254", "100.64.0.1", "0.0.0.0", "::1", "fd00::1", "fe80::1", "::ffff:127.0.0.1"]) expect(isPrivateAddress(ip), ip).toBe(true);
-    for (const ip of ["8.8.8.8", "140.82.112.3", "2606:4700::1111"]) expect(isPrivateAddress(ip), ip).toBe(false);
+    // Disguised forms (found by review): IPv4-mapped in hex, IPv4-compatible, NAT64, 6to4.
+    for (const ip of ["::ffff:7f00:1", "::ffff:c0a8:1", "::7f00:1", "64:ff9b::7f00:1", "2002:7f00:1::", "::", "ff02::1", "not-an-ip"]) expect(isPrivateAddress(ip), ip).toBe(true);
+    for (const ip of ["8.8.8.8", "140.82.112.3", "2606:4700::1111", "::ffff:808:808", "::ffff:8.8.8.8", "2001:4860:4860::8888"]) expect(isPrivateAddress(ip), ip).toBe(false);
+    await expect(fetchPage("http://[::ffff:7f00:1]:11434/api/tags")).rejects.toThrow(/own computer or local network/);
+    // DNS rebinding: even if a name passed the first check, the connection itself refuses private addresses.
+    const port = new URL(base).port;
+    const rebound = await fetch(`http://localhost:${port}/article`, { dispatcher: publicOnly } as RequestInit).then(() => "connected", (e: Error) => String((e.cause as Error)?.message ?? e.message));
+    expect(rebound).toMatch(/own computer or local network/);
     await expect(fetchPage(`${base}/article`)).rejects.toThrow(/own computer or local network/);
     await expect(fetchPage("http://localhost:7477/api/memories")).rejects.toThrow(/own computer or local network/);
     await expect(fetchPage("file:///etc/passwd")).rejects.toThrow(/Only http and https/);

@@ -143,7 +143,9 @@ export async function handleUserMessage(
   };
 
   // Explicit memory commands are handled deterministically, so saving never depends on the model's mood.
-  const intent = detectIntent(content);
+  // A "✓ Approved: …" follow-up carries text partly chosen by the model (the action summary), so it never triggers
+  // memory commands, instant commands, routines or a screenshot: it only goes to the brain.
+  const intent: ReturnType<typeof detectIntent> = opts.continueFrom ? { type: "chat" } : detectIntent(content);
   if (intent.type === "remember_blocked") {
     const reason = `I won't store ${intent.reason} in memory, even on request. Keep those in a password manager or a secure vault.`;
     stores.audit.record("memory.blocked", "owner", null, { reason: intent.reason, conversationId });
@@ -195,7 +197,7 @@ export async function handleUserMessage(
   }
 
   // Reminders and timers are parsed by code so they work with any brain, then go through the same action policy.
-  const timeIntent = intent.type === "chat" && deps.actions ? detectTimeIntent(content) : null;
+  const timeIntent = intent.type === "chat" && deps.actions && !opts.continueFrom ? detectTimeIntent(content) : null;
   if (timeIntent && deps.actions) {
     let text: string;
     if (timeIntent.type === "reminder") {
@@ -230,8 +232,8 @@ export async function handleUserMessage(
   }
 
   // Everyday commands answered by code: instant, and reliable even on a small local model.
-  const quick = intent.type === "chat" && !timeIntent && deps.actions ? validQuick(content) : null;
-  const routine = intent.type === "chat" && !timeIntent && !quick && deps.actions ? matchRoutine(stores.preferences, content) : null;
+  const quick = intent.type === "chat" && !timeIntent && deps.actions && !opts.continueFrom ? validQuick(content) : null;
+  const routine = intent.type === "chat" && !timeIntent && !quick && deps.actions && !opts.continueFrom ? matchRoutine(stores.preferences, content) : null;
   const run: QuickRun = async (tool, args) => {
     const r = await deps.actions!.propose(tool, args, { conversationId, requestedBy: "command" });
     if (r.execution) recordTool(toEvent(r.execution));
@@ -346,7 +348,7 @@ export async function handleUserMessage(
   }
 
   // "Look at my screen": one screenshot, attached to this message for the brain only. Never stored, never taken unasked.
-  if (wantsScreen(content)) {
+  if (wantsScreen(content) && !opts.continueFrom) {
     const seeing = await canSee(provider as Parameters<typeof canSee>[0]);
     if (!seeing.ok) {
       emit({ type: "delta", text: seeing.why });

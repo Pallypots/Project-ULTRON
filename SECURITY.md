@@ -63,6 +63,16 @@ on the PC (5 min, 5 attempts, single use, compared in constant time); only its S
 effect on the next request. PC-only for remote devices: provider keys, GitHub connect/disconnect, folder changes, system shortcuts, local
 model downloads, log/memory export, and everything under `/api/remote`. Tests: `remote.test.ts` and an E2E pairing/revocation flow.
 
+## Second independent review (2026-10-31): findings and fixes
+| # | Finding | Fix (with regression test) |
+|---|---|---|
+| 1 | A raw "#" in the path (`/api/remote#x`) reached a PC-only route while the PC-only check saw a different path | Any "#" in a request path is refused; PC-only is checked on both the matched route and the raw path |
+| 2 | IPv4-mapped IPv6 in hex (`[::ffff:7f00:1]`), IPv4-compatible, NAT64 and 6to4 forms passed the private-address check | Addresses are expanded and judged by their embedded IPv4; NAT64/6to4 blocked; unparseable addresses refused |
+| 3 | DNS rebinding between the check and the connection | Web pages and calendar links connect through an agent that re-checks every resolved address at connect time |
+| 4 | "✓ Approved" follow-ups (partly model-written text) could trigger a screenshot or instant commands | Follow-ups only go to the brain: no memory commands, instant commands, routines or screenshots |
+| 5 | A paired phone could loosen action safety, send voice to the cloud, or change routines/persona/watched repos/open files | Those are PC-only; from a phone, action safety can only be tightened (pause, ask more) |
+| 6 | Anyone on the tailnet could end a pairing with 5 wrong codes | Wrong codes are counted per Tailscale user (overall cap 20) |
+
 ## Owner-only tools (v0.20)
 Tools marked `ownerOnly` (locking the PC) are never sent to a model and are refused if a model names them; only the owner's own
 deterministic commands can run them, so a prompt-injected page can't lock the screen.

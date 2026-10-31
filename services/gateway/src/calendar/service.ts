@@ -1,6 +1,6 @@
 import type { Stores } from "@ultron/memory";
 import type { SecretStore } from "../secrets.ts";
-import { assertPublic, reach } from "../actions/knowledge.ts";
+import { assertPublic, publicFetch, reach } from "../actions/knowledge.ts";
 import { eventsBetween, parseIcs, type CalEvent } from "./ics.ts";
 
 export const CALENDAR_SECRET = "ULTRON_CALENDAR_ICS";
@@ -62,7 +62,7 @@ export class CalendarService {
     if (!allowPrivate) await assertPublic(url);
     let current = url;
     for (let hop = 0; hop < 4; hop++) {
-      const res = await reach(current, { redirect: "manual", headers: { accept: "text/calendar,*/*;q=0.5", "user-agent": "ULTRON-personal-assistant" }, signal: AbortSignal.timeout(15_000) });
+      const res = await reach(current, { ...((allowPrivate ? {} : publicFetch()) as RequestInit), redirect: "manual", headers: { accept: "text/calendar,*/*;q=0.5", "user-agent": "ULTRON-personal-assistant" }, signal: AbortSignal.timeout(15_000) });
       const loc = res.headers.get("location");
       if (res.status >= 300 && res.status < 400 && loc) {
         current = new URL(loc, current);

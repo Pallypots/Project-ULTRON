@@ -43,6 +43,8 @@ export function registerAuth(app: FastifyInstance, token: string, remote?: Remot
     }
     // Decide by the route Fastify actually matched (its router percent-decodes paths), and by the decoded raw path for
     // unmatched requests, so encodings like /%61pi/... can't slip past the token check.
+    // A "#" never belongs in a request path; the router stops at it, so it could hide the real target from path checks.
+    if (req.url.includes("#")) return reply.code(400).send({ error: "bad_request", message: "Malformed address." });
     let decoded: string;
     try {
       decoded = decodeURIComponent((req.url.split("?")[0] ?? "").toLowerCase());
@@ -57,7 +59,8 @@ export function registerAuth(app: FastifyInstance, token: string, remote?: Remot
       if (!remote!.device(req.headers.authorization)) {
         return reply.code(401).send({ error: "pair_required", message: "This device isn't paired with ULTRON yet (or was removed). Pair it with the code shown on your PC." });
       }
-      if (isPcOnly(req.method, decoded)) {
+      // Check both the route Fastify matched and the raw path, so no spelling of a PC-only address slips through.
+      if (isPcOnly(req.method, decoded) || (route !== undefined && isPcOnly(req.method, route.toLowerCase()))) {
         return reply.code(403).send({ error: "pc_only", message: "That can only be changed on the PC itself." });
       }
       return;

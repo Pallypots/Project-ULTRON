@@ -1,4 +1,6 @@
 import { lookup } from "node:dns/promises";
+import { lookup as dnsLookup, type LookupAddress, type LookupOptions } from "node:dns";
+import { Agent } from "undici";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { blockedReason, classifyKind } from "@ultron/agent-core";
@@ -130,15 +132,56 @@ const weather: ToolDef<{ place?: string; units?: "celsius" | "fahrenheit" }> = {
 // ---- Reading a web page the owner points at --------------------------------------------------------------
 
 /** True for addresses on this machine or the local network, which ULTRON must never be tricked into reading. */
+/** Expands an IPv6 address to its 8 groups (no "::"), or null if it isn't one. */
+function ipv6Groups(ip: string): number[] | null {
+  if (isIP(ip) !== 6) return null;
+  let s = ip.toLowerCase().replace(/%.*$/, "");
+  const dotted = /(\d+\.\d+\.\d+\.\d+)$/.exec(s);
+  if (dotted) {
+    const [a, b, c, d] = dotted[1]!.split(".").map(Number) as [number, number, number, number];
+    s = s.slice(0, -dotted[1]!.length) + `${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const [head, tail] = s.split("::");
+  const h = head ? head.split(":") : [];
+  const t = tail !== undefined ? (tail ? tail.split(":") : []) : [];
+  const groups = tail !== undefined ? [...h, ...Array(8 - h.length - t.length).fill("0"), ...t] : h;
+  return groups.length === 8 ? groups.map((g) => parseInt(g, 16)) : null;
+}
+
 export function isPrivateAddress(ip: string): boolean {
-  if (ip.startsWith("::ffff:")) ip = ip.slice(7);
   if (isIP(ip) === 4) {
     const [a, b] = ip.split(".").map(Number) as [number, number];
     return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b < 128) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168) || a >= 224 || (a === 198 && (b === 18 || b === 19));
   }
-  const v = ip.toLowerCase();
-  return v === "::" || v === "::1" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe8") || v.startsWith("fe9") || v.startsWith("fea") || v.startsWith("feb") || v.startsWith("ff");
+  const g = ipv6Groups(ip);
+  if (!g) return true; // not an address we understand: don't connect
+  const v4 = (hi: number, lo: number) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  // IPv4 wrapped in IPv6 (mapped ::ffff:a.b.c.d in any spelling, or the old compatible ::a.b.c.d): judge the IPv4 address.
+  if (g.slice(0, 5).every((x) => x === 0) && (g[5] === 0xffff || g[5] === 0)) return g[5] === 0 && g[6] === 0 && g[7]! <= 1 ? true : isPrivateAddress(v4(g[6]!, g[7]!));
+  if (g[0] === 0x64 && g[1] === 0xff9b) return true; // NAT64: could point anywhere, including the LAN
+  if (g[0] === 0x2002) return true; // 6to4: embeds an IPv4 address
+  const first = g[0]!;
+  return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00;
 }
+
+/**
+ * Connects only to public addresses, checked at connect time (not just beforehand), so a domain can't pass the check and
+ * then point at this PC or the LAN for the real request (DNS rebinding).
+ */
+export const publicOnly = new Agent({
+  connect: {
+    lookup: (hostname: string, options: LookupOptions, cb: (err: NodeJS.ErrnoException | null, address: string | LookupAddress[], family?: number) => void) => {
+      dnsLookup(hostname, { ...options, all: true }, (err, addresses: LookupAddress[]) => {
+        if (err) return cb(err, "");
+        if (!addresses.length || addresses.some((a) => isPrivateAddress(a.address))) return cb(Object.assign(new Error("Pages on your own computer or local network aren't read."), { code: "EPRIVATE" }), "");
+        if (options.all) cb(null, addresses);
+        else cb(null, addresses[0]!.address, addresses[0]!.family);
+      });
+    },
+  },
+});
+/** Request options that enforce public-only connections (skipped for local test servers). */
+export const publicFetch = (): { dispatcher?: Agent } => (process.env.ULTRON_ALLOW_PRIVATE_FETCH === "1" ? {} : { dispatcher: publicOnly });
 
 export async function assertPublic(url: URL) {
   if (!/^https?:$/.test(url.protocol)) throw new Error("Only http and https pages can be read.");
@@ -172,7 +215,7 @@ export async function fetchPage(raw: string): Promise<{ url: string; title: stri
   let url = new URL(raw);
   for (let hop = 0; hop < 4; hop++) {
     await assertPublic(url);
-    const res = await reach(url, { redirect: "manual", headers: { "user-agent": UA, accept: "text/html,text/plain;q=0.9,*/*;q=0.1" }, signal: AbortSignal.timeout(12_000) });
+    const res = await reach(url, { ...(publicFetch() as RequestInit), redirect: "manual", headers: { "user-agent": UA, accept: "text/html,text/plain;q=0.9,*/*;q=0.1" }, signal: AbortSignal.timeout(12_000) });
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       url = new URL(res.headers.get("location")!, url); // each hop is checked again
       continue;
