@@ -42,6 +42,8 @@ export interface ToolDef<I = any> {
   /** JSON Schema shown to the model (kept in sync with `input` by hand; `input` is what's enforced). */
   parameters: Record<string, unknown>;
   risk: Risk;
+  /** Only the owner's own direct commands can run this; it is never offered to a model (e.g. locking the PC). */
+  ownerOnly?: boolean;
   /** Optional risk that depends on the input (e.g. reading a link the owner typed vs one the model chose). */
   riskFor?(input: I, ctx: Pick<ToolContext, "stores" | "conversationId">): Risk;
   timeoutMs: number;

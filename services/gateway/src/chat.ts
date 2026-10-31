@@ -39,7 +39,8 @@ export interface ChatDeps {
 }
 
 const MAX_TOOL_ROUNDS = 4;
-const specsFor = (tools: typeof TOOLS) => tools.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
+// Owner-only tools (e.g. locking the PC) are never offered to a model: only the owner's direct commands run them.
+const specsFor = (tools: typeof TOOLS) => tools.filter((t) => !t.ownerOnly).map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
 
 async function* textOnly(it: AsyncIterable<string>): AsyncIterable<ProviderEvent> {
   for await (const text of it) yield { type: "text", text };
@@ -571,6 +572,10 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       if (!r.data?.found) return r.data?.note ?? "I couldn't find that place.";
       const d = r.data.hours_ahead_of_you as number;
       return `It's ${r.data.time} in ${r.data.place}${d === 0 ? " (same time as you)" : ` (${Math.abs(d)} hour${Math.abs(d) === 1 ? "" : "s"} ${d > 0 ? "ahead of" : "behind"} you)`}.`;
+    }
+    case "lock_pc": {
+      const r = await run("lock_pc", {});
+      return r.status === "succeeded" ? "Locking your PC. See you on the other side of the password." : failed(r);
     }
     case "calculate": {
       const r = await run("calculate", { expression: q.expression });

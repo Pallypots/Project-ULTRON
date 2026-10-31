@@ -73,7 +73,7 @@ export class ActionRunner {
    */
   async propose(name: string, rawArgs: unknown, ctx: { conversationId: string | null; requestedBy: ToolExecution["requestedBy"] }): Promise<{ execution: ToolExecution | null; resultForModel: string }> {
     const tool = toolByName(name);
-    if (!tool) return { execution: null, resultForModel: JSON.stringify({ error: `Unknown tool "${name}". Only use the tools provided.` }) };
+    if (!tool || (tool.ownerOnly && ctx.requestedBy === "model")) return { execution: null, resultForModel: JSON.stringify({ error: `Unknown tool "${name}". Only use the tools provided.` }) };
     const parsed = tool.input.safeParse(rawArgs ?? {});
     if (!parsed.success) {
       return { execution: null, resultForModel: JSON.stringify({ error: `Invalid input for ${name}: ${parsed.error.issues.map((i) => i.message).join("; ")}` }) };

@@ -63,6 +63,10 @@ on the PC (5 min, 5 attempts, single use, compared in constant time); only its S
 effect on the next request. PC-only for remote devices: provider keys, GitHub connect/disconnect, folder changes, system shortcuts, local
 model downloads, log/memory export, and everything under `/api/remote`. Tests: `remote.test.ts` and an E2E pairing/revocation flow.
 
+## Owner-only tools (v0.20)
+Tools marked `ownerOnly` (locking the PC) are never sent to a model and are refused if a model names them; only the owner's own
+deterministic commands can run them, so a prompt-injected page can't lock the screen.
+
 ## Opening apps (v0.16)
 `open_app` (L2, approval every time) can only launch `.lnk`/`.url` shortcuts found inside the two Start-menu folders, re-checked at run time;
 the approval card shows the exact shortcut path. Media keys (L1) only send play/pause/next/previous/mute/volume key presses.

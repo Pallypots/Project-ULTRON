@@ -104,3 +104,21 @@ describe.skipIf(process.platform !== "win32")("on real Windows", () => {
     expect(apps.length).toBeGreaterThan(0);
   }, 60_000);
 });
+
+describe("locking the PC", () => {
+  it("runs from the owner's own command, and a model can't even see or call it", async () => {
+    const g = await startGateway();
+    cleanup.push(g.close);
+    const id = await g.newConversation();
+    const own = await g.chat(id, "Ultron, lock my computer");
+    const ev = tool(own);
+    if (process.platform === "win32") {
+      expect(ev).toMatchObject({ tool: "lock_pc", status: "succeeded", risk: 1 });
+      expect(replyText(own)).toMatch(/Locking your PC/);
+    } else expect(ev).toMatchObject({ tool: "lock_pc", status: "failed" });
+    // As if a model (e.g. following instructions hidden in a web page) tried it:
+    const byModel = await g.chat(id, "mock-tool lock_pc {}");
+    expect(byModel.filter((e) => e.type === "tool")).toEqual([]);
+    expect(replyText(byModel)).toMatch(/Unknown tool \\"lock_pc\\"/);
+  });
+});

@@ -13,7 +13,8 @@ export type QuickCommand =
   | { type: "calendar"; when: "today" | "tomorrow" | "next_7_days" }
   | { type: "convert"; text: string }
   | { type: "define"; word: string }
-  | { type: "world_time"; place: string };
+  | { type: "world_time"; place: string }
+  | { type: "lock_pc" };
 
 const LEAD = /^\s*(?:(?:hey|ok|okay)\s+)?(?:ultron[\s,:!.-]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?/i;
 const TAIL = /(?:[\s,]+please)?[\s?.!]*$/i;
@@ -34,6 +35,8 @@ export function detectQuickCommand(message: string): QuickCommand | null {
   // "open spotify", "launch notepad": the gateway only uses this if such an app really is in the Start menu.
   const app = /^(?:open|launch|start|run)(?: up)?(?: the)?\s+([\p{L}\p{N}][\p{L}\p{N} .+&'-]{0,40}?)(?:\s+app)?$/iu.exec(m);
   if (app && !/\b(my|file|folder|document|website|page|link|door|doors|window)\b/i.test(app[1]!)) return { type: "open_app", name: app[1]!.trim() };
+
+  if (/^lock (?:my |the )?(?:pc|computer|laptop|screen|desktop)(?: now)?$/i.test(m)) return { type: "lock_pc" };
 
   if (/^(?:pause|resume|unpause)(?: the)?(?: music| song| video| track| it| playback)?$|^play(?: the)? (?:music|it)$|^(?:play|pause)$/i.test(m)) return { type: "media", action: "play_pause" };
   if (/^(?:next|skip)(?: this| the)?(?: song| track)?$|^skip (?:this|it)$/i.test(m)) return { type: "media", action: "next" };

@@ -10,6 +10,7 @@
 - **Calendar heads-up:** a pop-up (and spoken alert) 10 minutes before each calendar event (5/10/15/30 min or off in Settings → Check-ins).
 - **Faster first answer:** opening ULTRON pre-loads the local brain into memory, so the first question doesn't wait for it to load.
 - **What's new:** after you update ULTRON, Home shows the highlights since the version you last used (once; "Got it" hides it).
+- **"Lock my computer"** (Windows): locks right away. Only your own command can do it; the brain is never offered this ability.
 - Media keys retry once if Windows is slow to respond.
 
 ## 0.19.0 · 2026-10-31 · Sees, searches, follows through

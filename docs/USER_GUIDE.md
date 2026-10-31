@@ -139,6 +139,7 @@ line, written the way you'd say them to ULTRON ("pause the music", "open spotify
   away (they're easy to undo) and are listed in Activity.
 - **Apps:** "open Spotify", "launch Notepad". The card shows exactly which Start-menu app will open; click **Approve**. ULTRON can only open
   apps that are in your Start menu.
+- **Lock:** "Ultron, lock my computer" locks Windows right away (only your own command can do this).
 - **Your PC:** "how's my PC doing?", "am I running out of disk space?", "how much battery have I got?"
 
 ## Everyday help

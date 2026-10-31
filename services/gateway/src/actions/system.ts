@@ -234,4 +234,24 @@ const status: ToolDef<Record<string, never>> = {
   run: async () => JSON.stringify(await pcStatus()),
 };
 
-export const SYSTEM_TOOLS: ToolDef[] = [media, launchApp, findAppsTool, status];
+const lockPc: ToolDef<Record<string, never>> = {
+  name: "lock_pc",
+  description: "Lock the Windows session (like pressing Windows+L).",
+  input: z.object({}).strict(),
+  parameters: { type: "object", properties: {}, additionalProperties: false },
+  risk: 1,
+  ownerOnly: true,
+  timeoutMs: 10_000,
+  describe: () => "Lock your PC",
+  run: async (_i, ctx) => {
+    if (!isWindows()) throw new Error("Locking works on Windows only.");
+    if (!ctx.dryRun) {
+      await new Promise<void>((resolve, reject) =>
+        execFile("rundll32.exe", ["user32.dll,LockWorkStation"], { windowsHide: true, timeout: 8000 }, (err) => (err ? reject(new Error("Windows didn't lock.")) : resolve())),
+      );
+    }
+    return JSON.stringify({ ok: true, dryRun: ctx.dryRun || undefined });
+  },
+};
+
+export const SYSTEM_TOOLS: ToolDef[] = [media, launchApp, findAppsTool, status, lockPc];
