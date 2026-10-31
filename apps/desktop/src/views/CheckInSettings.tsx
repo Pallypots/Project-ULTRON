@@ -34,6 +34,16 @@ export function CheckInSettings() {
         <span>Evening check-in at</span>
         <input type="time" value={c.eveningTime} onChange={(e) => save({ ...c, eveningTime: e.target.value })} disabled={!c.evening} />
       </label>
+      <label className="field" style={{ maxWidth: 320 }}>
+        <span>Calendar heads-up before events</span>
+        <select value={c.meetingAlertMinutes} onChange={(e) => save({ ...c, meetingAlertMinutes: Number(e.target.value) })}>
+          <option value={0}>Off</option>
+          <option value={5}>5 minutes before</option>
+          <option value={10}>10 minutes before</option>
+          <option value={15}>15 minutes before</option>
+          <option value={30}>30 minutes before</option>
+        </select>
+      </label>
       {saved && <p className="muted small" role="status">Saved.</p>}
     </section>
   );

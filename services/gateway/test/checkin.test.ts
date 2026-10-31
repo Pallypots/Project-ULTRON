@@ -50,3 +50,29 @@ describe("morning check-in (ULTRON reaches out first)", () => {
     expect(await new MorningCheckIn(s, bus, undefined, at(21, 5, 1)).tick()).toBe(false);
   });
 });
+
+describe("calendar heads-up", () => {
+  it("alerts once shortly before each timed event, skips all-day events, and can be turned off", async () => {
+    const s = openStores(":memory:");
+    const bus = new EventBus();
+    const seen: any[] = [];
+    bus.subscribe((e) => seen.push(e));
+    s.preferences.set("checkin", { enabled: false, evening: false });
+    const now = at(14, 52);
+    const start = new Date(2026, 10, 2, 15, 0);
+    const calendar = {
+      connected: true,
+      events: async (from: Date, to: Date) =>
+        [
+          { title: "Dentist", start, end: new Date(2026, 10, 2, 16, 0), allDay: false, location: "12 Main St" },
+          { title: "Holiday", start: new Date(2026, 10, 2), end: new Date(2026, 10, 3), allDay: true },
+        ].filter((e) => e.start < to && e.end > from),
+    } as never;
+    const c = new MorningCheckIn(s, bus, calendar, now);
+    expect(await c.meetings()).toBe(1);
+    expect(seen.at(-1)).toEqual({ type: "checkin", kind: "meeting", title: "📅 In 8 min", body: "Dentist (12 Main St)" });
+    expect(await c.meetings()).toBe(0); // once per event
+    s.preferences.set("checkin", { enabled: false, evening: false, meetingAlertMinutes: 0 });
+    expect(await new MorningCheckIn(s, bus, calendar, now).meetings()).toBe(0);
+  });
+});

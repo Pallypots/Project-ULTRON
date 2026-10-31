@@ -86,6 +86,19 @@ export function App() {
         setRemindersKey((k) => k + 1);
       } else if (e.type === "checkin") {
         // ULTRON reaching out first: a morning summary with a button for the full briefing.
+        if (e.kind === "meeting") {
+          toast({ kind: "reminder", title: e.title, body: e.body });
+          if ("Notification" in window && Notification.permission === "granted") new Notification(`ULTRON: ${e.title}`, { body: e.body, icon: "/ultron.svg" });
+          if (loadVoicePrefs().speakMode !== "never")
+            api.ttsStatus().then((s) => {
+              speaker.current?.stop();
+              const sp = new Speaker(() => s.engine, () => loadVoicePrefs().browserVoice, () => s.speed);
+              sp.unlock();
+              sp.enqueue([`Heads up: ${e.body}, ${e.title.replace("📅 ", "").toLowerCase()}.`]);
+              speaker.current = sp;
+            }).catch(() => {});
+          return;
+        }
         toast(
           e.kind === "evening"
             ? { kind: "info", title: `🌙 ${e.title}`, body: e.body, action: { label: "Talk", run: () => window.dispatchEvent(new Event("ultron-talk")) } }

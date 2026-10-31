@@ -11,6 +11,8 @@
 - **Evening check-in:** at 9 p.m. (your choice) ULTRON asks how your day went, with a **Talk** button that opens a voice conversation.
 - **Follow-through after approvals:** when ULTRON asks to read a page you didn't give it, approving now lets it carry on and answer with
   what it read (shown as "✓ Approved: …"), instead of stopping at the card. The result goes to the brain only, not into the chat history.
+- **Calendar heads-up:** a pop-up (and spoken alert) 10 minutes before each calendar event (5/10/15/30 min or off in Settings → Check-ins).
+- **Faster first answer:** opening ULTRON pre-loads the local brain into memory, so the first question doesn't wait for it to load.
 - Fixed: the "✓ posted" label on GitHub issue cards could disappear.
 
 ## 0.18.0 · 2026-10-31 · Knows your schedule

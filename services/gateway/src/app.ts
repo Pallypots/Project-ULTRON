@@ -124,9 +124,19 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const deps = { calendar, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
+  // Pre-load the local brain when the owner opens ULTRON (at most every 5 minutes), so the first answer is quick.
+  let warmedAt = 0;
+  const warmBrain = () => {
+    if (Date.now() - warmedAt < 5 * 60_000) return;
+    const r = resolveProvider(settings(), secrets, 0);
+    if (!r.ok || r.provider.id !== "ollama") return;
+    warmedAt = Date.now();
+    void (r.provider as unknown as { warm(): Promise<void> }).warm();
+  };
   const summarizer = new Summarizer(deps, () => streams.size > 0);
   summarizer.start();
   app.get("/api/greeting", async () => {
+    warmBrain();
     const g = await greeter.get().catch(() => null);
     return { greeting: g ? { text: g.text, at: g.at } : null };
   });
@@ -163,7 +173,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   app.get("/api/settings/checkin", async () => ({ checkin: checkIn.settings() }));
   app.put("/api/settings/checkin", async (req) => {
     const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 08:00.");
-    const body = z.object({ enabled: z.boolean(), time: hhmm, evening: z.boolean(), eveningTime: hhmm }).parse(req.body);
+    const body = z.object({ enabled: z.boolean(), time: hhmm, evening: z.boolean(), eveningTime: hhmm, meetingAlertMinutes: z.number().int().min(0).max(120) }).parse(req.body);
     stores.preferences.set("checkin", body);
     stores.audit.record("settings.checkin_changed", "owner", null, body);
     return { checkin: checkIn.settings() };

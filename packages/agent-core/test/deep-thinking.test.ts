@@ -27,3 +27,15 @@ describe("deep thinking on request", () => {
     expect(bodies.at(-1).think).toBe("high");
   });
 });
+
+describe("warming up the local brain", () => {
+  it("loads the model without a prompt, keeping it in memory for an hour", async () => {
+    const calls: { url: string; body: any }[] = [];
+    const p = new OllamaProvider({ model: "gemma4:e2b", baseUrl: "http://ollama.test", fetchImpl: (async (url: string, init: { body: string }) => {
+      calls.push({ url, body: JSON.parse(init.body) });
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch });
+    await p.warm();
+    expect(calls).toEqual([{ url: "http://ollama.test/api/generate", body: { model: "gemma4:e2b", keep_alive: "60m" } }]);
+  });
+});

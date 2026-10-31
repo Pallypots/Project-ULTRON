@@ -6,11 +6,13 @@ export interface CheckInSettings {
   enabled: boolean;
   /** Local time, "HH:MM". */
   time: string;
+  /** Minutes before calendar events to give a heads-up (0 = off). */
+  meetingAlertMinutes: number;
   /** Evening "how did today go?" check-in. */
   evening: boolean;
   eveningTime: string;
 }
-export const DEFAULT_CHECKIN: CheckInSettings = { enabled: true, time: "08:00", evening: true, eveningTime: "21:00" };
+export const DEFAULT_CHECKIN: CheckInSettings = { enabled: true, time: "08:00", evening: true, eveningTime: "21:00", meetingAlertMinutes: 10 };
 
 // Varied so it doesn't feel like a cron job.
 const EVENING_LINES = [
@@ -52,7 +54,29 @@ export class MorningCheckIn {
 
   /** Sends today's check-ins if they're due. Returns whether one was sent. */
   async tick(): Promise<boolean> {
+    await this.meetings();
     return (await this.morning()) || this.evening();
+  }
+
+  private alerted = new Set<string>();
+
+  /** A heads-up shortly before calendar events (each event once). */
+  async meetings(): Promise<number> {
+    const mins = this.settings().meetingAlertMinutes;
+    if (!mins || !this.calendar?.connected) return 0;
+    const now = this.now();
+    const soon = await this.calendar.events(now, new Date(now.getTime() + mins * 60_000)).catch(() => []);
+    let n = 0;
+    for (const e of soon) {
+      if (e.allDay || e.start.getTime() < now.getTime()) continue;
+      const key = `${e.title}@${e.start.toISOString()}`;
+      if (this.alerted.has(key)) continue;
+      this.alerted.add(key);
+      const inMin = Math.max(1, Math.round((e.start.getTime() - now.getTime()) / 60_000));
+      this.bus.emit({ type: "checkin", title: `📅 In ${inMin} min`, body: `${e.title}${e.location ? ` (${e.location})` : ""}`, kind: "meeting" });
+      n++;
+    }
+    return n;
   }
 
   /** "How did today go?" once an evening (not after midnight, and only if ULTRON is running then). */

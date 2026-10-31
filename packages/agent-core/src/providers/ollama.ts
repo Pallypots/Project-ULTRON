@@ -45,6 +45,11 @@ export class OllamaProvider implements ModelProvider {
     return deep ? true : false;
   }
 
+  /** Loads the model into memory ahead of time (no prompt), so the owner's first question doesn't wait for it. */
+  async warm(keepAlive = "60m"): Promise<void> {
+    await this.fetchImpl(`${this.baseUrl}/api/generate`, { method: "POST", body: JSON.stringify({ model: this.model, keep_alive: keepAlive }), signal: AbortSignal.timeout(120_000) }).catch(() => {});
+  }
+
   /** What this model can do according to Ollama ("vision", "tools", "thinking"…), or null if unknown. */
   async capabilities(): Promise<string[] | null> {
     try {
