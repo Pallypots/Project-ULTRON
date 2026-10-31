@@ -1,7 +1,7 @@
 // End-to-end with a REAL local model through Ollama. Needs Ollama running and network for the first pull,
 // so it only runs when ULTRON_TEST_OLLAMA=1 (CI sets it on Linux). Model: ULTRON_TEST_OLLAMA_MODEL or gemma4:e2b.
 import { afterAll, describe, expect, it } from "vitest";
-import { replyText, startGateway } from "./helpers.ts";
+import { ciNote, replyText, startGateway } from "./helpers.ts";
 
 const enabled = process.env.ULTRON_TEST_OLLAMA === "1";
 const MODEL = process.env.ULTRON_TEST_OLLAMA_MODEL ?? "gemma4:e2b";
@@ -61,8 +61,8 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
 
     const t4 = Date.now();
     const hi = replyText(await g.chat(await g.newConversation(), "Hey Ultron, I'm back. Tell me a quick joke."));
-    if (process.env.GITHUB_ACTIONS)
-      console.log(`::notice title=Local brain maths + personality (${process.platform})::MATHS ${mathSummary} | JOKE reply=${Date.now() - t4}ms text="${hi.replace(/\s+/g, " ").slice(0, 300)}"`);
+    ciNote("Local brain maths", mathSummary);
+    ciNote("Local brain personality", `reply=${Date.now() - t4}ms text="${hi.replace(/\s+/g, " ").slice(0, 300)}"`);
     expect(hi).not.toMatch(/<\/?think>/);
   }, 1_800_000);
 });

@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { appendFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ChatEvent } from "@ultron/schemas";
@@ -30,3 +30,11 @@ export async function startGateway(dataDir = tmpDataDir()) {
 
 export const replyText = (events: ChatEvent[]) => events.filter((e) => e.type === "delta").map((e) => (e as { text: string }).text).join("");
 export type { Gateway };
+
+/** Records a real-world result for CI: a later workflow step turns these into GitHub notices (see scripts/ci-notes.mjs). */
+export function ciNote(title: string, message: string) {
+  console.log(`[ci-note] ${title}: ${message}`);
+  if (process.env.GITHUB_ACTIONS && process.env.RUNNER_TEMP)
+    appendFileSync(join(process.env.RUNNER_TEMP, "ultron-ci-notes.jsonl"), JSON.stringify({ title: `${title} (${process.platform})`, message }) + "\n");
+}
+
