@@ -57,7 +57,9 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     const t3 = Date.now();
     const maths = await g.chat(await g.newConversation(), "I'm buying a $1299 laptop with 15% off, plus $4.99 shipping. What do I pay in total?");
     const mathTools = maths.filter((e) => e.type === "tool").map((e: any) => `${e.event.tool}:${e.event.status}`);
-    const mathSummary = `tools=${JSON.stringify(mathTools)} correct=${/1,?109\.14/.test(replyText(maths))} reply=${Date.now() - t3}ms text="${replyText(maths).replace(/\s+/g, " ").slice(0, 160)}"`;
+    const mathText = replyText(maths).replace(/\s+/g, " ");
+    const mathResults = maths.filter((e) => e.type === "tool").map((e: any) => e.event.summary);
+    const mathSummary = `tools=${JSON.stringify(mathTools)} asked=${JSON.stringify(mathResults)} correct=${/1,?109\.14/.test(mathText)} reply=${Date.now() - t3}ms ending="…${mathText.slice(-200)}"`;
 
     const t4 = Date.now();
     const hi = replyText(await g.chat(await g.newConversation(), "Hey Ultron, I'm back. Tell me a quick joke."));
