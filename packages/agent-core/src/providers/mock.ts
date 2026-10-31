@@ -56,6 +56,8 @@ export class MockProvider implements ModelProvider {
     if (sum && has("calculate")) return { name: "calculate", args: { expression: sum[1]!.trim() } };
     const weather = /\bweather(?:\s+(?:in|for|at)\s+([\p{L} ,.'-]+?))?\s*[?.!]*$/iu.exec(text);
     if (weather && has("get_weather")) return { name: "get_weather", args: weather[1] ? { place: weather[1] } : {} };
+    const search = /^(?:search (?:the web|online|the internet) for|google)\s+(.+?)[?.!]*$/i.exec(text);
+    if (search && has("web_search")) return { name: "web_search", args: { query: search[1] } };
     const wiki = /^(?:look up|who (?:is|was)|tell me about)\s+(.+?)[?.!]*$/i.exec(text);
     if (wiki && has("lookup_wikipedia")) return { name: "lookup_wikipedia", args: { topic: wiki[1] } };
     const read = /\b(?:summari[sz]e|read)\s+(https?:\/\/\S+)/i.exec(text);

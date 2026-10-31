@@ -7,6 +7,7 @@ import { SpeechSettings } from "./SpeechSettings.tsx";
 import { PersonaSettings } from "./PersonaSettings.tsx";
 import { PhoneAccess } from "./PhoneAccess.tsx";
 import { CheckInSettings } from "./CheckInSettings.tsx";
+import { SearchSettings } from "./SearchSettings.tsx";
 
 const PROVIDERS = [
   { id: "ollama", name: "Local AI on this PC (Ollama), recommended", help: "Free, private and works offline: the AI runs entirely on this computer. Set it up below." },
@@ -139,6 +140,7 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
 
       <PersonaSettings onSaved={onSaved} />
       <CheckInSettings />
+      <SearchSettings />
     </div>
   );
 }

@@ -30,6 +30,8 @@ export interface ToolContext {
   /** Meaning-based file matches (local embeddings); absent or empty when the model isn't ready. */
   similarFiles?: (query: string) => Promise<FileHit[]>;
   calendar?: CalendarService;
+  /** Read-only access to stored secrets (for tools that call a keyed service, e.g. web search). */
+  secrets?: { get(name: string): string | undefined };
 }
 
 export interface ToolDef<I = any> {

@@ -11,6 +11,7 @@ import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { RemoteAccess } from "./remote.ts";
 import { CalendarError, CalendarService } from "./calendar/service.ts";
 import { MorningCheckIn } from "./checkin.ts";
+import { braveSearch, SEARCH_SECRET } from "./actions/knowledge.ts";
 import { currentCapabilities } from "./capabilities.ts";
 import { ActiveStreams, handleUserMessage } from "./chat.ts";
 import { loadConfig, type GatewayConfig } from "./config.ts";
@@ -116,6 +117,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   actions.similarFiles = (q) => embeddings.similarFiles(q);
   const calendar = new CalendarService(stores, secrets);
   actions.calendar = calendar;
+  actions.secrets = secrets;
   const checkIn = new MorningCheckIn(stores, bus, calendar);
   checkIn.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
@@ -136,6 +138,25 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     if (!isLoopbackRequest(req) && remote.isRemote(req)) return reply.code(403).send({ error: "pair_required", message: "Pair this device with the code shown on your PC." });
     if (!isLoopbackRequest(req) || req.headers["sec-fetch-site"] === "cross-site") return reply.code(403).send({ error: "forbidden" });
     return { token };
+  });
+
+  // ---- web search (optional key) ----
+  app.get("/api/settings/search", async () => ({ configured: secrets.has(SEARCH_SECRET) }));
+  app.put("/api/settings/search", async (req, reply) => {
+    const { apiKey } = z.object({ apiKey: z.string().trim().min(10).max(200) }).parse(req.body);
+    try {
+      await braveSearch(apiKey, "weather", 1); // check the key works before saving it
+    } catch (err) {
+      return reply.code(400).send({ error: "search_key", message: (err as Error).message });
+    }
+    secrets.set(SEARCH_SECRET, apiKey);
+    stores.audit.record("settings.search_key_saved", "owner");
+    return { configured: true };
+  });
+  app.delete("/api/settings/search", async () => {
+    secrets.set(SEARCH_SECRET, null);
+    stores.audit.record("settings.search_key_removed", "owner");
+    return { configured: false };
   });
 
   // ---- morning check-in ----

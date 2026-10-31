@@ -11,6 +11,7 @@ const GROUPS: { when: RegExp; tools: string[] }[] = [
   { when: /\b(files?|folders?|documents?|docs?|pull up|find|search|notes?|projects?|read)\b/i, tools: ["search_files", "read_file", "open_on_screen"] },
   { when: /\d\s*[-+*/x×÷^]\s*\d|\d\s*%|\b(calculate|percent|%|tip|split|total|sum|average|times|divided|plus|minus|how much|convert)\b/i, tools: ["calculate"] },
   { when: /\b(who (?:is|was|were)|what (?:is|was|are) (?:a|an|the)\b|tell me about|look up|wikipedia|history of|when did|where is)\b/i, tools: ["lookup_wikipedia"] },
+  { when: /\b(search|google|online|on the web|internet|latest|news|current(?:ly)?|recent(?:ly)?|right now|price|prices|cost|reviews?|who won|score|open now|hours|near me|release date)\b/i, tools: ["web_search", "read_webpage"] },
   { when: /\b(weather|rain|raining|snow|forecast|temperature|cold|hot|sunny|umbrella|jacket|wind)\b/i, tools: ["get_weather"] },
   { when: /\b(github|repo|repository|issues?|commits?|pull requests?|prs?|ci|builds?)\b|what'?s new|any updates/i, tools: ["connected_updates", "github_create_issue"] },
   { when: /\b(morning|brief|briefing|my day|catch me up|agenda|today)\b/i, tools: ["daily_briefing"] },

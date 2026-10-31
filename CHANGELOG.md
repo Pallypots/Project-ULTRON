@@ -6,6 +6,8 @@
   and your morning briefing, greetings and catch-ups now include what's coming up. Understands time zones (including daylight-saving
   changes and Outlook's zone names), repeating events (daily/weekly on chosen days/monthly incl. "second Tuesday"/yearly, with end dates
   and counts), skipped and moved occurrences, cancelled events and all-day events. Cached for 10 minutes.
+- **Web search (optional):** add a free Brave Search key in Settings → Web search (checked, stored encrypted) and ULTRON can search the web
+  for news, prices, opening hours and anything recent, then read the results. Links a search returned can be read without extra approval.
 - **"Look at my screen"** (Windows): ask "what's this error on my screen?" and ULTRON takes one screenshot of your main screen and shows it to
   the brain for that question only. Never taken unless you ask, never saved, shown as a chip and in Activity. With a local brain it stays on
   your PC; with a cloud brain the chip says where it went. Needs a brain that can see (e.g. gemma3:4b or qwen2.5vl:7b locally, or Claude);

@@ -51,6 +51,7 @@ export class ActionRunner {
   onMemoryChanged?: () => void;
   similarFiles?: ToolContext["similarFiles"];
   calendar?: ToolContext["calendar"];
+  secrets?: ToolContext["secrets"];
   constructor(
     private stores: Stores,
     private bus: EventBus,
@@ -108,7 +109,7 @@ export class ActionRunner {
   private async execute(exec: ToolExecution, tool: ToolDef): Promise<ToolExecution> {
     try {
       const result = await Promise.race([
-        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files, connectors: this.connectors, onMemoryChanged: this.onMemoryChanged, similarFiles: this.similarFiles, calendar: this.calendar }),
+        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files, connectors: this.connectors, onMemoryChanged: this.onMemoryChanged, similarFiles: this.similarFiles, calendar: this.calendar, secrets: this.secrets }),
         new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Timed out after ${tool.timeoutMs / 1000}s.`)), tool.timeoutMs)),
       ]);
       const e = this.stores.actions.update(exec.id, { status: "succeeded", result: capResult(result) })!;

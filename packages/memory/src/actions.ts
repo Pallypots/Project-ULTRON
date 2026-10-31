@@ -65,6 +65,13 @@ export class ActionStore {
     return (this.db.prepare("SELECT * FROM tool_executions ORDER BY created_at DESC, rowid DESC LIMIT ?").all(limit) as any[]).map(toExec);
   }
 
+  /** Successful results of one tool in one conversation (e.g. earlier search results). */
+  resultsIn(conversationId: string, tool: string, limit = 20): string[] {
+    return (this.db.prepare("SELECT result FROM tool_executions WHERE conversation_id = ? AND tool = ? AND status = 'succeeded' ORDER BY created_at DESC LIMIT ?").all(conversationId, tool, limit) as { result: string | null }[])
+      .map((r) => r.result ?? "")
+      .filter(Boolean);
+  }
+
   pending(): ToolExecution[] {
     return (this.db.prepare("SELECT * FROM tool_executions WHERE status = 'awaiting_approval' ORDER BY created_at ASC").all() as any[]).map(toExec);
   }
