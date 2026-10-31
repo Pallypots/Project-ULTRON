@@ -24,6 +24,7 @@ describe("honesty check", () => {
   it("spots replies that claim an action", () => {
     for (const t of [
       "Approval requested to open https://example.com in your browser.",
+      "Approval required to open https://example.com in your browser.",
       "I've set a reminder for 5pm.",
       "Done! I have added milk to your list.",
       "I've initiated the request to open the website, waiting for your approval.",

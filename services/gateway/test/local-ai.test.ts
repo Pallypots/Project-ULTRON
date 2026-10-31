@@ -76,7 +76,8 @@ describe("hardware-based recommendation", () => {
     expect(hw.ramBytes).toBeGreaterThan(0);
     expect(Array.isArray(hw.gpus)).toBe(true);
     const summary = `ram=${(hw.ramBytes / GB).toFixed(1)}GB gpus=${JSON.stringify(hw.gpus.map((g) => `${g.name} ${(g.vramBytes / GB).toFixed(1)}GB ${g.vendor}`))} recommend=${recommendModel(hw).primary.model}`;
-    if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Hardware detection (${process.platform})::${summary}`);
+    // GitHub keeps only 10 notices per step; Linux CI has no GPU to report anyway.
+    if (process.env.GITHUB_ACTIONS && process.platform === "win32") console.log(`::notice title=Hardware detection (${process.platform})::${summary}`);
   }, 30_000);
   it("ignores integrated graphics Ollama can't use", () => {
     expect(pickUsableGpu([{ name: "Intel(R) UHD Graphics", vramBytes: 4 * GB, vendor: "intel" }, gpu("GeForce RTX 3060 Laptop GPU", 6)])?.name).toMatch(/3060/);

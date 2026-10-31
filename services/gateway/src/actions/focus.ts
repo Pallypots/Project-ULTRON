@@ -32,7 +32,7 @@ export function focusTools(recentUserTexts: string[], all: ToolDef[]): ToolDef[]
  * (e.g. "I've set a reminder", "approval requested"). Models can't be trusted to report actions honestly.
  */
 const CLAIM =
-  /\b(approval (?:has been |was |is )?(?:requested|queued|pending)|(?:waiting|awaiting|wait) (?:for )?your approval|(?:I'?ve|I have|I) (?:just |now |gone ahead and |already )?(?:set|added|created|scheduled|opened|saved|remembered|ticked off|crossed off|cancell?ed|posted|queued(?: up)?|initiated|launched|booked|sent)\b[^.!?\n]{0,60}\b(reminders?|timers?|alarms?|list|memory|issues?|websites?|pages?|browser|files?|folders?|requests?|links?|tabs?|emails?|messages?))/i;
+  /\b(approval (?:has been |was |is )?(?:requested|queued|pending|required|needed)|(?:needs?|requires?|awaits?) your approval|(?:waiting|awaiting|wait) (?:for )?your approval|(?:I'?ve|I have|I) (?:just |now |gone ahead and |already )?(?:set|added|created|scheduled|opened|saved|remembered|ticked off|crossed off|cancell?ed|posted|queued(?: up)?|initiated|launched|booked|sent)\b[^.!?\n]{0,60}\b(reminders?|timers?|alarms?|list|memory|issues?|websites?|pages?|browser|files?|folders?|requests?|links?|tabs?|emails?|messages?))/i;
 
 export function claimsUnbackedAction(text: string): boolean {
   return CLAIM.test(text);

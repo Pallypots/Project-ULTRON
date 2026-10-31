@@ -16,7 +16,7 @@ describe("secret storage", () => {
     expect(raw).not.toContain(KEY);
     expect(JSON.parse(raw)).toMatchObject({ v: 2, protection: process.platform === "win32" ? "dpapi" : "file-permissions" });
     expect(new SecretStore(d).get("ANTHROPIC_API_KEY")).toBe(KEY);
-    if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Secret storage (${process.platform})::protection=${JSON.parse(raw).protection}; plaintext key present in file: ${raw.includes(KEY)}`);
+    if (process.env.GITHUB_ACTIONS && process.platform === "win32") console.log(`::notice title=Secret storage (${process.platform})::protection=${JSON.parse(raw).protection}; plaintext key present in file: ${raw.includes(KEY)}`);
   });
 
   it("upgrades old plain-JSON files in place", () => {
