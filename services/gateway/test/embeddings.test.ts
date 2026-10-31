@@ -88,7 +88,7 @@ describe.skipIf(process.env.ULTRON_TEST_EMBED !== "1")("meaning-based file searc
     seedFiles(s);
     const e = new EmbeddingService(s, process.env.ULTRON_TEST_MODEL_DIR ?? join(tmpdir(), "ultron-test-models"), "local");
     await e.backfillDocs();
-    const q = "where did I write about the sound glitch in the game?";
+    const q = "where did I write down that popping noise glitch?";
     expect(s.files.search(q).map((h) => h.name)).not.toContain("oogie-build-notes.md");
     const top = (await e.similarFiles(q))[0];
     const { ciNote } = await import("./helpers.ts");
