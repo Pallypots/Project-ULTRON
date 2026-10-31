@@ -7,6 +7,7 @@ import { findApps } from "./actions/system.ts";
 import { convertUnits, parseConversion, parseMoney } from "./actions/units.ts";
 import { currencyCode } from "./actions/everyday.ts";
 import { matchRoutine } from "./routines.ts";
+import type { RoomContext } from "./voice/room.ts";
 import { captureScreen, wantsScreen } from "./system/screen.ts";
 import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
@@ -36,6 +37,7 @@ export interface ChatDeps {
   embeddings?: EmbeddingService;
   calendar?: CalendarService;
   dataDir?: string;
+  room?: RoomContext;
 }
 
 const MAX_TOOL_ROUNDS = 4;
@@ -331,7 +333,9 @@ export async function handleUserMessage(
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
-    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: [...agendaFor(stores), ...(await calendarSoon(deps.calendar))], deep },
+    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: [...agendaFor(stores), ...(await calendarSoon(deps.calendar))], deep,
+      // Overheard conversation goes only to a local brain (it never leaves the PC).
+      room: opts.inputMode === "voice" && (provider.id === "ollama" || provider.id === "mock") ? deps.room?.recent() : undefined },
   });
   const turns: ChatTurn[] = turnsSoFar;
 

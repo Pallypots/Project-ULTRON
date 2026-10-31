@@ -9,6 +9,7 @@ import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, TtsSett
 import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { RemoteAccess } from "./remote.ts";
+import { RoomContext } from "./voice/room.ts";
 import { CalendarError, CalendarService } from "./calendar/service.ts";
 import { MorningCheckIn } from "./checkin.ts";
 import { loadRoutines, Routine, ROUTINE_EXAMPLES } from "./routines.ts";
@@ -46,6 +47,7 @@ export interface Gateway {
   config: GatewayConfig;
   logLines: string[];
   summarizer: Summarizer;
+  room: RoomContext;
 }
 
 export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Promise<Gateway> {
@@ -89,6 +91,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   });
 
   const remote = new RemoteAccess(stores);
+  const room = new RoomContext();
+  room.setEnabled(stores.preferences.get<boolean>("room_context", false));
   registerAuth(app, token, remote);
   if (recovered) stores.audit.record("recovery.interrupted_messages", "system", null, { count: recovered });
 
@@ -122,7 +126,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const checkIn = new MorningCheckIn(stores, bus, calendar);
   checkIn.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
-  const deps = { calendar, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+  const deps = { room, calendar, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
   // Pre-load the local brain when the owner opens ULTRON (at most every 5 minutes), so the first answer is quick.
@@ -192,6 +196,16 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     secrets.set(SEARCH_SECRET, null);
     stores.audit.record("settings.search_key_removed", "owner");
     return { configured: false };
+  });
+
+  // ---- room awareness ----
+  app.get("/api/voice/room", async () => ({ enabled: room.enabled }));
+  app.put("/api/voice/room", async (req) => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+    stores.preferences.set("room_context", enabled);
+    room.setEnabled(enabled);
+    stores.audit.record(enabled ? "voice.room_on" : "voice.room_off", "owner");
+    return { enabled };
   });
 
   // ---- routines ----
@@ -437,6 +451,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
     if (enabled && stt.current().id === "openai") return reply.code(409).send({ error: "cloud_stt", message: "Hands-free listening only works with speech recognition on this PC (Settings → Voice → On this PC), so ambient sound never leaves your computer." });
     stores.audit.record(enabled ? "voice.handsfree_on" : "voice.handsfree_off", "owner");
+    if (!enabled) room.clear(); // nothing overheard outlives a hands-free session
     return { enabled, wakeNames: persona.wakeNames };
   });
   app.post<{ Querystring: { mode?: string } }>("/api/voice/transcribe", { bodyLimit: 16_000_000 }, async (req, reply) => {
@@ -464,9 +479,13 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       const text = await engine.transcribe(decoded.samples, new Uint8Array(req.body));
       const elapsedMs = Date.now() - started;
       if (wakeMode) {
-        // Speech not addressed to ULTRON is dropped right here: not logged, not returned, not kept.
+        // Speech not addressed to ULTRON is dropped right here: not logged, not returned, not kept
+        // (unless room awareness is on, which keeps the last few minutes in memory only).
         const command = matchWake(text, persona.wakeNames);
-        if (command === null) return { addressed: false };
+        if (command === null) {
+          room.add(text);
+          return { addressed: false };
+        }
         stores.audit.record("voice.transcribed", "owner", null, { engine: engine.id, seconds: +decoded.seconds.toFixed(1), ms: elapsedMs, chars: command.length, mode: "wake" });
         return { addressed: true, text: command, engine: engine.id, model: engine.model, audioSeconds: +decoded.seconds.toFixed(2), elapsedMs };
       }
@@ -801,7 +820,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     stores.close();
   });
 
-  return { app, stores, token, config, logLines, summarizer };
+  return { app, stores, token, config, logLines, summarizer, room };
 }
 
 function cmpVersion(a: string, b: string): number {

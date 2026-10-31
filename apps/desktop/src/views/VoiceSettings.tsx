@@ -163,6 +163,7 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
         <input type="checkbox" checked={prefs.conversation} onChange={(e) => updatePrefs({ conversation: e.target.checked })} />
         <span>Conversation mode: in hands-free, after ULTRON answers, keep listening so I can just reply (no "Ultron" needed). Say "that's all" to stop.</span>
       </label>
+      <RoomToggle />
       <label className="toggle">
         <input type="checkbox" checked={prefs.bargeIn} onChange={(e) => updatePrefs({ bargeIn: e.target.checked })} />
         <span>Interrupt by voice (experimental): in hands-free, talking over ULTRON stops it and it listens to you. Works best with headphones; with loud speakers it may interrupt itself.</span>
@@ -170,3 +171,22 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
     </section>
   );
 }
+
+/** Room awareness: hands-free remembers the last few minutes it overheard (in memory only), for "what do you think?". */
+function RoomToggle() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    api.room().then((r) => setOn(r.enabled)).catch(() => {});
+  }, []);
+  if (on === null) return null;
+  return (
+    <label className="toggle">
+      <input type="checkbox" checked={on} onChange={async (e) => setOn((await api.setRoom(e.target.checked)).enabled)} />
+      <span>
+        Room awareness (experimental): in hands-free, ULTRON keeps the last 3 minutes of conversation around it in memory (never saved, cleared
+        when hands-free stops) so you can say "Ultron, what do you think?". Only used with a local brain.
+      </span>
+    </label>
+  );
+}
+
