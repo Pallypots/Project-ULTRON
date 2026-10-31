@@ -1,4 +1,4 @@
-import { buildSystemPrompt, detectIntent, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
+import { buildSystemPrompt, detectIntent, detectQuickCommand, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
 import type { ToolEvent } from "@ultron/schemas";
 import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
 import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
@@ -218,6 +218,25 @@ export async function handleUserMessage(
     return finish(text, "complete");
   }
 
+  // Everyday commands answered by code: instant, and reliable even on a small local model.
+  const quick = intent.type === "chat" && !timeIntent && deps.actions ? detectQuickCommand(content) : null;
+  if (quick && deps.actions) {
+    const run = async (tool: string, args: Record<string, unknown>) => {
+      const r = await deps.actions!.propose(tool, args, { conversationId, requestedBy: "command" });
+      if (r.execution) recordTool(toEvent(r.execution));
+      let data: any = null;
+      try {
+        data = JSON.parse(r.resultForModel);
+      } catch {
+        data = null;
+      }
+      return { status: r.execution?.status ?? "failed", error: r.execution?.error ?? data?.error ?? null, data };
+    };
+    const text = await quickReply(quick, run, stores);
+    emit({ type: "delta", text });
+    return finish(text, "complete");
+  }
+
   if (intent.type === "switch_brain") {
     let installedLocal: string[] | null = null;
     if (deps.ollama && (await deps.ollama.version())) installedLocal = (await deps.ollama.models().catch(() => [])).map((m) => m.name);
@@ -381,5 +400,57 @@ export function isSmallTalk(text: string): boolean {
   const t = text.toLowerCase().replace(/\bultron\b/g, "").replace(/[^\p{L}\s']/gu, " ").replace(/\s+/g, " ").trim();
   if (!t) return true;
   return /^(?:(?:hi|hey|hello|yo|sup|hiya|howdy|ok|okay|thanks|thank you|cheers|good (?:morning|afternoon|evening|night)|morning|evening|i'm back|im back|what's up|whats up|how are you|how's it going|you there|are you there)\s*)+$/.test(t);
+}
+
+type QuickRun = (tool: string, args: Record<string, unknown>) => Promise<{ status: string; error: string | null; data: any }>;
+
+/** Plain, friendly replies for the quick commands, built only from what the tools actually returned. */
+async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>, run: QuickRun, stores: Stores): Promise<string> {
+  const failed = (r: { status: string; error: string | null }) =>
+    r.status === "denied" ? `I can't do that right now: ${r.error ?? "actions are paused"}.` : `That didn't work: ${r.error ?? "unknown problem"}.`;
+  switch (q.type) {
+    case "open_url": {
+      const r = await run("open_website", { url: q.url });
+      if (r.status === "awaiting_approval") return `Opening ${new URL(q.url).host} needs your OK: click Approve on the card below and it opens in your browser.`;
+      return r.status === "succeeded" ? `Opened ${new URL(q.url).host} in your browser.` : failed(r);
+    }
+    case "add_todo": {
+      const r = await run("add_todo", { items: q.items });
+      if (r.status !== "succeeded") return failed(r);
+      const added: string[] = (r.data?.added ?? []).map((t: { text: string }) => t.text);
+      const dupes: string[] = r.data?.already_on_list ?? [];
+      const parts = [];
+      if (added.length) parts.push(`Added to your list: ${added.join(", ")}.`);
+      if (dupes.length) parts.push(`${dupes.join(", ")} ${dupes.length === 1 ? "was" : "were"} already on it.`);
+      parts.push(`${r.data?.open_items ?? "?"} open item${r.data?.open_items === 1 ? "" : "s"} now.`);
+      return parts.join(" ");
+    }
+    case "list_todos": {
+      const r = await run("list_todos", {});
+      if (r.status !== "succeeded") return failed(r);
+      const open: { text: string; due?: string }[] = r.data?.open ?? [];
+      if (!open.length) return "Your list is empty. Either you're very organised or very good at avoiding lists.";
+      return `On your list (${open.length}):\n${open.map((t) => `• ${t.text}${t.due ? ` (due ${t.due})` : ""}`).join("\n")}`;
+    }
+    case "weather": {
+      const r = await run("get_weather", q.place ? { place: q.place } : {});
+      if (r.status !== "succeeded") return failed(r);
+      const w = r.data;
+      if (!w?.found) return w?.note?.includes("home city") ? "I don't know where you are yet. Set your home city in Settings → Personality, or ask \"weather in <city>\"." : (w?.note ?? "I couldn't get the weather.");
+      const today = w.next_days?.[0];
+      const tomorrow = w.next_days?.[1];
+      const lines = [`Right now in ${w.place}: ${w.now.conditions}, ${w.now.temperature} (feels like ${w.now.feels_like}), wind ${w.now.wind}.`];
+      if (today) lines.push(`Today: ${today.low} to ${today.high}${today.chance_of_rain ? `, ${today.chance_of_rain} chance of rain` : ""}.`);
+      if (tomorrow) lines.push(`Tomorrow: ${tomorrow.conditions}, ${tomorrow.low} to ${tomorrow.high}.`);
+      if (today?.chance_of_rain && parseInt(today.chance_of_rain) >= 50) lines.push("Take an umbrella. I'd hate for you to rust.");
+      return lines.join(" ");
+    }
+    case "calculate": {
+      const r = await run("calculate", { expression: q.expression });
+      if (r.status !== "succeeded") return `I couldn't work that out: ${r.data?.error ?? r.error ?? "that doesn't look like maths I can do"}.`;
+      return `${q.expression} = ${Number(r.data.result).toLocaleString(undefined, { maximumFractionDigits: 10 })}`;
+    }
+  }
+  void stores;
 }
 

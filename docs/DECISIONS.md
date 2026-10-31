@@ -98,6 +98,12 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-025 · 2026-10-31 · More commands handled by code (extends D-016)
+A CPU-only local brain takes 40–90 s per answer and sometimes fumbles tool calls; these commands are too common for that. Strict whole-message
+patterns (open a URL/domain, add to / show the list, weather, arithmetic) run the same registered tools through the same policy engine
+(approvals, kill switch, audit), with replies built only from the tool's result. Anything not matched exactly (e.g. "will it rain later?",
+"I'd like you to open…") goes to the model.
+
 ### D-024 · 2026-10-31 · Don't trust the model's account of its own actions
 CI caught gemma4:e2b answering "Approval requested to open https://example.com" with **no tool call** once the tool list grew to 19. Two
 deterministic guards: (1) for local brains, `focusTools` offers only tool groups matched by keywords in the last two user messages (cloud brains

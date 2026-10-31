@@ -7,3 +7,4 @@ export { MockProvider } from "./providers/mock.ts";
 export { AnthropicProvider, DEFAULT_ANTHROPIC_MODEL } from "./providers/anthropic.ts";
 export { OpenAICompatibleProvider } from "./providers/openai.ts";
 export { OllamaProvider, DEFAULT_OLLAMA_URL } from "./providers/ollama.ts";
+export * from "./quick-intents.ts";

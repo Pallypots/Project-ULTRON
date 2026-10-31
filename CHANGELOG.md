@@ -13,6 +13,9 @@
 - **To-do list:** "add milk and eggs to my list", "what's on my list?", "I paid the electric bill" (ticks it off; asks if it's ambiguous).
   Also on the Reminders page, and in the morning briefing.
 - Conversations are titled by their first real message, not "hey Ultron".
+- **Instant everyday commands:** "open github.com", "add milk and eggs to my list", "what's on my list?", "what's the weather [in X]?",
+  "what's 15% of 80?" are handled directly by code, like reminders: an answer in well under a second, even when the local brain needs a minute
+  to think. Anything less clear-cut still goes to the brain.
 - **Remembers past conversations:** "what did we say about the Oogie release?" searches everything you and ULTRON said before
   (on this computer only). Deleting a conversation removes it from what ULTRON can recall.
 - **Honesty check:** if a brain *says* it set a reminder, opened a page or requested approval but no action actually ran, ULTRON adds a

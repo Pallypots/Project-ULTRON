@@ -19,9 +19,9 @@ describe("to-do list", () => {
     const add = await g.chat(id, "add pay the electric bill, buy milk and call mum to my list");
     expect(tool(add)).toMatchObject({ tool: "add_todo", status: "succeeded", risk: 1 });
     expect((await g.api("GET", "/api/todos")).body.todos.map((t: any) => t.text)).toEqual(["Pay the electric bill", "Buy milk", "Call mum"]);
-    expect(replyText(await g.chat(id, "add buy milk to my list"))).toContain('"already_on_list":["Buy milk"]');
+    expect(replyText(await g.chat(id, "add buy milk to my list"))).toBe("Buy milk was already on it. 3 open items now.");
 
-    expect(replyText(await g.chat(id, "what's on my list?"))).toMatch(/"open":\[.*Pay the electric bill.*Buy milk.*Call mum/);
+    expect(replyText(await g.chat(id, "what's on my list?"))).toBe("On your list (3):\n• Pay the electric bill\n• Buy milk\n• Call mum");
     const done = await g.chat(id, "I paid the electric bill");
     expect(tool(done)).toMatchObject({ tool: "complete_todo", status: "succeeded" });
     expect(replyText(done)).toContain('"ticked_off":"Pay the electric bill"');

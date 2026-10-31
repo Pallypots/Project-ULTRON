@@ -75,7 +75,11 @@ describe("calculator", () => {
     const g = await gateway();
     const events = await g.chat(await g.newConversation(), "what is (1299 * 0.85) + 4.99?");
     expect(events.find((e) => e.type === "tool")).toMatchObject({ event: { tool: "calculate", status: "succeeded", risk: 0 } });
-    expect(replyText(events)).toContain('"result":1109.14');
+    expect(replyText(events)).toBe("(1299 * 0.85) + 4.99 = 1,109.14");
+    // Through the model when it's not a plain command.
+    expect(replyText(await g.chat(await g.newConversation(), 'mock-tool calculate {"expression":"15% * 80"}'))).toContain('"result":12');
+    expect(replyText(await g.chat(await g.newConversation(), "what's 15% of 80?"))).toBe("15% * (80) = 12");
+    expect(replyText(await g.chat(await g.newConversation(), "calculate 1/0"))).toMatch(/couldn't work that out: .*finite/);
   });
 });
 
@@ -91,11 +95,15 @@ describe("Wikipedia and weather", () => {
   it("reports weather for a place, or at home once a home city is set", async () => {
     const g = await gateway();
     const id = await g.newConversation();
-    expect(replyText(await g.chat(id, "what's the weather?"))).toMatch(/no home city is set/);
+    expect(replyText(await g.chat(id, "what's the weather?"))).toMatch(/don't know where you are yet/);
+    expect(replyText(await g.chat(id, 'mock-tool get_weather {}'))).toMatch(/no home city is set/);
     expect((await g.api("PUT", "/api/persona", { homeLocation: "Leeds" })).body.homeLocation).toBe("Leeds");
     expect((await g.api("PUT", "/api/persona", { homeLocation: "<b>x</b>" })).status).toBe(400);
     const text = replyText(await g.chat(id, "what's the weather?"));
-    expect(text).toMatch(/"place":"Leeds, England, United Kingdom".*"conditions":"light rain".*"chance_of_rain":"80%"/);
+    // Units follow the computer's region (°F on US Windows), so either is fine here.
+    expect(text).toMatch(
+      /^Right now in Leeds, England, United Kingdom: light rain, 12°[CF] \(feels like 9°[CF]\), wind 18 (km\/h|mph)\. Today: 7°[CF] to 13°[CF], 80% chance of rain\. Tomorrow: overcast, 6°[CF] to 12°[CF]\. Take an umbrella/,
+    );
     expect(replyText(await g.chat(id, "weather in Nowhere"))).toMatch(/couldn't find a place/);
     // The morning briefing now includes it.
     expect(replyText(await g.chat(id, "good morning"))).toMatch(/"weather":\{"found":true,"place":"Leeds/);

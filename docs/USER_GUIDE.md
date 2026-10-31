@@ -86,6 +86,9 @@ in a spoken style. When you open the app after a while, ULTRON greets you first 
 (on a slow PC this can take a minute to appear). Change any of it in Settings → **Personality** (the **Character** box is plain English: "talks like a pirate" works).
 
 ## Everyday help
+Clear commands like these are answered instantly by ULTRON itself, without waiting for the AI brain: "open github.com",
+"add milk and eggs to my list", "what's on my list?", "what's the weather?", "what's 15% of 80?". Anything chattier goes to the brain.
+
 - **Maths:** "what's 15% of 80?", "split $86.40 four ways": ULTRON uses an exact calculator instead of guessing.
 - **Facts:** "who was Ada Lovelace?" looks it up on Wikipedia and says so.
 - **Weather:** "what's the weather?" (set your **Home city** in Settings → Personality) or "weather in Tokyo". It's also in your morning briefing.

@@ -43,7 +43,8 @@ describe("model-driven actions", () => {
   it("never opens a website without approval; approval then runs it once", async () => {
     const g = await gateway();
     const id = await g.newConversation();
-    const events = await g.chat(id, "open https://example.com/news");
+    // Phrased so the model (not the quick-command path) proposes it.
+    const events = await g.chat(id, "I'd like you to open https://example.com/news");
     const [ev] = toolEvents(events);
     expect(ev).toMatchObject({ tool: "open_website", status: "awaiting_approval", risk: 2 });
     expect(replyText(events)).toMatch(/needs your approval first.*nothing has happened yet/);
