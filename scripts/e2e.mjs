@@ -1,6 +1,7 @@
 // End-to-end check of the real built app in a real browser (Chromium via Playwright).
 // Usage: npm run build && npm run test:e2e   (screenshots land in docs/screenshots)
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -17,6 +18,18 @@ try {
 
 const port = 7499;
 const dataDir = mkdtempSync(join(tmpdir(), "ultron-e2e-"));
+// A pretend private calendar link (like Google's "secret address in iCal format") with an event this afternoon.
+const icsStamp = (h) => {
+  const d = new Date();
+  d.setHours(h, 0, 0, 0);
+  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+};
+const calServer = createServer((_req, res) => {
+  res.writeHead(200, { "content-type": "text/calendar" });
+  res.end(["BEGIN:VCALENDAR", "BEGIN:VEVENT", "UID:e2e", "SUMMARY:Dentist", `DTSTART:${icsStamp(23)}`, `DTEND:${icsStamp(23)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n"));
+});
+await new Promise((r) => calServer.listen(0, "127.0.0.1", r));
+const calUrl = `http://127.0.0.1:${calServer.address().port}/basic.ics`;
 // A pretend Start menu, so "open notepad" has something to find on any OS.
 const startMenu = join(dataDir, "..", `ultron-e2e-startmenu-${process.pid}`);
 mkdirSync(startMenu, { recursive: true });
@@ -44,7 +57,7 @@ const [githubUrl, githubToken] = await new Promise((resolve, reject) => {
 });
 
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_EMBEDDINGS: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_GITHUB_API: githubUrl, ULTRON_LOG_LEVEL: "warn", ULTRON_START_MENU_DIRS: startMenu },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_EMBEDDINGS: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_GITHUB_API: githubUrl, ULTRON_LOG_LEVEL: "warn", ULTRON_START_MENU_DIRS: startMenu, ULTRON_ALLOW_PRIVATE_FETCH: "1" },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {
@@ -436,6 +449,13 @@ try {
   await page.getByText("Connect an account to see updates here.").waitFor();
   step("Disconnect deletes the token and all GitHub data");
 
+  await page.getByLabel("Private iCal address").fill(calUrl);
+  await page.getByRole("button", { name: "Connect calendar" }).click();
+  await page.getByText(/Connected\. Found 1 event/).waitFor();
+  await page.getByRole("button", { name: "What's on today?" }).click();
+  await page.locator(".msg--assistant", { hasText: "Dentist" }).waitFor();
+  step("Calendar: private iCal link connected in Connections; 'what's on today?' lists the event");
+
   // ---- Personality + morning briefing ----
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByLabel(/How it addresses you/).fill("sir");
@@ -561,6 +581,7 @@ try {
   server.kill();
   fakeOllama.kill();
   fakeGithub.kill();
+  calServer.close();
 }
 if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Browser E2E (${process.platform})::${failed ? "FAILED" : "all steps passed"}: ${passed.join(" | ")}`);
 process.exit(failed ? 1 : 0);

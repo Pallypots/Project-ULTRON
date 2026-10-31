@@ -52,7 +52,7 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
       detail: "exact calculator; Wikipedia look-ups; weather and 3-day forecast (Open-Meteo); read a web page the owner links (other pages need approval); search past conversations; review everything it remembers about the owner. No general web search yet",
     },
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
-    { id: "integrations", label: "Connected accounts", status: "enabled", detail: "GitHub (read-only, if connected in Connections); YouTube, Reddit, Discord, email and calendar not available yet. Use connected_updates for real data; never guess" },
+    { id: "integrations", label: "Connected accounts", status: "enabled", detail: "GitHub (read-only, if connected in Connections); calendar (read-only, via its private iCal link, if connected); YouTube, Reddit, Discord and email not available yet. Use connected_updates for real data; never guess" },
     { id: "screen", label: "Screen viewing", status: "disabled", detail: "not available" },
     { id: "remote", label: "Phone / remote access", status: "disabled", detail: "local computer only for now" },
   ];

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.0 · 2026-10-31 · Knows your schedule
+- **Calendar (read-only)** in Connections → Calendar: paste your calendar's private iCal link (Google, Outlook, iCloud). It's checked, stored
+  encrypted, and never shown again. Ask "what's on my calendar today?", "what do I have tomorrow?", "what do I have this week?" (instant),
+  and your morning briefing, greetings and catch-ups now include what's coming up. Understands time zones (including daylight-saving
+  changes and Outlook's zone names), repeating events (daily/weekly on chosen days/monthly incl. "second Tuesday"/yearly, with end dates
+  and counts), skipped and moved occurrences, cancelled events and all-day events. Cached for 10 minutes.
+
 ## 0.17.0 · 2026-10-31 · ULTRON on your phone
 - **Phone access over Tailscale** (Settings → Phone access): talk to ULTRON from your phone anywhere, privately. ULTRON still runs only on
   your PC; Tailscale gives it a private HTTPS address on your own devices. Each phone pairs with a 6-digit code shown on the PC (5 minutes,

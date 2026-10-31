@@ -1,6 +1,6 @@
 import { buildSystemPrompt } from "@ultron/agent-core";
 import { currentCapabilities } from "./capabilities.ts";
-import { agendaFor, rapportFor, recentMemories, type ChatDeps } from "./chat.ts";
+import { agendaFor, calendarSoon, rapportFor, recentMemories, type ChatDeps } from "./chat.ts";
 import { readProviderSettings, resolveProvider } from "./providers.ts";
 import { homeLocation, weatherFor } from "./actions/knowledge.ts";
 
@@ -51,7 +51,7 @@ export class Greeter {
     const resolution = resolveProvider(settings, this.deps.secrets, 0);
     if (!resolution.ok) return null;
     const weather = await weatherLine(stores);
-    const rapport = { ...rapportFor(stores, "", "text"), recentMemories: recentMemories(stores, []), agenda: [...(weather ? [weather] : []), ...agendaFor(stores)] };
+    const rapport = { ...rapportFor(stores, "", "text"), recentMemories: recentMemories(stores, []), agenda: [...(weather ? [weather] : []), ...agendaFor(stores), ...(await calendarSoon(this.deps.calendar))] };
     let text = "";
     if (resolution.provider.id === "mock") {
       // The test brain can't improvise, so it gets a simple, honest line built from the same facts.

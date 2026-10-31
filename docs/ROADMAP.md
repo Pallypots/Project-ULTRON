@@ -48,7 +48,7 @@ Status key: ✅ done · 🟡 partial · ⏳ next · ⬜ later
 - ✅ v0.17 phone access over Tailscale with per-device pairing, home-screen app
 
 ## Next
-1. ⏳ Calendar (read-only) via the private iCal link; then Gmail/Google Calendar with OAuth once the owner creates a Google Cloud client
+1. ✅ Calendar (read-only) via the private iCal link (v0.18); ⏳ Gmail/Google Calendar with OAuth once the owner creates a Google Cloud client
 2. ⏳ Benchmarks on the owner's PC (time to first audio, local-brain tokens/sec, interruption reliability) to pick the default model
 3. ⏳ UL-CON-005b comment/PR-review drafts; UL-CON-006 YouTube (needs the owner's Google OAuth client)
 4. ⏳ Screen understanding with approval; Home Assistant; MCP skills (Phase 6)

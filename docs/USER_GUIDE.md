@@ -100,6 +100,12 @@ in a spoken style. When you open the app after a while, ULTRON greets you first 
 Start with "think hard about…", "take your time" or "walk me through it step by step" and ULTRON reasons carefully before answering (it takes
 longer, especially on a local brain). Its reasoning stays hidden; you get the answer and how confident it is.
 
+## Your calendar (read-only)
+In **Connections → Calendar**, paste your calendar's private address in iCal format (the panel shows where to find it for Google, Outlook and
+iCloud). Then ask "what's on my calendar today?", "what do I have tomorrow?" or "this week?". Your morning briefing and ULTRON's greetings
+mention what's coming up. ULTRON can't change your calendar. Disconnect deletes the saved link. (Anyone with that private link can see your
+calendar, so only paste it into ULTRON's settings, never into chats or emails.)
+
 ## ULTRON on your phone
 1. Install **Tailscale** (free) on this PC and on your phone, and sign in to the same account on both.
 2. On the PC, open a terminal and run `tailscale serve --bg 7477` (this gives your PC a private https address only your devices can reach).

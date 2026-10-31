@@ -14,6 +14,7 @@ const GROUPS: { when: RegExp; tools: string[] }[] = [
   { when: /\b(weather|rain|raining|snow|forecast|temperature|cold|hot|sunny|umbrella|jacket|wind)\b/i, tools: ["get_weather"] },
   { when: /\b(github|repo|repository|issues?|commits?|pull requests?|prs?|ci|builds?)\b|what'?s new|any updates/i, tools: ["connected_updates", "github_create_issue"] },
   { when: /\b(morning|brief|briefing|my day|catch me up|agenda|today)\b/i, tools: ["daily_briefing"] },
+  { when: /\b(calendar|schedule|meetings?|appointments?|events?|busy|free|plans?|tomorrow|this week|next week|today)\b/i, tools: ["get_calendar"] },
   { when: /\b(time|date|day is it|what day)\b/i, tools: ["get_current_time"] },
   { when: /\b(we (?:talked|discussed|spoke|chatted|said)|did i (?:say|tell|mention)|i (?:told|mentioned|said)|last (?:time|week|month)|yesterday|remember when|earlier|before|conversations?)\b/i, tools: ["search_conversations"] },
   { when: /\b(about me|know me|learned about|remember about|my (?:life|profile|details|preferences))\b/i, tools: ["recall_everything_about_owner"] },

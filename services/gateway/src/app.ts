@@ -9,6 +9,7 @@ import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, TtsSett
 import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { RemoteAccess } from "./remote.ts";
+import { CalendarError, CalendarService } from "./calendar/service.ts";
 import { currentCapabilities } from "./capabilities.ts";
 import { ActiveStreams, handleUserMessage } from "./chat.ts";
 import { loadConfig, type GatewayConfig } from "./config.ts";
@@ -32,7 +33,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.17.0";
+export const VERSION = "0.18.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -112,8 +113,10 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   // Meaning-based file search: embed newly indexed files in the background, and use them when searching.
   files.onIndexed = () => void embeddings.backfillDocs().catch(() => {});
   actions.similarFiles = (q) => embeddings.similarFiles(q);
+  const calendar = new CalendarService(stores, secrets);
+  actions.calendar = calendar;
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
-  const deps = { embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+  const deps = { calendar, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
   const summarizer = new Summarizer(deps, () => streams.size > 0);
@@ -130,6 +133,24 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     if (!isLoopbackRequest(req) && remote.isRemote(req)) return reply.code(403).send({ error: "pair_required", message: "Pair this device with the code shown on your PC." });
     if (!isLoopbackRequest(req) || req.headers["sec-fetch-site"] === "cross-site") return reply.code(403).send({ error: "forbidden" });
     return { token };
+  });
+
+  // ---- calendar (read-only, private iCal link) ----
+  app.get("/api/calendar", async () => ({ calendar: calendar.status() }));
+  app.put("/api/calendar", async (req, reply) => {
+    const body = z.object({ url: z.string().trim().min(10).max(2000) }).parse(req.body);
+    try {
+      const r = await calendar.connect(body.url);
+      stores.audit.record("calendar.connected", "owner", null, { events: r.events });
+      return { calendar: calendar.status(), events: r.events };
+    } catch (err) {
+      return reply.code(400).send({ error: "calendar", message: err instanceof CalendarError || /reach|offline|network|local network/i.test((err as Error).message) ? (err as Error).message : "Couldn't read that calendar link." });
+    }
+  });
+  app.delete("/api/calendar", async () => {
+    calendar.disconnect();
+    stores.audit.record("calendar.disconnected", "owner");
+    return { calendar: calendar.status() };
   });
 
   // ---- phone access (pairing) ----

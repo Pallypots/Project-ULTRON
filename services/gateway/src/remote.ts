@@ -25,7 +25,7 @@ export const hashToken = (t: string) => createHash("sha256").update(t).digest("h
 export function isPcOnly(method: string, path: string): boolean {
   if (/^\/api\/(remote|logs\/export|memories\/export)(\/|$)/.test(path)) return true;
   if (method === "GET" || method === "HEAD") return false;
-  return /^\/api\/(settings\/provider|connectors\/github(\/connect)?$|files\/folders|system\/|local-ai\/(pull|use)|persona\/reload)/.test(path);
+  return /^\/api\/(settings\/provider|connectors\/github(\/connect)?$|files\/folders|system\/|local-ai\/(pull|use)|persona\/reload|calendar$)/.test(path);
 }
 
 export class RemoteAccess {

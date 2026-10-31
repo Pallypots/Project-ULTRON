@@ -6,6 +6,7 @@ import { calculate } from "./actions/calc.ts";
 import { findApps } from "./actions/system.ts";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
+import { eventLine, type CalendarService } from "./calendar/service.ts";
 import type { Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
 import { currentCapabilities } from "./capabilities.ts";
@@ -28,6 +29,7 @@ export interface ChatDeps {
   ollama?: OllamaManager;
   actions?: ActionRunner;
   embeddings?: EmbeddingService;
+  calendar?: CalendarService;
 }
 
 const MAX_TOOL_ROUNDS = 4;
@@ -306,7 +308,7 @@ export async function handleUserMessage(
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
-    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: agendaFor(stores), deep },
+    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: [...agendaFor(stores), ...(await calendarSoon(deps.calendar))], deep },
   });
   const turns: ChatTurn[] = turnsSoFar;
 
@@ -470,6 +472,15 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       if (r.status === "awaiting_approval") return `Opening apps needs your OK: click Approve on the card below.`;
       return r.status === "succeeded" ? `Opened ${r.data?.opened ?? q.name}.` : failed(r);
     }
+    case "calendar": {
+      const r = await run("get_calendar", { when: q.when });
+      if (r.status !== "succeeded") return failed(r);
+      if (r.data?.connected === false) return "Your calendar isn't connected yet. Add its private iCal link in Connections → Calendar and I'll keep an eye on it.";
+      const label = q.when === "today" ? "today" : q.when === "tomorrow" ? "tomorrow" : "in the next 7 days";
+      const ev: { day: string; time: string; untrusted_title: string; location?: string }[] = r.data?.events ?? [];
+      if (!ev.length) return `Nothing on your calendar ${label}. A rare and beautiful thing.`;
+      return `${label[0]!.toUpperCase()}${label.slice(1)} (${ev.length}):\n${ev.map((e) => `• ${q.when === "next_7_days" ? `${e.day}, ` : ""}${e.time}: ${e.untrusted_title}${e.location ? ` (${e.location})` : ""}`).join("\n")}${r.data?.stale ? `\n(${r.data.stale})` : ""}`;
+    }
     case "calculate": {
       const r = await run("calculate", { expression: q.expression });
       if (r.status !== "succeeded") return `I couldn't work that out: ${r.data?.error ?? r.error ?? "that doesn't look like maths I can do"}.`;
@@ -497,5 +508,16 @@ export function agendaFor(stores: Stores, now = new Date()): string[] {
 /** "Think hard about…", "take your time", "step by step": the owner wants quality over speed for this message. */
 export function wantsDeepThinking(text: string): boolean {
   return /\b(think (?:hard|harder|deeply|carefully|it through|this through|about it properly)|take your time|deep(?:ly)? think|thinking cap|reason (?:it |this )?(?:out|through)|step[- ]by[- ]step|really think)\b/i.test(text);
+}
+
+/** Calendar events in the next 12 hours, for catching up (best-effort: never delays a reply by more than 3 s). */
+export async function calendarSoon(calendar?: CalendarService): Promise<string[]> {
+  if (!calendar?.connected) return [];
+  const now = new Date();
+  const soon = calendar
+    .events(now, new Date(now.getTime() + 12 * 3_600_000))
+    .then((ev) => ev.slice(0, 4).map((e) => `calendar ${eventLine(e)}`))
+    .catch(() => []);
+  return Promise.race([soon, new Promise<string[]>((r) => setTimeout(() => r([]), 3000))]);
 }
 

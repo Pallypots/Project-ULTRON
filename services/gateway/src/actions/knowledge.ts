@@ -12,7 +12,7 @@ const WEATHER = () => process.env.ULTRON_WEATHER_API ?? "https://api.open-meteo.
 const UA = "ULTRON-personal-assistant/0.13 (local, single user)";
 
 /** Network failures in plain English ("fetch failed" means nothing to anyone). */
-async function reach(url: string | URL, init: RequestInit): Promise<Response> {
+export async function reach(url: string | URL, init: RequestInit): Promise<Response> {
   try {
     return await fetch(url, init);
   } catch (err) {
@@ -140,7 +140,7 @@ export function isPrivateAddress(ip: string): boolean {
   return v === "::" || v === "::1" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe8") || v.startsWith("fe9") || v.startsWith("fea") || v.startsWith("feb") || v.startsWith("ff");
 }
 
-async function assertPublic(url: URL) {
+export async function assertPublic(url: URL) {
   if (!/^https?:$/.test(url.protocol)) throw new Error("Only http and https pages can be read.");
   if (url.username || url.password) throw new Error("Links with passwords in them aren't read.");
   if (process.env.ULTRON_ALLOW_PRIVATE_FETCH === "1") return; // tests only (local fake sites)

@@ -9,7 +9,8 @@ export type QuickCommand =
   | { type: "weather"; place: string | null }
   | { type: "calculate"; expression: string }
   | { type: "media"; action: "play_pause" | "next" | "previous" | "mute" | "volume_up" | "volume_down"; steps?: number }
-  | { type: "open_app"; name: string };
+  | { type: "open_app"; name: string }
+  | { type: "calendar"; when: "today" | "tomorrow" | "next_7_days" };
 
 const LEAD = /^\s*(?:(?:hey|ok|okay)\s+)?(?:ultron[\s,:!.-]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?/i;
 const TAIL = /(?:[\s,]+please)?[\s?.!]*$/i;
@@ -50,6 +51,12 @@ export function detectQuickCommand(message: string): QuickCommand | null {
       .map((s) => s.trim().replace(/^(?:a|an|some)\s+/i, ""))
       .filter(Boolean);
     if (items.length && items.length <= 10 && items.every((i) => i.length <= 200)) return { type: "add_todo", items };
+  }
+
+  const cal = /^(?:what(?:'s| is) (?:on )?my (?:calendar|schedule|agenda)|what do i have (?:on )?|do i have anything (?:on )?|what(?:'s| is) (?:on|happening))\s*(today|tomorrow|this week|for today|for tomorrow)?$/i.exec(m);
+  if (cal && (/calendar|schedule|agenda/i.test(m) || cal[1])) {
+    const w = (cal[1] ?? "today").replace(/^for /i, "").toLowerCase();
+    return { type: "calendar", when: w === "tomorrow" ? "tomorrow" : w === "this week" ? "next_7_days" : "today" };
   }
 
   if (/^(?:what(?:'s| is)|what do i have) on my (?:to-?do )?list|^(?:show|read)(?: me)? my (?:to-?do )?list$|^(?:what(?:'s| is)|show(?: me)?) my to-?do(?: list)?$/i.test(m)) return { type: "list_todos" };

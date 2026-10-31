@@ -45,6 +45,11 @@ connection (low impact: only GET, response treated as data).
 Models can claim actions they never took. Every action appears as a card from the action log (never from model text), and replies that
 claim an action when none ran get a visible correction plus a `model.unbacked_claim` audit entry.
 
+## Calendar (v0.18)
+The private iCal link is a bearer secret: stored in the secret store (DPAPI on Windows), never returned by the API, PC-only to change, https
+only, fetched with the same public-address checks as web pages (no localhost/LAN), 5 MB cap. Event titles can come from other people's
+invitations and are passed to the model as `untrusted_title`.
+
 ## Phone access (v0.17)
 ULTRON still binds to loopback only. With phone access on, `tailscale serve` forwards the PC's tailnet HTTPS name to it; requests are accepted
 only if their Host is exactly that configured name (and any Origin is `https://` that name). Such requests never receive the PC session key
