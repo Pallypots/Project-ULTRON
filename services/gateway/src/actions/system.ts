@@ -44,12 +44,16 @@ const media: ToolDef<{ action: MediaAction; steps?: number }> = {
     additionalProperties: false,
   },
   risk: 1,
-  timeoutMs: 12_000,
+  timeoutMs: 45_000,
   describe: (i) => `${MEDIA_WORDS[i.action]}${i.action.startsWith("volume") ? ` (${i.steps ?? 5} steps)` : ""}`,
   run: async (i, ctx) => {
     if (!isWindows()) throw new Error("Media and volume control works on Windows only.");
     const n = i.action.startsWith("volume") ? (i.steps ?? 5) : 1;
-    if (!ctx.dryRun) await ps(SEND_KEY, { ULTRON_KEY: String(MEDIA_KEYS[i.action]), ULTRON_N: String(n) });
+    if (!ctx.dryRun) {
+      const env = { ULTRON_KEY: String(MEDIA_KEYS[i.action]), ULTRON_N: String(n) };
+      // PowerShell can be slow to start on a busy PC; one retry before giving up.
+      await ps(SEND_KEY, env, 20_000).catch(() => ps(SEND_KEY, env, 20_000));
+    }
     return JSON.stringify({ ok: true, did: MEDIA_WORDS[i.action], steps: n, dryRun: ctx.dryRun || undefined });
   },
 };
