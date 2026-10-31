@@ -1,17 +1,19 @@
 # Changelog
 
+## 0.15.0 · 2026-10-31 · Thinks harder, remembers better, never leaves you in silence
+- **Deep thinking on request:** "think hard about…", "take your time", "step by step" lets the brain reason before answering (local models
+  that support it think silently first; Claude uses high effort). Slower, better for hard questions. Everyday chat stays fast.
+- **ULTRON reflects on your conversations:** half an hour after a chat goes quiet, ULTRON writes itself a one-or-two-sentence note about it
+  (using your current brain, only while it's otherwise idle, stepping aside the moment you talk). Catching up and greetings use these notes
+  ("yesterday you were fixing the audio crackle…"); hover a conversation in Chat to see its note. Passwords/ID numbers are never noted.
+- In a spoken conversation, if the brain takes more than 2.5 s to start answering, ULTRON says a short "Hmm, let me think." instead of
+  leaving you in silence.
+
 ## 0.14.0 · 2026-10-31 · Just talk to it
 - **Conversation mode:** in hands-free, after ULTRON answers it keeps listening for about 10 seconds, so you just reply, with no "Ultron" each
   time. Say "that's all", "goodbye" or "never mind" to end it (it still answers, then goes back to waiting for its name). On by default;
   Settings → Voice to turn it off.
 - **🎙 Talk to ULTRON** button on Home: one click opens a fresh conversation that's already listening.
-- **ULTRON reflects on your conversations:** half an hour after a chat goes quiet, ULTRON writes itself a one-or-two-sentence note about it
-  (using your current brain, only while it's otherwise idle, stepping aside the moment you talk). Catching up and greetings use these notes
-  ("yesterday you were fixing the audio crackle…"); hover a conversation in Chat to see its note. Passwords/ID numbers are never noted.
-- **Deep thinking on request:** "think hard about…", "take your time", "step by step" lets the brain reason before answering (local models
-  that support it think silently first; Claude uses high effort). Slower, better for hard questions. Everyday chat stays fast.
-- In a spoken conversation, if the brain takes more than 2.5 s to start answering, ULTRON says a short "Hmm, let me think." instead of
-  leaving you in silence.
 - Background noise that speech recognition mistakes for words ("Thank you.", "[BLANK_AUDIO]") is ignored when no wake word is required.
 
 ## 0.13.0 · 2026-10-31 · Smarter and more alive
