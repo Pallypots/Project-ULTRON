@@ -45,6 +45,7 @@ describe.skipIf(!enabled)("knowledge tools against the real services", () => {
   it("finds Wikipedia articles from a whole question (for research)", async () => {
     const { wikiArticles } = await import("../src/actions/knowledge.ts");
     const found = await wikiArticles("how solid-state batteries work", 2);
+    expect(found.map((a) => a.title).join(" ")).toMatch(/battery/i);
     note("Real Wikipedia full-text search", found.map((a) => `${a.title} (${a.text.length} chars)`).join(", "));
     expect(found.length).toBeGreaterThan(0);
     expect(found[0]!.text.length).toBeGreaterThan(200);

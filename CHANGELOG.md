@@ -7,6 +7,7 @@ Researched how others do local deep research (Local Deep Research, open_deep_res
   sources, live progress as it goes. Each report is saved as a Markdown file in your ULTRON data folder ("reports"). The brain plans and
   writes; code does the searching and reading (small local models aren't reliable at long autonomous loops). Everything it reads is treated
   as untrusted, and research never takes actions.
+- Verified with the real local brain in CI: "research how solid-state batteries work" produced a cited brief in about 2.5 minutes on a CPU.
 - **Spoken morning digest:** "Brief me" on the morning check-in now reads your briefing aloud (unless spoken replies are set to "Never").
 
 ## 0.21.0 · 2026-10-31 · Ideas from other Jarvis builders

@@ -544,8 +544,11 @@ try {
   await page.locator(".msg--assistant", { hasText: "Good night:" }).waitFor();
   await page.locator(".msg--assistant", { hasText: "On your list" }).waitFor();
   step('Routines: "Good night" added in Settings runs its steps from one phrase');
+  const redone = page.waitForResponse((r) => r.url().includes("/messages") && r.request().method() === "POST");
   await page.getByRole("button", { name: "↻ Try again" }).click();
+  await redone;
   await page.locator(".msg--assistant.msg--complete", { hasText: "Good night:" }).waitFor();
+  await page.getByRole("button", { name: "↻ Try again" }).waitFor(); // the new answer is in place
   if ((await page.locator(".msg--user", { hasText: "good night" }).count()) !== 1) throw new Error("try again duplicated the question");
   step("↻ Try again re-asks the last question without duplicating it");
 

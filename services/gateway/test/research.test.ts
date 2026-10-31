@@ -13,6 +13,7 @@ beforeAll(async () => {
   server = createServer((req, res) => {
     const url = new URL(req.url!, "http://x");
     const json = (v: unknown) => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify(v)); };
+    if (url.pathname === "/w/rest.php/v1/search/title") return json({ pages: [] });
     if (url.pathname === "/w/api.php" && url.searchParams.get("list") === "search") return json({ query: { search: [{ title: "Solid-state battery" }] } });
     if (url.pathname === "/w/api.php") return json({ query: { pages: { "1": { extract: "A solid-state battery uses a solid electrolyte instead of a liquid one." } } } });
     if (url.pathname === "/res/v1/web/search") return json({ web: { results: [{ title: "Solid-state batteries in 2026", url: `${base}/article`, description: "Progress report" }] } });
