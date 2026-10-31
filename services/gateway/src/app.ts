@@ -405,6 +405,29 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     return { reminder: stores.reminders.setStatus(r.id, r.status === "missed" ? "fired" : "cancelled") };
   });
 
+  // ---- to-do list ----
+  app.get("/api/todos", async () => ({ todos: stores.todos.list({ includeDone: true }) }));
+  const TodoText = z.string().trim().min(1).max(200);
+  const TodoDue = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable();
+  app.post("/api/todos", async (req) => {
+    const body = z.object({ text: TodoText, dueDate: TodoDue.optional() }).strict().parse(req.body);
+    const t = stores.todos.add({ text: body.text, dueDate: body.dueDate ?? null });
+    stores.audit.record("todo.added", "owner", t.id, { via: "app" });
+    return { todo: t };
+  });
+  app.patch<{ Params: { id: string } }>("/api/todos/:id", async (req, reply) => {
+    const body = z.object({ done: z.boolean().optional(), text: TodoText.optional(), dueDate: TodoDue.optional() }).strict().parse(req.body);
+    if (!stores.todos.get(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    if (body.text !== undefined || body.dueDate !== undefined) stores.todos.update(req.params.id, { text: body.text, dueDate: body.dueDate });
+    if (body.done !== undefined) stores.todos.setDone(req.params.id, body.done);
+    return { todo: stores.todos.get(req.params.id) };
+  });
+  app.delete<{ Params: { id: string } }>("/api/todos/:id", async (req, reply) => {
+    if (!stores.todos.remove(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    stores.audit.record("todo.deleted", "owner", req.params.id, { via: "app" });
+    return { ok: true };
+  });
+
   // ---- files (owner-approved folders only) ----
   app.get("/api/files/folders", async () => ({ folders: stores.files.folders(), indexing: files.indexing }));
   app.post("/api/files/folders", async (req, reply) => {

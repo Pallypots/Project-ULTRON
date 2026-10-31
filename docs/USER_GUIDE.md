@@ -91,6 +91,8 @@ in a spoken style. When you open the app after a while, ULTRON greets you first 
 - **Weather:** "what's the weather?" (set your **Home city** in Settings → Personality) or "weather in Tokyo". It's also in your morning briefing.
 - **Web pages:** paste a link and say "summarize this". Links you paste are read straight away; if ULTRON wants to open a page you *didn't* give it,
   it asks first. It never reads pages on your own computer or home network.
+- **To-do list:** "add buy milk and call mum to my list", "what's on my list?", "I called mum" (ULTRON ticks it off, and asks if
+  more than one item matches). You can also add, tick and delete items on the **Reminders** page. Open items are in your morning briefing.
 - **Offers to remember:** mention something lasting ("my sister's birthday is March 3") and ULTRON may offer to remember it. Nothing is saved
   until you click **Approve**.
 

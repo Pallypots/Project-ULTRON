@@ -42,6 +42,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests, build and doctor on **windows-
 | Real web (CI, `ULTRON_TEST_WEB=1`) | live Wikipedia ("Ada Lovelace"), live Open-Meteo weather for Boston in °F with a 3-day forecast, reads example.com |
 | Real local brain extras (CI Linux) | informational: does gemma4 use the calculator for 1299 × 0.85 + 4.99, and what does its personality sound like ("I'm back, tell me a joke") |
 | Memory offers & personality | proposal waits for approval, saved once (duplicates detected), secrets refused even if approved; prompt contains companion/humour/catch-up/spoken-style rules; humour off removes jokes; character text editable and reset |
+| To-do list | several items from one sentence; duplicates skipped; list; tick off by description; ambiguous → candidates, no change; no match; app add/edit/tick/delete with validation; in briefing; paused actions block changes but not reading; E2E add by chat → tick in app |
 | Greeting & catch-up | first-run introduction; "welcome back" names the last conversation; cached; recent memories (14 days, never sensitive) reach the prompt; E2E: greeting card on Home |
 | E2E memory offer | "my sister's birthday is March 3" → approval card shows exactly what will be saved → Approve → appears in Memory Vault |
 | Embeddings | vectors stored, refreshed after edits, dropped on delete; hybrid merge with keyword search; off mode = keyword only |

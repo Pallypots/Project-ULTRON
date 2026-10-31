@@ -62,6 +62,13 @@ export interface Reminder {
   createdAt: string;
   firedAt: string | null;
 }
+export interface Todo {
+  id: string;
+  text: string;
+  dueDate: string | null;
+  doneAt: string | null;
+  createdAt: string;
+}
 export interface PersonaInfo {
   name: string;
   ownerSalutation: string;
@@ -245,6 +252,10 @@ export const api = {
   reindexFolder: (id: string) => call("POST", `/api/files/folders/${id}/reindex`),
   searchFiles: (query: string) => call<{ results: FileHit[] }>("POST", "/api/files/search", { query }),
   openFile: (docId: string) => call("POST", "/api/files/open", { docId }),
+  todos: () => call<{ todos: Todo[] }>("GET", "/api/todos"),
+  addTodo: (text: string, dueDate?: string | null) => call<{ todo: Todo }>("POST", "/api/todos", { text, dueDate: dueDate || null }),
+  updateTodo: (id: string, patch: { done?: boolean; text?: string; dueDate?: string | null }) => call<{ todo: Todo }>("PATCH", `/api/todos/${id}`, patch),
+  deleteTodo: (id: string) => call("DELETE", `/api/todos/${id}`),
   reminders: () => call<{ reminders: Reminder[] }>("GET", "/api/reminders"),
   createReminder: (text: string, dueAt: string) => call<{ reminder: Reminder }>("POST", "/api/reminders", { text, dueAt }),
   cancelReminder: (id: string) => call("POST", `/api/reminders/${id}/cancel`),

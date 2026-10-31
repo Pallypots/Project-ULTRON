@@ -266,10 +266,22 @@ try {
   await page.getByRole("button", { name: "Chat" }).click();
   step("ULTRON offers to remember a personal fact; saved only after Approve");
 
+  await page.getByRole("button", { name: "Send", exact: true }).waitFor();
+  await composer.fill("add buy milk and call mum to my list");
+  await composer.press("Enter");
+  await page.locator(".tool--succeeded", { hasText: "Add to your to-do list" }).waitFor();
+  await page.getByRole("button", { name: "Reminders" }).click();
+  await page.locator(".todo", { hasText: "Call mum" }).waitFor();
+  await page.getByLabel("Done: Buy milk").click();
+  await page.locator(".todo--done", { hasText: "Buy milk" }).waitFor();
+  await page.screenshot({ path: join(shots, "19-todo-list.png") });
+  await page.getByRole("button", { name: "Chat" }).click();
+  step("To-do list: items added by chat appear in the app and can be ticked off");
+
   await page.getByRole("button", { name: "Reminders" }).click();
   await page.locator(".reminder--past", { hasText: "3-second timer" }).waitFor();
   await page.getByLabel("Reminder", { exact: true }).fill("Check the oven");
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.locator(".reminder", { hasText: "Check the oven" }).waitFor();
   await page.screenshot({ path: join(shots, "12-reminders.png") });
   await page.locator(".reminder", { hasText: "Check the oven" }).getByRole("button", { name: "Cancel" }).click();
@@ -449,11 +461,11 @@ try {
   failed = true;
   console.error("✗ E2E failed:", err.message);
   console.error("  recent requests:\n   " + recent.join("\n   "));
-  const lastMessages = await page.locator(".msg").allInnerTexts().catch(() => []);
-  console.error("  last messages on screen:\n   " + lastMessages.slice(-3).map((t) => t.replace(/\s+/g, " ").slice(0, 300)).join("\n   "));
+  const lastMessages = (await page.locator(".msg").allInnerTexts().catch(() => [])).slice(-3).map((t) => t.replace(/\s+/g, " ").slice(0, 300));
+  console.error("  last messages on screen:\n   " + lastMessages.join("\n   "));
   if (process.env.GITHUB_ACTIONS) {
     const oneLine = (s) => String(s).replace(/\r?\n/g, " ⏎ ").slice(0, 1500);
-    console.log(`::error title=Browser E2E failed (${process.platform}) after "${passed.at(-1) ?? "start"}"::${oneLine(err.message)} || recent: ${oneLine(recent.slice(-12).join(" | "))}`);
+    console.log(`::error title=Browser E2E failed (${process.platform}) after "${passed.at(-1) ?? "start"}"::${oneLine(err.message)} || screen: ${oneLine(lastMessages.join(" ‖ "))} || recent: ${oneLine(recent.filter((r) => !r.includes("/api/status")).slice(-12).join(" | "))}`);
   }
   await page.screenshot({ path: join(shots, "failure.png") }).catch(() => {});
 } finally {

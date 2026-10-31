@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Reminder } from "../api.ts";
+import { TodoPanel } from "./Todos.tsx";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 function countdown(iso: string, now: number) {
@@ -55,13 +56,15 @@ export function RemindersView({ refreshKey }: { refreshKey: number }) {
     <div className="page">
       <header className="page__header">
         <div>
-          <h1>Reminders</h1>
+          <h1>Reminders &amp; to-do</h1>
           <p className="muted">
             Say "remind me in 20 minutes to…", "remind me at 5pm to…" or "set a timer for 10 minutes", or add one here. Reminders pop up, show a Windows
             notification and are spoken aloud. They only fire while ULTRON is running; anything missed while it was off is shown below.
           </p>
         </div>
       </header>
+
+      <TodoPanel refreshKey={refreshKey} />
 
       <form className="panel add-memory" onSubmit={add}>
         <label htmlFor="rem-text" className="sr-only">Reminder</label>

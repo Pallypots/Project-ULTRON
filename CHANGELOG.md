@@ -10,6 +10,9 @@
   and reading/summarizing a web page you link. The morning briefing now includes the weather.
 - **ULTRON speaks first:** opening the app shows a short in-character catch-up line from your current brain (cached for 3 hours).
 - Catching up also uses memories from the last two weeks (never ones marked sensitive), so it can ask how the interview went.
+- **To-do list:** "add milk and eggs to my list", "what's on my list?", "I paid the electric bill" (ticks it off; asks if it's ambiguous).
+  Also on the Reminders page, and in the morning briefing.
+- Conversations are titled by their first real message, not "hey Ultron".
 - Fixed: approving an action while ULTRON was still finishing its reply could show it as "waiting" again afterwards.
 
 ## 0.11.0 · 2026-10-30 · Meaning-based memory recall (local)

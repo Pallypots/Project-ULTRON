@@ -7,6 +7,7 @@ import { extractText } from "../files/indexer.ts";
 import { openTarget, openWithDefaultApp, type FileService } from "../files/service.ts";
 import type { ConnectorService } from "../connectors/service.ts";
 import { KNOWLEDGE_TOOLS, homeLocation, weatherFor } from "./knowledge.ts";
+import { TODO_TOOLS } from "./todos.ts";
 
 /**
  * Risk levels (blueprint §7):
@@ -284,7 +285,7 @@ const connectedUpdates: ToolDef<z.infer<typeof ConnectedUpdates>> = {
 const dailyBriefing: ToolDef<Record<string, never>> = {
   name: "daily_briefing",
   description:
-    "Everything for a 'good morning' / 'brief me' / 'what's my day like' answer: local time, today's reminders (and any missed), highlights from connected accounts in the last 24 hours, and actions waiting for approval. Includes the weather at home if a home city is set. Also lists sources that are NOT connected (e.g. calendar) so you never invent them.",
+    "Everything for a 'good morning' / 'brief me' / 'what's my day like' answer: local time, today's reminders (and any missed), open to-do items, highlights from connected accounts in the last 24 hours, and actions waiting for approval. Includes the weather at home if a home city is set. Also lists sources that are NOT connected (e.g. calendar) so you never invent them.",
   input: z.object({}).strict(),
   parameters: { type: "object", properties: {}, additionalProperties: false },
   risk: 0,
@@ -315,6 +316,7 @@ const dailyBriefing: ToolDef<Record<string, never>> = {
       reminders_later_count: later,
       missed_while_off: missed.map((r) => r.text),
       pending_approvals: ctx.stores.actions.pending().map((a) => a.summary),
+      todo_list: ctx.stores.todos.list().slice(0, 8).map((t) => (t.dueDate ? `${t.text} (due ${t.dueDate})` : t.text)),
       github: gh?.connectedAt
         ? { last_successful_sync: gh.lastSyncAt, status: gh.health, commits_last_24h: commits, important_last_24h: highlights.map((e) => ({ title: e.title, url: e.canonicalUrl })) }
         : "not connected",
@@ -363,5 +365,5 @@ const githubCreateIssue: ToolDef<z.infer<typeof GithubIssue>> = {
   },
 };
 
-export const TOOLS: ToolDef[] = [...KNOWLEDGE_TOOLS, githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
+export const TOOLS: ToolDef[] = [...KNOWLEDGE_TOOLS, ...TODO_TOOLS, githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
 export const toolByName = (name: string) => TOOLS.find((t) => t.name === name);

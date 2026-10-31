@@ -213,4 +213,20 @@ export const MIGRATIONS: Migration[] = [
     `,
     down: `DROP TABLE memory_vectors;`,
   },
+  {
+    version: 7,
+    name: "todos",
+    up: `
+      CREATE TABLE todos (
+        id TEXT PRIMARY KEY,
+        text TEXT NOT NULL,
+        due_date TEXT,
+        done_at TEXT,
+        conversation_id TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX todos_open ON todos(done_at, created_at);
+    `,
+    down: `DROP TABLE todos;`,
+  },
 ];

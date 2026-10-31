@@ -60,6 +60,11 @@ export class MockProvider implements ModelProvider {
     // A personal fact ("my sister's birthday is March 3") → offer to remember it, like a real model is told to.
     const fact = /^(?:ultron[,\s]+)?my\s+(.{3,120}?)\s+(is|are|was)\s+(.{2,120}?)[.!]*$/i.exec(text);
     if (fact && has("save_memory")) return { name: "save_memory", args: { content: `Their ${fact[1]} ${fact[2]} ${fact[3]}` } };
+    const addTodo = /^add\s+(.+?)\s+to\s+my\s+(?:to-?do\s+)?list[.!]*$/i.exec(text);
+    if (addTodo && has("add_todo")) return { name: "add_todo", args: { items: addTodo[1]!.split(/\s*(?:,|\band\b)\s*/).filter(Boolean) } };
+    if (has("list_todos") && /what'?s on my (?:to-?do )?list|show my (?:to-?do )?list/i.test(text)) return { name: "list_todos", args: {} };
+    const did = /^(?:i (?:finished|did|paid|bought|called|sent)|tick off|mark)\s+(.+?)(?:\s+(?:as\s+)?done)?[.!]*$/i.exec(text);
+    if (did && has("complete_todo")) return { name: "complete_todo", args: { item: did[1] } };
     const url = /\bopen\s+(https?:\/\/\S+)/i.exec(text);
     if (url && has("open_website")) return { name: "open_website", args: { url: url[1] } };
     return null;
