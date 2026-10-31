@@ -76,6 +76,16 @@ export class ConversationStore {
     return this.db.prepare("DELETE FROM conversations WHERE id = ?").run(id).changes > 0;
   }
 
+  /** Removes the last thing the owner said and everything after it; returns what they said (for "try again"). */
+  popLastExchange(conversationId: string): Message | null {
+    const msgs = this.messages(conversationId);
+    const i = msgs.map((m) => m.role).lastIndexOf("user");
+    if (i < 0) return null;
+    const del = this.db.prepare("DELETE FROM messages WHERE id = ?");
+    for (const m of msgs.slice(i)) del.run(m.id);
+    return msgs[i]!;
+  }
+
   messages(conversationId: string, limit = 500): Message[] {
     const rows = this.db
       // rowid breaks ties: a user message and its reply placeholder are often written in the same millisecond.

@@ -399,6 +399,16 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     return { ok: true };
   });
 
+  // "Try again": drop the last exchange (so the brain doesn't see the answer being redone) and hand back what was asked.
+  app.post<{ Params: { id: string } }>("/api/conversations/:id/retry", async (req, reply) => {
+    if (!streams.start(req.params.id)) return reply.code(409).send({ error: "busy", message: "ULTRON is still answering. Stop it first." });
+    streams.finish(req.params.id);
+    const last = stores.conversations.popLastExchange(req.params.id);
+    if (!last) return reply.code(404).send({ error: "nothing", message: "There's nothing to try again yet." });
+    stores.audit.record("conversation.retry", "owner", req.params.id);
+    return { content: last.content, inputMode: last.inputMode };
+  });
+
   app.post<{ Params: { id: string } }>("/api/conversations/:id/messages", async (req, reply) => {
     const body = SendMessage.parse(req.body);
     if (!stores.conversations.get(req.params.id)) return reply.code(404).send({ error: "not_found", message: "Conversation not found." });

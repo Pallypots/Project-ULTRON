@@ -544,6 +544,10 @@ try {
   await page.locator(".msg--assistant", { hasText: "Good night:" }).waitFor();
   await page.locator(".msg--assistant", { hasText: "On your list" }).waitFor();
   step('Routines: "Good night" added in Settings runs its steps from one phrase');
+  await page.getByRole("button", { name: "↻ Try again" }).click();
+  await page.locator(".msg--assistant.msg--complete", { hasText: "Good night:" }).waitFor();
+  if ((await page.locator(".msg--user", { hasText: "good night" }).count()) !== 1) throw new Error("try again duplicated the question");
+  step("↻ Try again re-asks the last question without duplicating it");
 
   // ---- Phone access over Tailscale (simulated: the "phone" reaches ULTRON through a pretend tailnet address) ----
   const TAILNET = "e2e-pc.tail0000.ts.net";

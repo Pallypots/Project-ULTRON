@@ -177,6 +177,7 @@ textarea { resize: vertical; }
 .news { border: 1px solid var(--line-strong); border-radius: 12px; padding: 12px 14px; background: var(--panel); }
 .news ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.88rem; color: var(--muted); }
 .routine { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 0; display: grid; gap: 8px; }
+.retry { font-size: 0.8rem; margin-top: 4px; justify-self: start; }
 .talk-btn { justify-self: start; font-size: 1.05rem; padding: 12px 22px; border-color: var(--accent); box-shadow: var(--glow); }
 .hello { display: grid; gap: 4px; color: var(--text); padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 3px 0 0 var(--accent), var(--glow); animation: hello-in 400ms ease-out; }
 .hello__who { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }

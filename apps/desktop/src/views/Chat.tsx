@@ -299,6 +299,21 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
     }
   }, [seed, clearSeed, send]);
 
+  const retry = async () => {
+    const id = activeId;
+    if (!id || busy) return;
+    try {
+      const { content, inputMode } = await api.retry(id);
+      setMessages((cur) => {
+        const i = cur.map((m) => m.role).lastIndexOf("user");
+        return i < 0 ? cur : cur.slice(0, i);
+      });
+      await send(content, inputMode);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const stop = () => {
     stopSpeaking();
     abortRef.current?.abort();
@@ -355,6 +370,9 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
                 {m.content || (m.status === "streaming" ? <span className="typing" aria-label="ULTRON is thinking"><i /><i /><i /></span> : null)}
               </div>
               {m.toolEvents?.length > 0 && <ToolChips events={m.toolEvents} />}
+              {m.role === "assistant" && m.id === messages.at(-1)?.id && !busy && m.status !== "streaming" && (
+                <button type="button" className="link retry" onClick={retry} title="Ask again for a different answer">↻ Try again</button>
+              )}
               {(m.notice || m.citations?.length || m.status === "cancelled" || m.status === "error") && (
                 <div className="msg__meta">
                   {m.notice && <span className="tag tag--accent">{m.notice}</span>}

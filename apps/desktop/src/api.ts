@@ -299,6 +299,7 @@ export const api = {
   removeSearchKey: () => call<{ configured: boolean }>("DELETE", "/api/settings/search"),
   room: () => call<{ enabled: boolean }>("GET", "/api/voice/room"),
   setRoom: (enabled: boolean) => call<{ enabled: boolean }>("PUT", "/api/voice/room", { enabled }),
+  retry: (conversationId: string) => call<{ content: string; inputMode: "text" | "voice" }>("POST", `/api/conversations/${conversationId}/retry`),
   routines: () => call<{ routines: Routine[]; examples: Omit<Routine, "id">[] }>("GET", "/api/routines"),
   saveRoutines: (routines: Routine[]) => call<{ routines: Routine[] }>("PUT", "/api/routines", { routines }),
   checkin: () => call<{ checkin: CheckIn }>("GET", "/api/settings/checkin"),

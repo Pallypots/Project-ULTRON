@@ -208,3 +208,22 @@ describe("what's new after an update", () => {
     }
   });
 });
+
+describe("try again", () => {
+  it("removes the last exchange and hands back what was asked", async () => {
+    const { startGateway } = await import("./helpers.ts");
+    const g = await startGateway();
+    try {
+      const id = await g.newConversation();
+      await g.chat(id, "first question");
+      await g.chat(id, "second question");
+      const r = await g.api("POST", `/api/conversations/${id}/retry`);
+      expect(r.body).toEqual({ content: "second question", inputMode: "text" });
+      const left = (await g.api("GET", `/api/conversations/${id}`)).body.messages.map((m: { role: string; content: string }) => `${m.role}:${m.content.slice(0, 14)}`);
+      expect(left).toEqual(["user:first question", expect.stringMatching(/^assistant:/)]);
+      expect((await g.api("POST", `/api/conversations/${await g.newConversation()}/retry`)).status).toBe(404);
+    } finally {
+      await g.close();
+    }
+  });
+});
