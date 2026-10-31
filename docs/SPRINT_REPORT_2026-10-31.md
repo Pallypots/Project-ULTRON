@@ -158,6 +158,15 @@ pushed to GitHub and passes the automatic checks on GitHub's Windows and Linux m
 
 **Safety**
 - A **prompt-injection test suite**: hostile web pages and files can't make ULTRON save, forget, approve or send anything.
+- A **second independent security review** of tonight's code found 6 issues, all now fixed with tests:
+  - a phone-access address trick;
+  - disguised local addresses;
+  - "DNS rebinding";
+  - follow-up messages that could trigger a screenshot;
+  - phone settings that could loosen safety;
+  - a pairing lockout trick.
+
+  Details are in SECURITY.md.
 - Bugs found and fixed tonight:
   - A message sent right after "New conversation" could land in the previous conversation.
   - The GitHub "✓ posted" label could vanish.
@@ -171,7 +180,8 @@ pushed to GitHub and passes the automatic checks on GitHub's Windows and Linux m
 | Local brain, deep thinking on the bat-and-ball trick question | **correct (5 cents)** |
 | Meaning-based file search | "popping noise glitch" → the "audio crackle" notes (keyword search: nothing) |
 | Real Windows | 141 Start-menu apps found, media keys sent, screenshot captured (322 KB) |
-| Automated tests | **239 passed** |
+| Real everyday services (CI) | 100 USD = 89.51 EUR (ECB, Oct 30) · "serendipity" defined (Wiktionary) · Tokyo time, 9 h ahead |
+| Automated tests | **241 passed** |
 | Browser end-to-end test | **50 steps** on Windows and Linux, including routines, phone pairing and removal, calendar, opening apps, the voice effect and voice interruption |
 
 ## Try it this morning
