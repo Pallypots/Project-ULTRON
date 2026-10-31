@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { basename, extname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import type { FileIndexStore } from "@ultron/memory";
 import { docxText } from "./docx.ts";
+import { PDF_LIMITS, pdfText } from "./pdf.ts";
 
 const TEXT_EXT = new Set(
   "txt md markdown csv tsv json jsonl yaml yml toml ini cfg conf log xml html htm css js mjs cjs ts tsx jsx py rb go rs java kt c h cpp hpp cs php sh ps1 bat sql srt vtt tex rst org lua gd gdscript cmake gradle".split(" "),
@@ -64,6 +65,7 @@ export function chunkText(text: string, size = LIMITS.chunkChars): string[] {
 }
 
 export async function extractText(path: string, ext: string, size: number): Promise<string | null> {
+  if (ext === "pdf") return size > PDF_LIMITS.maxBytes ? null : pdfText(new Uint8Array(await readFile(path)), LIMITS.maxIndexChars);
   if (size > LIMITS.maxReadBytes) return null;
   if (ext === "docx") {
     try {

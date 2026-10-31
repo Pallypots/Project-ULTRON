@@ -40,6 +40,7 @@ Saying "yes" out loud never approves anything; only a click does. **Pause all ac
 Every action is listed in **Activity** with who asked for it and what happened.
 
 ## Files: ULTRON's "second brain"
+(Reads text, code, Word documents and PDFs. Scanned PDFs that are only pictures can't be read yet.)
 1. Open **Files** and paste a folder path (copy it from File Explorer's address bar), e.g. `C:\Users\you\Documents\Projects`. Click **Add folder**.
 2. ULTRON indexes it on your PC (names of all files; contents of text, code, CSV, Markdown and Word .docx files). It re-scans at startup and every 30 minutes, or click **Re-scan**.
 3. Ask things like "pull up the free school community", "what does my build log say about the shader cache?", "find my invoice for Mike Johnson".

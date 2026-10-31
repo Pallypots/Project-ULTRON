@@ -5,6 +5,8 @@
   is playing (Spotify, YouTube in the browser…). Instant, low-risk and logged.
 - **Open apps:** "open Spotify", "launch Notepad", "start Visual Studio Code". ULTRON finds the app in your Start menu and shows exactly which
   shortcut it will open; nothing runs until you click Approve. Only Start-menu shortcuts can be opened this way.
+- **PDFs in your second brain:** Files now indexes the text of PDFs (up to 25 MB / 300 pages; no OCR, so scanned pages without text
+  aren't readable), so "find the invoice for Mike Johnson" and reading a PDF work like any other document.
 - **"How's my PC doing?"** memory and disk use, battery, uptime and CPU.
 
 ## 0.15.0 · 2026-10-31 · Thinks harder, remembers better, never leaves you in silence
