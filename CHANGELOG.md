@@ -1,23 +1,26 @@
 # Changelog
 
+## 0.19.0 · 2026-10-31 · Sees, searches, follows through
+- **"Look at my screen"** (Windows): ask "what's this error on my screen?" and ULTRON takes one screenshot of your main screen and shows it to
+  the brain for that question only. Never taken unless you ask, never saved, shown as a chip and in Activity. With a local brain it stays on
+  your PC; with a cloud brain the chip says where it went. Needs a brain that can see: the recommended local brain gemma4:e2b
+  can (verified in CI: shown a red screen, it answered "Red."), as can Claude; ULTRON tells you if the current one can't.
+- **Web search (optional):** add a free Brave Search key in Settings → Web search (checked, stored encrypted) and ULTRON can search the web
+  for news, prices, opening hours and anything recent, then read the results. Links a search returned can be read without extra approval.
+- **Ultron voice effect** (Settings → Spoken replies, off by default): the local voice gets a little deeper with a faint metallic edge.
+- **Evening check-in:** at 9 p.m. (your choice) ULTRON asks how your day went, with a **Talk** button that opens a voice conversation.
+- **Follow-through after approvals:** when ULTRON asks to read a page you didn't give it, approving now lets it carry on and answer with
+  what it read (shown as "✓ Approved: …"), instead of stopping at the card. The result goes to the brain only, not into the chat history.
+- Fixed: the "✓ posted" label on GitHub issue cards could disappear.
+
 ## 0.18.0 · 2026-10-31 · Knows your schedule
 - **Calendar (read-only)** in Connections → Calendar: paste your calendar's private iCal link (Google, Outlook, iCloud). It's checked, stored
   encrypted, and never shown again. Ask "what's on my calendar today?", "what do I have tomorrow?", "what do I have this week?" (instant),
   and your morning briefing, greetings and catch-ups now include what's coming up. Understands time zones (including daylight-saving
   changes and Outlook's zone names), repeating events (daily/weekly on chosen days/monthly incl. "second Tuesday"/yearly, with end dates
   and counts), skipped and moved occurrences, cancelled events and all-day events. Cached for 10 minutes.
-- **Ultron voice effect** (Settings → Spoken replies, off by default): the local voice gets a little deeper with a faint metallic edge.
-- **Web search (optional):** add a free Brave Search key in Settings → Web search (checked, stored encrypted) and ULTRON can search the web
-  for news, prices, opening hours and anything recent, then read the results. Links a search returned can be read without extra approval.
-- **"Look at my screen"** (Windows): ask "what's this error on my screen?" and ULTRON takes one screenshot of your main screen and shows it to
-  the brain for that question only. Never taken unless you ask, never saved, shown as a chip and in Activity. With a local brain it stays on
-  your PC; with a cloud brain the chip says where it went. Needs a brain that can see (e.g. gemma3:4b or qwen2.5vl:7b locally, or Claude);
-  ULTRON tells you if the current one can't.
-- **Follow-through after approvals:** when ULTRON asks to read a page you didn't give it, approving now lets it carry on and answer with
-  what it read (shown as "✓ Approved: …"), instead of stopping at the card. The result goes to the brain only, not into the chat history.
-- **Evening check-in:** at 9 p.m. (your choice) ULTRON asks how your day went, with a **Talk** button that opens a voice conversation.
 - **Morning check-in:** ULTRON says good morning first, once a day at the time you choose (default 8:00, or when it starts later that
-  morning; never after noon): a pop-up and Windows notification with your day at a glance and a **Brief me** button. Settings → Morning check-in.
+  morning; never after noon): a pop-up and Windows notification with your day at a glance and a **Brief me** button. Settings → Check-ins.
 
 ## 0.17.0 · 2026-10-31 · ULTRON on your phone
 - **Phone access over Tailscale** (Settings → Phone access): talk to ULTRON from your phone anywhere, privately. ULTRON still runs only on
