@@ -358,7 +358,7 @@ try {
   step("Hands-free can be turned off, and on/off is recorded in Activity");
 
   // One click from Home: a fresh conversation that's already listening (no wake word for the first sentence).
-  await page.getByRole("button", { name: "Home" }).click();
+  await page.getByRole("button", { name: "Home", exact: true }).click();
   const firstWords = page.waitForRequest((r) => r.url().includes("/api/voice/transcribe") && !r.url().includes("mode=wake"), { timeout: 30000 });
   await page.getByRole("button", { name: "🎙 Talk to ULTRON" }).click();
   await page.locator(".listening--followup").waitFor();
@@ -373,7 +373,7 @@ try {
     localStorage.setItem("ultron.voice", JSON.stringify({ ...p, bargeIn: true, speakMode: "voice" }));
   });
   const interrupted = page.waitForEvent("console", { predicate: (m) => m.text().includes("[ultron] interrupted by voice"), timeout: 45000 });
-  await page.getByRole("button", { name: "Home" }).click();
+  await page.getByRole("button", { name: "Home", exact: true }).click();
   await page.getByRole("button", { name: "🎙 Talk to ULTRON" }).click();
   await interrupted;
   await page.locator(".msg--user", { hasText: "🎙 voice" }).nth(1).waitFor({ timeout: 30000 });
@@ -471,7 +471,7 @@ try {
   await page.getByLabel(/How it addresses you/).fill("sir");
   await page.getByRole("button", { name: "Save personality" }).click();
   await page.getByText("Saved. ULTRON's next reply uses the new personality.").waitFor();
-  await page.getByRole("button", { name: "Home" }).click();
+  await page.getByRole("button", { name: "Home", exact: true }).click();
   await page.getByRole("heading", { name: /, sir\.$/ }).waitFor();
   step("Personality editor: salutation saved and used on the Home screen");
   await page.getByRole("button", { name: "Good morning, brief me" }).click();
@@ -533,6 +533,18 @@ try {
   await mobile.screenshot({ path: join(shots, "05-mobile-width.png") });
   step("Layout works at phone width");
 
+  // ---- Routines ----
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: '+ Add "Good night"' }).click();
+  await page.getByText("Saved. Say a routine's phrase to run it.").waitFor();
+  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByRole("button", { name: "+ New conversation" }).click();
+  await page.getByLabel("Message ULTRON").fill("good night");
+  await page.getByLabel("Message ULTRON").press("Enter");
+  await page.locator(".msg--assistant", { hasText: "Good night:" }).waitFor();
+  await page.locator(".msg--assistant", { hasText: "On your list" }).waitFor();
+  step('Routines: "Good night" added in Settings runs its steps from one phrase');
+
   // ---- Phone access over Tailscale (simulated: the "phone" reaches ULTRON through a pretend tailnet address) ----
   const TAILNET = "e2e-pc.tail0000.ts.net";
   await page.getByRole("button", { name: "Settings" }).click();
@@ -572,7 +584,7 @@ try {
 
   server.kill();
   await page.waitForTimeout(800);
-  await page.getByRole("button", { name: "Home" }).click();
+  await page.getByRole("button", { name: "Home", exact: true }).click();
   await page.getByText("isn't responding").waitFor({ timeout: 12000 });
   step("UI shows a clear offline message when the service stops");
 } catch (err) {

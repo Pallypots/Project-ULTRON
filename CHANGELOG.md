@@ -13,6 +13,9 @@
   what it read (shown as "✓ Approved: …"), instead of stopping at the card. The result goes to the brain only, not into the chat history.
 - **Calendar heads-up:** a pop-up (and spoken alert) 10 minutes before each calendar event (5/10/15/30 min or off in Settings → Check-ins).
 - **Faster first answer:** opening ULTRON pre-loads the local brain into memory, so the first question doesn't wait for it to load.
+- **Routines** (Settings → Routines): one phrase runs several commands in a row, e.g. "good night" → pause the music, tomorrow's
+  calendar, your to-do list. Ready-made examples ("Good night", "Work mode", "I'm home") or write your own. Risky steps (like opening
+  an app) still ask for approval; steps that aren't instant commands are skipped with an explanation.
 - **Everyday answers, instant and exact:** unit conversion ("convert 5 miles to km", "72 F in C", "how many cups in a litre"), currency
   ("$50 in euros", today's European Central Bank rates), definitions ("define serendipity") and world time ("what time is it in Tokyo?").
   Free services, no accounts.

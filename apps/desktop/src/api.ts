@@ -103,6 +103,13 @@ export interface Reminder {
   createdAt: string;
   firedAt: string | null;
 }
+export interface Routine {
+  id: string;
+  name: string;
+  phrases: string[];
+  steps: string[];
+  enabled: boolean;
+}
 export interface CheckIn {
   enabled: boolean;
   time: string;
@@ -290,6 +297,8 @@ export const api = {
   searchSettings: () => call<{ configured: boolean }>("GET", "/api/settings/search"),
   saveSearchKey: (apiKey: string) => call<{ configured: boolean }>("PUT", "/api/settings/search", { apiKey }),
   removeSearchKey: () => call<{ configured: boolean }>("DELETE", "/api/settings/search"),
+  routines: () => call<{ routines: Routine[]; examples: Omit<Routine, "id">[] }>("GET", "/api/routines"),
+  saveRoutines: (routines: Routine[]) => call<{ routines: Routine[] }>("PUT", "/api/routines", { routines }),
   checkin: () => call<{ checkin: CheckIn }>("GET", "/api/settings/checkin"),
   saveCheckin: (c: CheckIn) => call<{ checkin: CheckIn }>("PUT", "/api/settings/checkin", c),
   calendar: () => call<{ calendar: { connected: boolean; lastSyncAt: string | null; error: string | null } }>("GET", "/api/calendar"),

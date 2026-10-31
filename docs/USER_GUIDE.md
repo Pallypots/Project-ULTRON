@@ -129,6 +129,11 @@ shows it to the brain to answer. It never looks unless you ask, the picture isn'
 local brain the picture never leaves your PC. Your brain must be able to see images: the recommended small local brain
 (**gemma4:e2b**) can, as can Claude; for some other local models ULTRON tells you it can't and suggests one that can.
 
+## Routines
+Settings → **Routines**: one phrase runs several things in a row. Click **+ Add "Good night"** (pause the music, tomorrow's calendar, your
+to-do list), then just say "good night". Make your own with **+ New routine**: give it a name, the phrases that start it, and one step per
+line, written the way you'd say them to ULTRON ("pause the music", "open spotify", "what's the weather", "remind me in 30 minutes to stretch").
+
 ## Controlling your PC (Windows)
 - **Music and volume:** "pause the music", "next song", "previous track", "turn it up", "turn it down a bit", "mute". These happen straight
   away (they're easy to undo) and are listed in Activity.

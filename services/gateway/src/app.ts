@@ -11,6 +11,7 @@ import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { RemoteAccess } from "./remote.ts";
 import { CalendarError, CalendarService } from "./calendar/service.ts";
 import { MorningCheckIn } from "./checkin.ts";
+import { loadRoutines, Routine, ROUTINE_EXAMPLES } from "./routines.ts";
 import { braveSearch, SEARCH_SECRET } from "./actions/knowledge.ts";
 import { currentCapabilities } from "./capabilities.ts";
 import { ActiveStreams, handleUserMessage } from "./chat.ts";
@@ -191,6 +192,15 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     secrets.set(SEARCH_SECRET, null);
     stores.audit.record("settings.search_key_removed", "owner");
     return { configured: false };
+  });
+
+  // ---- routines ----
+  app.get("/api/routines", async () => ({ routines: loadRoutines(stores.preferences), examples: ROUTINE_EXAMPLES }));
+  app.put("/api/routines", async (req) => {
+    const routines = z.array(Routine).max(30).parse((req.body as { routines?: unknown })?.routines);
+    stores.preferences.set("routines", routines);
+    stores.audit.record("settings.routines_changed", "owner", null, { count: routines.length });
+    return { routines };
   });
 
   // ---- morning check-in ----

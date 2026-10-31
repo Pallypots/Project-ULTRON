@@ -6,6 +6,7 @@ import { calculate } from "./actions/calc.ts";
 import { findApps } from "./actions/system.ts";
 import { convertUnits, parseConversion, parseMoney } from "./actions/units.ts";
 import { currencyCode } from "./actions/everyday.ts";
+import { matchRoutine } from "./routines.ts";
 import { captureScreen, wantsScreen } from "./system/screen.ts";
 import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
@@ -228,32 +229,44 @@ export async function handleUserMessage(
   }
 
   // Everyday commands answered by code: instant, and reliable even on a small local model.
-  let quick = intent.type === "chat" && !timeIntent && deps.actions ? detectQuickCommand(content) : null;
-  // Conversions are quick commands only if the units or currencies are real; otherwise the brain decides.
-  if (quick?.type === "convert" && !conversionFor(quick.text)) quick = null;
-  // "open X" is only a quick command if X really is an installed app; otherwise the brain decides what was meant.
-  if (quick?.type === "open_app" && !findApps(quick.name).length) quick = null;
-  // Maths the calculator can't parse goes to the brain instead of answering with an error.
-  if (quick?.type === "calculate") {
+  const quick = intent.type === "chat" && !timeIntent && deps.actions ? validQuick(content) : null;
+  const routine = intent.type === "chat" && !timeIntent && !quick && deps.actions ? matchRoutine(stores.preferences, content) : null;
+  const run: QuickRun = async (tool, args) => {
+    const r = await deps.actions!.propose(tool, args, { conversationId, requestedBy: "command" });
+    if (r.execution) recordTool(toEvent(r.execution));
+    let data: any = null;
     try {
-      calculate(quick.expression);
+      data = JSON.parse(r.resultForModel);
     } catch {
-      quick = null;
+      data = null;
     }
-  }
+    return { status: r.execution?.status ?? "failed", error: r.execution?.error ?? data?.error ?? null, data };
+  };
   if (quick && deps.actions) {
-    const run = async (tool: string, args: Record<string, unknown>) => {
-      const r = await deps.actions!.propose(tool, args, { conversationId, requestedBy: "command" });
-      if (r.execution) recordTool(toEvent(r.execution));
-      let data: any = null;
-      try {
-        data = JSON.parse(r.resultForModel);
-      } catch {
-        data = null;
-      }
-      return { status: r.execution?.status ?? "failed", error: r.execution?.error ?? data?.error ?? null, data };
-    };
     const text = await quickReply(quick, run, stores);
+    emit({ type: "delta", text });
+    return finish(text, "complete");
+  }
+  // A routine: each step runs as an instant command (risky ones still wait for approval).
+  if (routine && deps.actions) {
+    stores.audit.record("routine.run", "owner", routine.id, { name: routine.name, steps: routine.steps.length });
+    const lines: string[] = [];
+    for (const step of routine.steps) {
+      if (opts.signal.aborted) break;
+      const q = validQuick(step);
+      if (q) {
+        lines.push((await quickReply(q, run, stores)).replace(/\n/g, "\n   "));
+        continue;
+      }
+      const t = detectTimeIntent(step);
+      if (t?.type === "reminder") {
+        const r = await run("create_reminder", { text: t.text, minutes_from_now: Math.max((t.due.getTime() - Date.now()) / 60_000, 0.01) });
+        lines.push(r.status === "succeeded" ? `Reminder set: "${t.text}" ${t.label}.` : `Couldn't set the reminder "${t.text}".`);
+        continue;
+      }
+      lines.push(`Skipped "${step}": routines can run instant commands (music, apps, calendar, list, weather, reminders, conversions).`);
+    }
+    const text = `${routine.name}:\n${lines.map((l) => `• ${l}`).join("\n")}`;
     emit({ type: "delta", text });
     return finish(text, "complete");
   }
@@ -622,5 +635,23 @@ export function conversionFor(text: string): { kind: "units"; value: number; fro
   } catch {
     return null;
   }
+}
+
+/** A quick command, but only if it can really be answered by code (real units, real apps, parseable maths). */
+export function validQuick(content: string) {
+  const quick = detectQuickCommand(content);
+  // Conversions are quick commands only if the units or currencies are real; otherwise the brain decides.
+  if (quick?.type === "convert" && !conversionFor(quick.text)) return null;
+  // "open X" is only a quick command if X really is an installed app; otherwise the brain decides what was meant.
+  if (quick?.type === "open_app" && !findApps(quick.name).length) return null;
+  // Maths the calculator can't parse goes to the brain instead of answering with an error.
+  if (quick?.type === "calculate") {
+    try {
+      calculate(quick.expression);
+    } catch {
+      return null;
+    }
+  }
+  return quick;
 }
 
