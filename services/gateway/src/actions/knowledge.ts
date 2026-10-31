@@ -393,4 +393,74 @@ const webSearch: ToolDef<{ query: string }> = {
   },
 };
 
-export const KNOWLEDGE_TOOLS: ToolDef[] = [webSearch, calc, wikipedia, weather, readWebpage, saveMemory, searchConversations, aboutOwner];
+// ---- Watching pages ------------------------------------------------------------------------------------------
+
+const WatchInput = z
+  .object({
+    url: z.string().trim().url().max(2000),
+    look_for: z.string().trim().min(2).max(100).optional(),
+    every_minutes: z.number().int().min(15).max(1440).optional(),
+    label: z.string().trim().min(1).max(60).optional(),
+  })
+  .strict();
+const watchPage: ToolDef<z.infer<typeof WatchInput>> = {
+  name: "watch_page",
+  description:
+    "Keep an eye on a web page and tell the owner when it changes, or when it starts saying something (look_for, e.g. 'in stock'). Checks every 60 minutes by default (min 15) while ULTRON is running.",
+  input: WatchInput,
+  parameters: {
+    type: "object",
+    properties: {
+      url: { type: "string" },
+      look_for: { type: "string", description: "Text to wait for, e.g. 'in stock' (optional; otherwise any change)" },
+      every_minutes: { type: "integer", description: "How often to check (15–1440, default 60)" },
+      label: { type: "string", description: "Short name, e.g. 'Switch 2 price'" },
+    },
+    required: ["url"],
+    additionalProperties: false,
+  },
+  risk: 1,
+  // A page the owner gave is fine to keep checking; one the model chose needs approval (it would be fetched repeatedly).
+  riskFor: (i, ctx): Risk => (ownerMentioned(i.url, ctx) ? 1 : 2),
+  timeoutMs: 5000,
+  describe: (i) => `Watch ${(() => { try { return new URL(i.url).host; } catch { return i.url; } })()}${i.look_for ? ` for "${i.look_for}"` : " for changes"} (every ${i.every_minutes ?? 60} min)`,
+  run: async (i, ctx) => {
+    await assertPublic(new URL(i.url)).catch((e: Error) => {
+      if (process.env.ULTRON_ALLOW_PRIVATE_FETCH !== "1") throw e;
+    });
+    if (ctx.stores.watchers.active().length >= 20) throw new Error("Already watching 20 pages; stop one first.");
+    const w = ctx.stores.watchers.create({ url: i.url, label: i.label ?? new URL(i.url).host, lookFor: i.look_for ?? null, everyMinutes: i.every_minutes ?? 60, conversationId: ctx.conversationId });
+    return JSON.stringify({ ok: true, watching: w.label, look_for: w.lookFor ?? "any change", every_minutes: w.everyMinutes, note: "Checks only while ULTRON is running." });
+  },
+};
+
+const listWatchers: ToolDef<Record<string, never>> = {
+  name: "list_watchers",
+  description: "The web pages ULTRON is keeping an eye on.",
+  input: z.object({}).strict(),
+  parameters: { type: "object", properties: {}, additionalProperties: false },
+  risk: 0,
+  timeoutMs: 2000,
+  describe: () => "List the pages I'm watching",
+  run: async (_i, ctx) =>
+    JSON.stringify({ watching: ctx.stores.watchers.active().map((w) => ({ id: w.id.slice(0, 8), label: w.label, url: w.url, look_for: w.lookFor ?? "any change", every_minutes: w.everyMinutes, last_checked: w.lastCheckedAt, problem: w.lastError ?? undefined })) }),
+};
+
+const stopWatcher: ToolDef<{ which: string }> = {
+  name: "stop_watching",
+  description: "Stop watching a page (by its id from list_watchers, or words from its name/address).",
+  input: z.object({ which: z.string().trim().min(1).max(200) }).strict(),
+  parameters: { type: "object", properties: { which: { type: "string" } }, required: ["which"], additionalProperties: false },
+  risk: 1,
+  timeoutMs: 2000,
+  describe: (i) => `Stop watching "${i.which}"`,
+  run: async (i, ctx) => {
+    const q = i.which.toLowerCase();
+    const hits = ctx.stores.watchers.active().filter((w) => w.id.startsWith(q) || w.label.toLowerCase().includes(q) || w.url.toLowerCase().includes(q));
+    if (hits.length !== 1) return JSON.stringify({ ok: false, note: hits.length ? "Several match; which one?" : "No watched page matches.", candidates: hits.map((w) => w.label) });
+    ctx.stores.watchers.stop(hits[0]!.id);
+    return JSON.stringify({ ok: true, stopped: hits[0]!.label });
+  },
+};
+
+export const KNOWLEDGE_TOOLS: ToolDef[] = [watchPage, listWatchers, stopWatcher, webSearch, calc, wikipedia, weather, readWebpage, saveMemory, searchConversations, aboutOwner];

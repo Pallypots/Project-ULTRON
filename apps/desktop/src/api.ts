@@ -103,6 +103,15 @@ export interface Reminder {
   createdAt: string;
   firedAt: string | null;
 }
+export interface WatchedPage {
+  id: string;
+  url: string;
+  label: string;
+  lookFor: string | null;
+  everyMinutes: number;
+  lastCheckedAt: string | null;
+  lastError: string | null;
+}
 export interface Routine {
   id: string;
   name: string;
@@ -200,7 +209,7 @@ export type ServerEvent =
   | { type: "reminders_missed"; reminders: Reminder[] }
   | { type: "action_updated"; execution: ActionRecord }
   | { type: "connector_synced"; source: string; added: number }
-  | { type: "checkin"; title: string; body: string; kind: "morning" | "evening" | "meeting" };
+  | { type: "checkin"; title: string; body: string; kind: "morning" | "evening" | "meeting" | "watch" };
 
 /** Keeps a live connection for reminders and approvals; reconnects with backoff. Returns a stop function. */
 export function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {
@@ -300,6 +309,8 @@ export const api = {
   room: () => call<{ enabled: boolean }>("GET", "/api/voice/room"),
   setRoom: (enabled: boolean) => call<{ enabled: boolean }>("PUT", "/api/voice/room", { enabled }),
   retry: (conversationId: string) => call<{ content: string; inputMode: "text" | "voice" }>("POST", `/api/conversations/${conversationId}/retry`),
+  watchers: () => call<{ watchers: WatchedPage[] }>("GET", "/api/watchers"),
+  stopWatcher: (id: string) => call("DELETE", `/api/watchers/${id}`),
   routines: () => call<{ routines: Routine[]; examples: Omit<Routine, "id">[] }>("GET", "/api/routines"),
   saveRoutines: (routines: Routine[]) => call<{ routines: Routine[] }>("PUT", "/api/routines", { routines }),
   checkin: () => call<{ checkin: CheckIn }>("GET", "/api/settings/checkin"),

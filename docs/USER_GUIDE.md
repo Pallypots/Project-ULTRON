@@ -129,6 +129,16 @@ shows it to the brain to answer. It never looks unless you ask, the picture isn'
 local brain the picture never leaves your PC. Your brain must be able to see images: the recommended small local brain
 (**gemma4:e2b**) can, as can Claude; for some other local models ULTRON tells you it can't and suggests one that can.
 
+## Watching pages
+"Let me know when shop.example.com/switch says in stock" or "watch example.com/deal" (changes of any kind). ULTRON checks every hour
+while it's running and tells you (pop-up, notification and voice). Clock-only changes are ignored. See and stop watched pages on the
+Reminders page, or say "stop watching …".
+
+## Room awareness (hands-free, opt-in)
+Settings → Voice → **Room awareness**: while hands-free is on, ULTRON keeps the last 3 minutes of what it hears around it in memory only, so
+you can be chatting with someone and say "Ultron, what do you think?". It's never saved, it's forgotten when you turn hands-free off, and
+it's only used with a local brain.
+
 ## Routines
 Settings → **Routines**: one phrase runs several things in a row. Click **+ Add "Good night"** (pause the music, tomorrow's calendar, your
 to-do list), then just say "good night". Make your own with **+ New routine**: give it a name, the phrases that start it, and one step per

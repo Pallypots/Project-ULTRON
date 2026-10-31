@@ -10,6 +10,7 @@ import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { RemoteAccess } from "./remote.ts";
 import { RoomContext } from "./voice/room.ts";
+import { WatcherService } from "./watchers.ts";
 import { CalendarError, CalendarService } from "./calendar/service.ts";
 import { MorningCheckIn } from "./checkin.ts";
 import { loadRoutines, Routine, ROUTINE_EXAMPLES } from "./routines.ts";
@@ -37,7 +38,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.20.0";
+export const VERSION = "0.21.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -48,6 +49,7 @@ export interface Gateway {
   logLines: string[];
   summarizer: Summarizer;
   room: RoomContext;
+  watchers: WatcherService;
 }
 
 export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Promise<Gateway> {
@@ -125,6 +127,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   actions.secrets = secrets;
   const checkIn = new MorningCheckIn(stores, bus, calendar);
   checkIn.start();
+  const watchers = new WatcherService(stores, bus);
+  watchers.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
   const deps = { room, calendar, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
@@ -196,6 +200,14 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     secrets.set(SEARCH_SECRET, null);
     stores.audit.record("settings.search_key_removed", "owner");
     return { configured: false };
+  });
+
+  // ---- watched pages ----
+  app.get("/api/watchers", async () => ({ watchers: stores.watchers.active() }));
+  app.delete<{ Params: { id: string } }>("/api/watchers/:id", async (req, reply) => {
+    if (!stores.watchers.stop(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    stores.audit.record("watcher.stopped", "owner", req.params.id);
+    return { ok: true };
   });
 
   // ---- room awareness ----
@@ -824,13 +836,14 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     scheduler.stop();
     summarizer.stop();
     checkIn.stop();
+    watchers.stop();
     files.stop();
     connectors.stop();
     streams.stopAll();
     stores.close();
   });
 
-  return { app, stores, token, config, logLines, summarizer, room };
+  return { app, stores, token, config, logLines, summarizer, room, watchers };
 }
 
 function cmpVersion(a: string, b: string): number {

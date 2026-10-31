@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.21.0 · 2026-10-31 · Ideas from other Jarvis builders
+Researched how others build their own Jarvis assistants (isair/jarvis, OpenJarvis) and brought over the best ideas:
+- **Room awareness (opt-in, Settings → Voice):** in hands-free, ULTRON keeps the last 3 minutes of conversation around it in memory
+  (never saved, cleared when hands-free stops) so "Ultron, what do you think?" follows what was just said. Local brain only.
+- **↻ Try again** under ULTRON's last answer: redo it without the old answer influencing the new one.
+- **Privacy shield:** card numbers, passwords, API keys, ID and bank numbers are replaced with labels before anything goes to a cloud
+  brain (a 🛡 chip says how many). Local brains see the original; ULTRON's own copy is untouched.
+- **Watch a page:** "tell me when shop.com/switch says in stock", "watch example.com/deal". ULTRON checks every hour (while running) and
+  pops up / speaks when it changes or says what you're waiting for. Listed on the Reminders page with Stop buttons.
+
 ## 0.20.0 · 2026-10-31 · Routines and everyday answers
 - **Routines** (Settings → Routines): one phrase runs several commands in a row, e.g. "good night" → pause the music, tomorrow's
   calendar, your to-do list. Ready-made examples ("Good night", "Work mode", "I'm home") or write your own. Risky steps (like opening

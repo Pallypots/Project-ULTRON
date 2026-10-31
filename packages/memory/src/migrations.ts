@@ -298,4 +298,26 @@ export const MIGRATIONS: Migration[] = [
     `,
     down: `DROP TABLE devices;`,
   },
+  {
+    version: 12,
+    name: "watchers",
+    // Web pages ULTRON keeps an eye on for the owner ("tell me when this page changes / says 'in stock'").
+    up: `
+      CREATE TABLE watchers (
+        id TEXT PRIMARY KEY,
+        url TEXT NOT NULL,
+        label TEXT NOT NULL,
+        look_for TEXT,
+        every_minutes INTEGER NOT NULL,
+        last_hash TEXT,
+        last_checked_at TEXT,
+        last_changed_at TEXT,
+        last_error TEXT,
+        conversation_id TEXT,
+        created_at TEXT NOT NULL,
+        stopped_at TEXT
+      );
+    `,
+    down: `DROP TABLE watchers;`,
+  },
 ];

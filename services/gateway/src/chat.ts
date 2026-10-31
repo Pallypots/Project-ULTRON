@@ -593,6 +593,14 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       const d = r.data.hours_ahead_of_you as number;
       return `It's ${r.data.time} in ${r.data.place}${d === 0 ? " (same time as you)" : ` (${Math.abs(d)} hour${Math.abs(d) === 1 ? "" : "s"} ${d > 0 ? "ahead of" : "behind"} you)`}.`;
     }
+    case "watch": {
+      const r = await run("watch_page", { url: q.url, ...(q.lookFor ? { look_for: q.lookFor } : {}) });
+      if (r.status === "awaiting_approval") return "Watching that page needs your OK: click Approve on the card below.";
+      if (r.status !== "succeeded") return failed(r);
+      return q.lookFor
+        ? `I'll keep an eye on ${r.data.watching} and tell you when it says "${q.lookFor}". I check every ${r.data.every_minutes} minutes while I'm running.`
+        : `I'll keep an eye on ${r.data.watching} and tell you when it changes. I check every ${r.data.every_minutes} minutes while I'm running.`;
+    }
     case "lock_pc": {
       const r = await run("lock_pc", {});
       return r.status === "succeeded" ? "Locking your PC. See you on the other side of the password." : failed(r);

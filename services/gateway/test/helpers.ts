@@ -16,6 +16,7 @@ export function indexableFolder(prefix: string): string {
 // Tests don't download the real embedding model (each gateway has its own temp data folder); see embeddings tests.
 process.env.ULTRON_EMBEDDINGS ??= "off";
 process.env.ULTRON_CHECKIN ??= "off"; // tests call the morning check-in directly
+process.env.ULTRON_WATCHERS ??= "off"; // and the page watcher
 
 export async function startGateway(dataDir = tmpDataDir()) {
   const gw = await buildGateway({ dataDir, uiDir: null, mockDelayMs: 0, logLevel: "info" });

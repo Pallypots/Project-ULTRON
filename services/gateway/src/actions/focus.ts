@@ -16,6 +16,7 @@ const GROUPS: { when: RegExp; tools: string[] }[] = [
   { when: /\b(currency|exchange rate|dollars?|euros?|pounds?|yen|rupees?|bucks|usd|eur|gbp|[$€£¥])\b|[$€£¥]\d/i, tools: ["convert_currency"] },
   { when: /\b(define|definition|meaning of|what does .+ mean|spell|synonym)\b/i, tools: ["define_word"] },
   { when: /\b(time (?:is it )?in|time zone|timezone|what time .+ in)\b/i, tools: ["world_time"] },
+  { when: /\b(watch|monitor|keep an eye|let me know when|tell me when|in stock|back in stock|price drop|changes?)\b/i, tools: ["watch_page", "list_watchers", "stop_watching"] },
   { when: /\b(weather|rain|raining|snow|forecast|temperature|cold|hot|sunny|umbrella|jacket|wind)\b/i, tools: ["get_weather"] },
   { when: /\b(github|repo|repository|issues?|commits?|pull requests?|prs?|ci|builds?)\b|what'?s new|any updates/i, tools: ["connected_updates", "github_create_issue"] },
   { when: /\b(morning|brief|briefing|my day|catch me up|agenda|today)\b/i, tools: ["daily_briefing"] },

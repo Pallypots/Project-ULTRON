@@ -14,7 +14,8 @@ export type QuickCommand =
   | { type: "convert"; text: string }
   | { type: "define"; word: string }
   | { type: "world_time"; place: string }
-  | { type: "lock_pc" };
+  | { type: "lock_pc" }
+  | { type: "watch"; url: string; lookFor: string | null };
 
 const LEAD = /^\s*(?:(?:hey|ok|okay)\s+)?(?:ultron[\s,:!.-]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?/i;
 const TAIL = /(?:[\s,]+please)?[\s?.!]*$/i;
@@ -35,6 +36,11 @@ export function detectQuickCommand(message: string): QuickCommand | null {
   // "open spotify", "launch notepad": the gateway only uses this if such an app really is in the Start menu.
   const app = /^(?:open|launch|start|run)(?: up)?(?: the)?\s+([\p{L}\p{N}][\p{L}\p{N} .+&'-]{0,40}?)(?:\s+app)?$/iu.exec(m);
   if (app && !/\b(my|file|folder|document|website|page|link|door|doors|window)\b/i.test(app[1]!)) return { type: "open_app", name: app[1]!.trim() };
+
+  // "watch example.com/deal", "tell me when example.com/deal changes", "let me know when <link> says in stock"
+  const watch = /^(?:watch|keep an eye on|monitor|(?:tell|let) me (?:know )?when)\s+(\S+?)(?:\s+(?:changes|updates)|\s+(?:says|shows|has|mentions|contains)\s+["“]?(.+?)["”]?)?$/i.exec(m);
+  if (watch && (DOMAIN.test(watch[1]!) || /^https?:\/\/\S+$/i.test(watch[1]!)) && (/^(?:watch|keep|monitor)/i.test(m) || /changes|updates|says|shows|has|mentions|contains/i.test(m)))
+    return { type: "watch", url: /^https?:\/\//i.test(watch[1]!) ? watch[1]! : `https://${watch[1]}`, lookFor: watch[2]?.trim() || null };
 
   if (/^lock (?:my |the )?(?:pc|computer|laptop|screen|desktop)(?: now)?$/i.test(m)) return { type: "lock_pc" };
 

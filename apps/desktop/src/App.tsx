@@ -86,7 +86,7 @@ export function App() {
         setRemindersKey((k) => k + 1);
       } else if (e.type === "checkin") {
         // ULTRON reaching out first: a morning summary with a button for the full briefing.
-        if (e.kind === "meeting") {
+        if (e.kind === "meeting" || e.kind === "watch") {
           toast({ kind: "reminder", title: e.title, body: e.body });
           if ("Notification" in window && Notification.permission === "granted") new Notification(`ULTRON: ${e.title}`, { body: e.body, icon: "/ultron.svg" });
           if (loadVoicePrefs().speakMode !== "never")
@@ -94,7 +94,7 @@ export function App() {
               speaker.current?.stop();
               const sp = new Speaker(() => s.engine, () => loadVoicePrefs().browserVoice, () => s.speed);
               sp.unlock();
-              sp.enqueue([`Heads up: ${e.body}, ${e.title.replace("📅 ", "").toLowerCase()}.`]);
+              sp.enqueue([e.kind === "watch" ? `Heads up: ${e.body.replace(/\s+https?:\/\/\S+$/, "")}` : `Heads up: ${e.body}, ${e.title.replace("📅 ", "").toLowerCase()}.`]);
               speaker.current = sp;
             }).catch(() => {});
           return;

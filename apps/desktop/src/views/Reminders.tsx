@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Reminder } from "../api.ts";
 import { TodoPanel } from "./Todos.tsx";
+import { WatchersPanel } from "./WatchersPanel.tsx";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 function countdown(iso: string, now: number) {
@@ -65,6 +66,7 @@ export function RemindersView({ refreshKey }: { refreshKey: number }) {
       </header>
 
       <TodoPanel refreshKey={refreshKey} />
+      <WatchersPanel refreshKey={refreshKey} />
 
       <form className="panel add-memory" onSubmit={add}>
         <label htmlFor="rem-text" className="sr-only">Reminder</label>
