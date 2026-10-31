@@ -16,7 +16,9 @@ const toOllamaMessages = (system: string, turns: ChatTurn[]) => [
       ? { role: "tool", content: t.content, tool_name: t.name }
       : t.role === "assistant" && t.toolCalls?.length
         ? { role: "assistant", content: t.content, tool_calls: t.toolCalls.map((c) => ({ function: { name: c.name, arguments: c.args } })) }
-        : { role: t.role, content: t.content },
+        : t.role === "user" && t.images?.length
+          ? { role: "user", content: t.content, images: t.images }
+          : { role: t.role, content: t.content },
   ),
 ];
 
@@ -41,6 +43,18 @@ export class OllamaProvider implements ModelProvider {
     // gpt-oss can't fully disable reasoning; others accept false. Deep thinking turns reasoning on (hidden from the answer).
     if (this.model.startsWith("gpt-oss")) return deep ? "high" : "low";
     return deep ? true : false;
+  }
+
+  /** What this model can do according to Ollama ("vision", "tools", "thinking"…), or null if unknown. */
+  async capabilities(): Promise<string[] | null> {
+    try {
+      const res = await this.fetchImpl(`${this.baseUrl}/api/show`, { method: "POST", body: JSON.stringify({ model: this.model }), signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return null;
+      const caps = ((await res.json()) as { capabilities?: string[] }).capabilities;
+      return Array.isArray(caps) ? caps : null;
+    } catch {
+      return null;
+    }
   }
 
   async *stream(req: ModelRequest): AsyncIterable<string> {

@@ -119,7 +119,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const checkIn = new MorningCheckIn(stores, bus, calendar);
   checkIn.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
-  const deps = { calendar, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+  const deps = { calendar, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
   const summarizer = new Summarizer(deps, () => streams.size > 0);

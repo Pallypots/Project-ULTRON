@@ -17,6 +17,14 @@ function toAnthropicMessages(turns: ChatTurn[]): Anthropic.MessageParam[] {
         role: "assistant",
         content: [...(t.content ? [{ type: "text" as const, text: t.content }] : []), ...t.toolCalls.map((c) => ({ type: "tool_use" as const, id: c.id, name: c.name, input: c.args }))],
       });
+    } else if (t.role === "user" && t.images?.length) {
+      out.push({
+        role: "user",
+        content: [
+          ...t.images.map((data) => ({ type: "image" as const, source: { type: "base64" as const, media_type: (data.startsWith("iVBOR") ? "image/png" : "image/jpeg") as "image/png" | "image/jpeg", data } })),
+          { type: "text" as const, text: t.content },
+        ],
+      });
     } else out.push({ role: t.role, content: t.content });
   }
   return out;

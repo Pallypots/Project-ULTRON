@@ -12,7 +12,15 @@ const toOpenAIMessages = (system: string, turns: ChatTurn[]): OpenAI.ChatComplet
             content: t.content,
             ...(t.toolCalls?.length ? { tool_calls: t.toolCalls.map((c) => ({ id: c.id, type: "function" as const, function: { name: c.name, arguments: JSON.stringify(c.args) } })) } : {}),
           }
-        : { role: "user", content: t.content },
+        : t.images?.length
+          ? {
+              role: "user",
+              content: [
+                ...t.images.map((d) => ({ type: "image_url" as const, image_url: { url: `data:${d.startsWith("iVBOR") ? "image/png" : "image/jpeg"};base64,${d}` } })),
+                { type: "text" as const, text: t.content },
+              ],
+            }
+          : { role: "user", content: t.content },
   ),
 ];
 

@@ -4,6 +4,8 @@ import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner
 import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
 import { calculate } from "./actions/calc.ts";
 import { findApps } from "./actions/system.ts";
+import { captureScreen, wantsScreen } from "./system/screen.ts";
+import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
 import { eventLine, type CalendarService } from "./calendar/service.ts";
@@ -30,6 +32,7 @@ export interface ChatDeps {
   actions?: ActionRunner;
   embeddings?: EmbeddingService;
   calendar?: CalendarService;
+  dataDir?: string;
 }
 
 const MAX_TOOL_ROUNDS = 4;
@@ -312,6 +315,36 @@ export async function handleUserMessage(
   });
   const turns: ChatTurn[] = turnsSoFar;
 
+  // "Look at my screen": one screenshot, attached to this message for the brain only. Never stored, never taken unasked.
+  if (wantsScreen(content)) {
+    const seeing = await canSee(provider as Parameters<typeof canSee>[0]);
+    if (!seeing.ok) {
+      emit({ type: "delta", text: seeing.why });
+      return finish(seeing.why, "complete");
+    }
+    try {
+      const shot = await captureScreen(deps.dataDir ?? tmpdir());
+      const last = turns.at(-1);
+      if (last?.role === "user") turns[turns.length - 1] = { ...last, images: [shot] };
+      const local = provider.id === "ollama" || provider.id === "mock";
+      const exec = stores.actions.create({
+        conversationId,
+        tool: "look_at_screen",
+        input: {},
+        risk: 0,
+        requestedBy: "owner",
+        summary: local ? "Showed your screen to the local brain (stays on this PC, not saved)" : `Showed your screen to the cloud brain (${provider.id}); not saved by ULTRON`,
+        status: "succeeded",
+      });
+      stores.audit.record("screen.shared", "owner", exec.id, { provider: provider.id, kb: Math.round((shot.length * 3) / 4 / 1024) });
+      recordTool(toEvent(exec));
+    } catch (err) {
+      const text = `I couldn't look at your screen: ${(err as Error).message}`;
+      emit({ type: "delta", text });
+      return finish(text, "complete");
+    }
+  }
+
   let text = "";
   let lastFlush = Date.now();
   let callsThisTurn = 0;
@@ -519,5 +552,16 @@ export async function calendarSoon(calendar?: CalendarService): Promise<string[]
     .then((ev) => ev.slice(0, 4).map((e) => `calendar ${eventLine(e)}`))
     .catch(() => []);
   return Promise.race([soon, new Promise<string[]>((r) => setTimeout(() => r([]), 3000))]);
+}
+
+/** Whether the current brain can look at images; local models are asked, cloud models can. */
+async function canSee(provider: { id: string; model: string; capabilities?: () => Promise<string[] | null> }): Promise<{ ok: true } | { ok: false; why: string }> {
+  if (provider.id !== "ollama") return { ok: true };
+  const caps = await provider.capabilities?.();
+  if (!caps || caps.includes("vision")) return { ok: true };
+  return {
+    ok: false,
+    why: `Your current local brain (${provider.model}) can't see images. Download a model that can, like gemma3:4b or qwen2.5vl:7b, in Settings → Language model → Local AI, switch to it, and ask me again.`,
+  };
 }
 

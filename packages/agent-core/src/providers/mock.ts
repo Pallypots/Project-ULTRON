@@ -18,7 +18,10 @@ export class MockProvider implements ModelProvider {
       if (/"(status|error)":\s*"?(refused|failed)|"error":/.test(lastTurn.content)) return `I couldn't do that. The ${lastTurn.name} tool said: ${lastTurn.content}`;
       return `Done. The ${lastTurn.name} tool reported: ${lastTurn.content}`;
     }
-    const last = [...req.messages].reverse().find((m) => m.role === "user")?.content ?? "";
+    const lastUser = [...req.messages].reverse().find((m) => m.role === "user");
+    const last = lastUser?.content ?? "";
+    // The test brain can't see, but it says honestly what it was given.
+    if (lastUser?.role === "user" && lastUser.images?.length) return `I was shown ${lastUser.images.length} image${lastUser.images.length > 1 ? "s" : ""} (${lastUser.images.map((i) => `${Math.round((i.length * 3) / 4 / 1024)} KB`).join(", ")}). The test brain can't actually see; switch to a vision-capable brain to describe it.`;
     const parts: string[] = [];
     if (req.capabilities?.length && /what can you do|capabilit|what are you able/i.test(last)) {
       parts.push("Here's exactly what I can do right now:");

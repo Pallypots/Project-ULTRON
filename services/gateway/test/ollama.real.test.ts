@@ -74,6 +74,10 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     const bat = replyText(await g.chat(await g.newConversation(), "Think hard about this: a bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost?")).replace(/\s+/g, " ");
     ciNote("Local brain deep thinking", `correct=${/(?:\b5 cents|\$\s*0?\.05\b|\bfive cents|\b0\.05\b)/i.test(bat)} said10=${/(?:\$\s*0?\.10\b|\b10 cents)\s*(?:for|is the|\.)/i.test(bat)} took=${Date.now() - t6}ms ending="…${bat.slice(-220)}"`);
 
+    // Informational: can this model see images (for "look at my screen")?
+    const { OllamaProvider } = await import("@ultron/agent-core");
+    ciNote("Local brain abilities", `${MODEL}: ${JSON.stringify(await new OllamaProvider({ model: MODEL }).capabilities())}`);
+
     // Informational: the note ULTRON writes itself about a finished conversation.
     const t5 = Date.now();
     const persona = () => loadPersona(new URL("../../../config/persona.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));

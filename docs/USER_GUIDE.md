@@ -120,6 +120,12 @@ calendar, so only paste it into ULTRON's settings, never into chats or emails.)
 The phone can chat, talk, approve actions and use the stop button. API keys, folders, connections and paired devices can only be changed
 on the PC. Remove a phone in Settings → Phone access and it's locked out at once. ULTRON has to be running on the PC.
 
+## "Look at my screen"
+Ask "Ultron, what's on my screen?" or "look at my screen, what's this error?" and ULTRON takes **one** screenshot of your main screen and
+shows it to the brain to answer. It never looks unless you ask, the picture isn't saved, and the chat shows a 📸 chip each time. With a
+local brain the picture never leaves your PC. Your brain must be able to see images: locally, download e.g. **gemma3:4b** (or
+**qwen2.5vl:7b** on a stronger PC) in Settings → Local AI; Claude can too. ULTRON tells you if the current brain can't.
+
 ## Controlling your PC (Windows)
 - **Music and volume:** "pause the music", "next song", "previous track", "turn it up", "turn it down a bit", "mute". These happen straight
   away (they're easy to undo) and are listed in Activity.

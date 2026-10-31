@@ -45,6 +45,11 @@ connection (low impact: only GET, response treated as data).
 Models can claim actions they never took. Every action appears as a card from the action log (never from model text), and replies that
 claim an action when none ran get a visible correction plus a `model.unbacked_claim` audit entry.
 
+## Screen (v0.18)
+Screenshots are taken only when the owner's own message asks (no tool lets a model request one), one per message, attached to that model
+call only, written to a temp file that is deleted immediately, and never stored in the database, logs or history. Each capture is an
+Activity entry and a visible chip naming where it went (local brain vs the named cloud provider).
+
 ## Calendar (v0.18)
 The private iCal link is a bearer secret: stored in the secret store (DPAPI on Windows), never returned by the API, PC-only to change, https
 only, fetched with the same public-address checks as web pages (no localhost/LAN), 5 MB cap. Event titles can come from other people's

@@ -7,7 +7,8 @@ export interface ToolCall {
 }
 
 export type ChatTurn =
-  | { role: "user"; content: string }
+  /** `images`: base64 JPEG/PNG the owner chose to share this turn (e.g. a screenshot); only sent to the brain, never stored. */
+  | { role: "user"; content: string; images?: string[] }
   | { role: "assistant"; content: string; toolCalls?: ToolCall[] }
   | { role: "tool"; content: string; toolCallId: string; name: string };
 
