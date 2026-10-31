@@ -55,7 +55,7 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
 
     // Informational: does it hand maths to the calculator, and does the personality come through?
     const t3 = Date.now();
-    const maths = await g.chat(await g.newConversation(), "What is 1299 times 0.85, plus 4.99?");
+    const maths = await g.chat(await g.newConversation(), "I'm buying a $1299 laptop with 15% off, plus $4.99 shipping. What do I pay in total?");
     const mathTools = maths.filter((e) => e.type === "tool").map((e: any) => `${e.event.tool}:${e.event.status}`);
     const mathSummary = `tools=${JSON.stringify(mathTools)} correct=${/1,?109\.14/.test(replyText(maths))} reply=${Date.now() - t3}ms text="${replyText(maths).replace(/\s+/g, " ").slice(0, 160)}"`;
 

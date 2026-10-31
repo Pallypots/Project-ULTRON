@@ -52,6 +52,8 @@ on GitHub's Windows and Linux machines.
 | Live weather (CI) | Boston: 54°F, clear sky, 3-day forecast |
 | Reading a real web page (CI) | example.com: "Example Domain" |
 | Real local brain (gemma4:e2b, CI) | "Paris is the capital of France." When it claimed an action it never took, the honesty check corrected it |
+| Real local brain personality (CI), asked "I'm back, tell me a joke" | *"Well, well, look who has returned from the mortal coil! I was beginning to suspect you'd been abducted by an inferior sentient being… Why did the scarecrow win an award? Because he was outstanding in his field!"* |
+| Bug found by that CI run | "What is 1299 times 0.85, plus 4.99?" failed on the comma; **fixed**, and maths ULTRON can't parse now goes to the brain |
 
 ## Try it (10 minutes)
 1. Update: on GitHub, **Code → Download ZIP**, extract it over your folder, then run **Start-ULTRON.bat**.
