@@ -41,6 +41,20 @@ const calc: ToolDef<{ expression: string }> = {
   run: async (i) => JSON.stringify({ expression: i.expression, result: tidy(calculate(i.expression)) }),
 };
 
+/** Up to `n` Wikipedia articles for a query, with plain text (for research). */
+export async function wikiArticles(query: string, n = 2, chars = 3000): Promise<{ title: string; url: string; text: string }[]> {
+  const search = await getJson(`${WIKI()}/w/rest.php/v1/search/title?q=${encodeURIComponent(query)}&limit=${n}`);
+  const pages: { key: string; title: string }[] = search?.pages ?? [];
+  const out: { title: string; url: string; text: string }[] = [];
+  for (const p of pages.slice(0, n)) {
+    const data = await getJson(`${WIKI()}/w/api.php?action=query&prop=extracts&explaintext=1&exsectionformat=plain&redirects=1&format=json&titles=${encodeURIComponent(p.title)}`).catch(() => null);
+    const page = Object.values((data?.query?.pages ?? {}) as Record<string, { extract?: string }>)[0];
+    const text = String(page?.extract ?? "").replace(/\s+/g, " ").trim();
+    if (text) out.push({ title: p.title, url: `https://en.wikipedia.org/wiki/${encodeURIComponent(p.key)}`, text: text.slice(0, chars) });
+  }
+  return out;
+}
+
 const wikipedia: ToolDef<{ topic: string }> = {
   name: "lookup_wikipedia",
   description: "Look up a person, place, thing or event on Wikipedia and get a short summary. Use it for factual questions you aren't sure about instead of guessing, and say the answer came from Wikipedia.",

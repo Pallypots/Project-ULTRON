@@ -38,7 +38,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.21.0";
+export const VERSION = "0.22.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -130,7 +130,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const watchers = new WatcherService(stores, bus);
   watchers.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
-  const deps = { room, calendar, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+  const deps = { files, similarFiles: (q: string) => embeddings.similarFiles(q), room, calendar, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
   // Pre-load the local brain when the owner opens ULTRON (at most every 5 minutes), so the first answer is quick.

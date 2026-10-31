@@ -37,9 +37,12 @@ export function App() {
   const [chatSeed, setChatSeed] = useState<string | null>(null);
   const [talkNow, setTalkNow] = useState(false);
   const [needPair, setNeedPair] = useState(false);
+  const [seedSpeak, setSeedSpeak] = useState(false);
   useEffect(() => {
     const ask = (e: Event) => {
-      setChatSeed((e as CustomEvent<string>).detail);
+      const d = (e as CustomEvent<string | { text: string; speak?: boolean }>).detail;
+      setChatSeed(typeof d === "string" ? d : d.text);
+      setSeedSpeak(typeof d !== "string" && Boolean(d.speak));
       setView("chat");
     };
     const talk = () => {
@@ -102,7 +105,7 @@ export function App() {
         toast(
           e.kind === "evening"
             ? { kind: "info", title: `🌙 ${e.title}`, body: e.body, action: { label: "Talk", run: () => window.dispatchEvent(new Event("ultron-talk")) } }
-            : { kind: "info", title: `☀ ${e.title}`, body: e.body, action: { label: "Brief me", run: () => window.dispatchEvent(new CustomEvent("ultron-ask", { detail: "Good morning, brief me" })) } },
+            : { kind: "info", title: `☀ ${e.title}`, body: e.body, action: { label: "Brief me", run: () => window.dispatchEvent(new CustomEvent("ultron-ask", { detail: { text: "Good morning, brief me", speak: true } })) } },
         );
         if ("Notification" in window && Notification.permission === "granted") new Notification(`ULTRON: ${e.title}`, { body: e.body, icon: "/ultron.svg" });
       } else if (e.type === "connector_synced") {
@@ -170,7 +173,7 @@ export function App() {
           </div>
         )}
         {view === "home" && <HomeView status={status} core={effectiveCore} onAsk={(q) => { setChatSeed(q); go("chat"); }} onTalk={() => { setTalkNow(true); go("chat"); }} onNavigate={go} />}
-        {view === "chat" && <ChatView onCoreState={setCoreState} core={effectiveCore} seed={chatSeed} clearSeed={() => setChatSeed(null)} talk={talkNow} clearTalk={() => setTalkNow(false)} status={status} onChanged={refreshStatus} />}
+        {view === "chat" && <ChatView onCoreState={setCoreState} core={effectiveCore} seed={chatSeed} seedSpeak={seedSpeak} clearSeed={() => { setChatSeed(null); setSeedSpeak(false); }} talk={talkNow} clearTalk={() => setTalkNow(false)} status={status} onChanged={refreshStatus} />}
         {view === "reminders" && <RemindersView refreshKey={remindersKey} />}
         {view === "files" && <FilesView />}
         {view === "connections" && <ConnectionsView onAsk={(q) => { setChatSeed(q); go("chat"); }} />}

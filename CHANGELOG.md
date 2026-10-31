@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.22.0 · 2026-10-31 · Deep research
+Researched how others do local deep research (Local Deep Research, open_deep_research): plan → search → read → synthesize with citations.
+- **Deep research:** "research solid-state batteries", "do some research on budget 4K monitors", "deep dive into …". ULTRON plans a few
+  searches, searches the web (if set up), reads the best pages, checks Wikipedia and your approved files, then writes a brief with numbered
+  sources, live progress as it goes. Each report is saved as a Markdown file in your ULTRON data folder ("reports"). The brain plans and
+  writes; code does the searching and reading (small local models aren't reliable at long autonomous loops). Everything it reads is treated
+  as untrusted, and research never takes actions.
+- **Spoken morning digest:** "Brief me" on the morning check-in now reads your briefing aloud (unless spoken replies are set to "Never").
+
 ## 0.21.0 · 2026-10-31 · Ideas from other Jarvis builders
 Researched how others build their own Jarvis assistants (isair/jarvis, OpenJarvis) and brought over the best ideas:
 - **Room awareness (opt-in, Settings → Voice):** in hands-free, ULTRON keeps the last 3 minutes of conversation around it in memory

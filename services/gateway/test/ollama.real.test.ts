@@ -118,6 +118,11 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     delete process.env.ULTRON_FAKE_SCREENSHOT;
     ciNote("Local brain looks at the screen", `correct=${/\bred\b/i.test(seen)} took=${Date.now() - t7}ms reply="${seen.slice(0, 200)}"`);
 
+    // Informational: deep research with the real local brain and real Wikipedia (no web-search key in CI).
+    const t8 = Date.now();
+    const brief = replyText(await g.chat(await g.newConversation(), "research how solid-state batteries work")).replace(/\s+/g, " ");
+    ciNote("Local brain deep research", `took=${Date.now() - t8}ms cites=${(brief.match(/\[\d\]/g) ?? []).length} brief="${brief.slice(brief.indexOf("Brief ("), brief.indexOf("Brief (") + 400)}"`);
+
     // Informational: the note ULTRON writes itself about a finished conversation.
     const t5 = Date.now();
     const persona = () => loadPersona(new URL("../../../config/persona.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));

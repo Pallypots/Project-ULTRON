@@ -8,12 +8,14 @@ import { convertUnits, parseConversion, parseMoney } from "./actions/units.ts";
 import { currencyCode } from "./actions/everyday.ts";
 import { matchRoutine } from "./routines.ts";
 import type { RoomContext } from "./voice/room.ts";
+import { gatherSources, researchTopic, saveReport, sourcesList, synthesisPrompt } from "./research.ts";
+import type { FileService } from "./files/service.ts";
 import { captureScreen, wantsScreen } from "./system/screen.ts";
 import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
 import { eventLine, type CalendarService } from "./calendar/service.ts";
-import type { Stores } from "@ultron/memory";
+import type { FileHit, Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
 import { currentCapabilities } from "./capabilities.ts";
 import { readProviderSettings, resolveProvider, saveProviderSettings } from "./providers.ts";
@@ -37,6 +39,8 @@ export interface ChatDeps {
   embeddings?: EmbeddingService;
   calendar?: CalendarService;
   dataDir?: string;
+  files?: FileService;
+  similarFiles?: (q: string) => Promise<FileHit[]>;
   room?: RoomContext;
 }
 
@@ -311,6 +315,52 @@ export async function handleUserMessage(
   if (!resolution.ok) {
     emit({ type: "error", code: "provider_not_configured", message: resolution.reason });
     return finish(resolution.reason, "error");
+  }
+
+  // Deep research: plan → search → read → cited brief, saved as a report (see research.ts).
+  const topic = intent.type === "chat" && !opts.continueFrom ? researchTopic(content) : null;
+  if (topic) return research(topic);
+  async function research(topic: string) {
+    const provider = resolution.ok ? resolution.provider : null;
+    if (!provider) return;
+    let text = `🔬 Researching "${topic}"…\n`;
+    const say = (t: string) => {
+      text += t;
+      emit({ type: "delta", text: t });
+      stores.conversations.updateMessage(assistant.id, { content: text });
+    };
+    emit({ type: "delta", text });
+    const exec = stores.actions.create({ conversationId, tool: "research", input: { topic }, risk: 0, requestedBy: "owner", summary: `Research "${topic}"`, status: "running" });
+    stores.audit.record("research.started", "owner", exec.id, { provider: provider.id });
+    try {
+      const { sources, webSearch } = await gatherSources({ topic, provider, stores, secrets: deps.secrets, files: deps.files, similarFiles: deps.similarFiles, progress: (l) => say(`• ${l}\n`), signal: opts.signal });
+      if (!sources.length) {
+        stores.actions.update(exec.id, { status: "failed", error: "no sources" });
+        say(`\nI couldn't find anything to read on that${webSearch ? "" : " (web search isn't set up: Settings → Web search; I only had Wikipedia and your files)"}. Try wording it differently?`);
+        return finish(text, "complete");
+      }
+      say(`\nBrief (${sources.length} sources${webSearch ? "" : "; web search isn't set up, so this uses Wikipedia and your files"}):\n\n`);
+      const cloud = provider.id === "anthropic" || provider.id === "openai";
+      const prompt = synthesisPrompt(topic, sources);
+      for await (const t of provider.stream({
+        system: `You are ${deps.persona().name}, the owner's personal AI assistant, writing a careful research brief. Be accurate and cite sources by number.`,
+        messages: [{ role: "user", content: cloud ? shield(prompt).text : prompt }],
+        memories: [],
+        signal: opts.signal,
+      })) {
+        if (opts.signal.aborted) break;
+        say(t.replace(/<\/?think>/g, ""));
+      }
+      const body = text.slice(text.indexOf("\nBrief (") + 1);
+      const file = deps.dataDir ? saveReport(deps.dataDir, topic, `${body}\n\n## Sources\n${sourcesList(sources)}`) : null;
+      say(`\n\nSources\n${sourcesList(sources)}${file ? `\n\n(Saved as ${file})` : ""}`);
+      recordTool(toEvent(stores.actions.update(exec.id, { status: "succeeded", result: JSON.stringify({ sources: sources.length, file }) })!));
+      return finish(text, opts.signal.aborted ? "cancelled" : "complete");
+    } catch (err) {
+      stores.actions.update(exec.id, { status: "failed", error: (err as Error).message });
+      say(`\n\nResearch stopped: ${(err as Error).message}`);
+      return finish(text, "error");
+    }
   }
 
   const deep = wantsDeepThinking(content);

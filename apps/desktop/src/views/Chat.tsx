@@ -25,10 +25,12 @@ function pickFiller(): string {
   return FILLERS[i]!;
 }
 
-export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, status, onChanged }: {
+export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, clearTalk, status, onChanged }: {
   onCoreState: (s: CoreState) => void;
   core: CoreState;
   seed: string | null;
+  /** Read the answer to the seeded question aloud (e.g. the morning digest). */
+  seedSpeak?: boolean;
   clearSeed: () => void;
   /** Opened from "Talk to ULTRON": start a fresh conversation, listening right away. */
   talk?: boolean;
@@ -147,7 +149,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
     return p;
   };
 
-  const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text", continueFrom?: string) => {
+  const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text", continueFrom?: string, speakReply = false) => {
     if (!text.trim() || busy) return;
     setError(null);
     setSpeakError(null);
@@ -155,7 +157,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
     sp.stop();
     sp.unlock();
     const mode = loadVoicePrefs().speakMode;
-    const splitter = mode === "always" || (mode === "voice" && inputMode === "voice") ? new SentenceSplitter() : null;
+    const splitter = mode === "always" || (mode === "voice" && (inputMode === "voice" || speakReply)) ? new SentenceSplitter() : null;
     setBusy(true);
     onCoreState("thinking");
     // wanted.current updates synchronously on "New conversation"/selection, so a fast Enter can't go to the old chat.
@@ -295,7 +297,8 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
       clearSeed();
       // Questions from Home or a feed card are new topics: start a fresh conversation so they never collide
       // with a reply still finishing in the previous one.
-      newConversation().then(() => send(seed));
+      const speak = Boolean(seedSpeak);
+      newConversation().then(() => send(seed, "text", undefined, speak));
     }
   }, [seed, clearSeed, send]);
 

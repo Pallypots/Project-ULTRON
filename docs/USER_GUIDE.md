@@ -129,6 +129,11 @@ shows it to the brain to answer. It never looks unless you ask, the picture isn'
 local brain the picture never leaves your PC. Your brain must be able to see images: the recommended small local brain
 (**gemma4:e2b**) can, as can Claude; for some other local models ULTRON tells you it can't and suggests one that can.
 
+## Deep research
+Say "research <topic>" (or "do some research on …", "deep dive into …"). ULTRON shows its progress (searches, pages read), then writes a
+brief with numbered sources and saves it in the "reports" folder inside ULTRON's data folder. Best with web search set up (Settings → Web
+search); without it, it uses Wikipedia and your approved files. On a local brain this can take a few minutes.
+
 ## Watching pages
 "Let me know when shop.example.com/switch says in stock" or "watch example.com/deal" (changes of any kind). ULTRON checks every hour
 while it's running and tells you (pop-up, notification and voice). Clock-only changes are ignored. See and stop watched pages on the
