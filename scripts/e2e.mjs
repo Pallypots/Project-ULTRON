@@ -465,7 +465,7 @@ try {
   console.error("  last messages on screen:\n   " + lastMessages.join("\n   "));
   if (process.env.GITHUB_ACTIONS) {
     const oneLine = (s) => String(s).replace(/\r?\n/g, " ⏎ ").slice(0, 1500);
-    console.log(`::error title=Browser E2E failed (${process.platform}) after "${passed.at(-1) ?? "start"}"::${oneLine(err.message)} || screen: ${oneLine(lastMessages.join(" ‖ "))} || recent: ${oneLine(recent.filter((r) => !r.includes("/api/status")).slice(-12).join(" | "))}`);
+    console.log(`::error title=Browser E2E failed (${process.platform}) after "${passed.at(-1) ?? "start"}"::${oneLine(err.message)} || screen: ${oneLine(lastMessages.join(" | "))} || recent: ${oneLine(recent.filter((r) => !r.includes("/api/status")).slice(-12).join(" | "))}`);
   }
   await page.screenshot({ path: join(shots, "failure.png") }).catch(() => {});
 } finally {

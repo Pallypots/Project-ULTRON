@@ -62,7 +62,7 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     const t4 = Date.now();
     const hi = replyText(await g.chat(await g.newConversation(), "Hey Ultron, I'm back. Tell me a quick joke."));
     if (process.env.GITHUB_ACTIONS)
-      console.log(`::notice title=Local brain maths + personality (${process.platform})::MATHS ${mathSummary} ‖ JOKE reply=${Date.now() - t4}ms text="${hi.replace(/\s+/g, " ").slice(0, 300)}"`);
+      console.log(`::notice title=Local brain maths + personality (${process.platform})::MATHS ${mathSummary} | JOKE reply=${Date.now() - t4}ms text="${hi.replace(/\s+/g, " ").slice(0, 300)}"`);
     expect(hi).not.toMatch(/<\/?think>/);
   }, 1_800_000);
 });

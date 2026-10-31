@@ -12,7 +12,7 @@ const note = (title: string, msg: string) => {
   results.push(`${title}: ${msg}`);
 };
 afterAll(() => {
-  if (process.env.GITHUB_ACTIONS && results.length) console.log(`::notice title=Real web services (${process.platform})::${results.join(" ‖ ").replace(/\r?\n/g, " ")}`);
+  if (process.env.GITHUB_ACTIONS && results.length) console.log(`::notice title=Real web services (${process.platform})::${results.join(" | ").replace(/\r?\n/g, " ")}`);
 });
 
 describe.skipIf(!enabled)("knowledge tools against the real services", () => {
