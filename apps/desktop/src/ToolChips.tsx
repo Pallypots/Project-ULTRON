@@ -46,7 +46,7 @@ function ToolChip({ e }: { e: ToolEvent }) {
   return (
     <div className={`tool tool--${e.status}`} role={waiting ? "group" : undefined} aria-label={waiting ? `Approval needed: ${e.summary}` : undefined}>
       <span aria-hidden="true">{ICON[e.tool] ?? "⚙"}</span>
-      <span className="tool__summary">{e.summary}</span>
+      <span className="tool__summary">{e.summary}{e.status === "succeeded" && e.tool === "github_create_issue" ? " ✓ posted" : ""}</span>
       <span className="tool__status">{STATUS[e.status] ?? e.status}</span>
       {e.risk >= 2 && (INTERNAL.has(e.tool) ? <span className="tag tag--accent" title="Changes ULTRON's memory">memory</span> : <span className="tag tag--warn" title="Has an effect outside ULTRON">external</span>)}
       {e.preview && (waiting || e.status === "succeeded") && (
