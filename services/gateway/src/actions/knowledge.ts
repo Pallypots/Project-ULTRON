@@ -43,8 +43,9 @@ const calc: ToolDef<{ expression: string }> = {
 
 /** Up to `n` Wikipedia articles for a query, with plain text (for research). */
 export async function wikiArticles(query: string, n = 2, chars = 3000): Promise<{ title: string; url: string; text: string }[]> {
-  const search = await getJson(`${WIKI()}/w/rest.php/v1/search/title?q=${encodeURIComponent(query)}&limit=${n}`);
-  const pages: { key: string; title: string }[] = search?.pages ?? [];
+  // Full-text search, so sentences ("how solid-state batteries work") find articles, not just exact titles.
+  const search = await getJson(`${WIKI()}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=${n}&format=json`);
+  const pages = ((search?.query?.search ?? []) as { title: string }[]).map((p) => ({ title: p.title, key: p.title.replace(/ /g, "_") }));
   const out: { title: string; url: string; text: string }[] = [];
   for (const p of pages.slice(0, n)) {
     const data = await getJson(`${WIKI()}/w/api.php?action=query&prop=extracts&explaintext=1&exsectionformat=plain&redirects=1&format=json&titles=${encodeURIComponent(p.title)}`).catch(() => null);

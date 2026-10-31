@@ -81,7 +81,10 @@ export async function gatherSources(opts: {
       for (const h of hits) if (!candidates.some((c) => c.url === h.url)) candidates.push({ title: h.title, url: h.url });
     }
   }
-  for (const a of await wikiArticles(topic, 2).catch(() => [])) add({ title: `${a.title} (Wikipedia)`, where: a.url, kind: "wikipedia", text: a.text });
+  for (const q of queries.slice(0, 3)) {
+    if (signal.aborted || sources.length >= 3) break;
+    for (const a of await wikiArticles(q, 2).catch(() => [])) add({ title: `${a.title} (Wikipedia)`, where: a.url, kind: "wikipedia", text: a.text });
+  }
   progress(`Checked Wikipedia (${sources.length} article${sources.length === 1 ? "" : "s"})`);
 
   // 3. Read the best web results

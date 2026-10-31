@@ -121,7 +121,7 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     // Informational: deep research with the real local brain and real Wikipedia (no web-search key in CI).
     const t8 = Date.now();
     const brief = replyText(await g.chat(await g.newConversation(), "research how solid-state batteries work")).replace(/\s+/g, " ");
-    ciNote("Local brain deep research", `took=${Date.now() - t8}ms cites=${(brief.match(/\[\d\]/g) ?? []).length} brief="${brief.slice(brief.indexOf("Brief ("), brief.indexOf("Brief (") + 400)}"`);
+    ciNote("Local brain deep research", `took=${Date.now() - t8}ms cites=${(brief.match(/\[\d\]/g) ?? []).length} ${brief.includes("Brief (") ? `brief="${brief.slice(brief.indexOf("Brief ("), brief.indexOf("Brief (") + 400)}"` : `NO BRIEF, reply="${brief.slice(0, 500)}"`}`);
 
     // Informational: the note ULTRON writes itself about a finished conversation.
     const t5 = Date.now();
