@@ -60,7 +60,7 @@ describe("security boundary", () => {
     expect(gw.logLines.join("")).not.toContain(key);
     expect(gw.logLines.join("")).not.toContain(gw.token);
     expect((await api("GET", "/api/logs/export")).body).not.toContain(key);
-  });
+  }, 60_000); // Windows encrypts the key with DPAPI via PowerShell, which can take several seconds per call on a busy CI machine
 });
 
 describe("chat", () => {
