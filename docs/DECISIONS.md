@@ -98,6 +98,13 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-026 · 2026-10-31 · Conversation notes written by the current brain, in idle time only
+Titles ("Planning the Oogie port") are a weak memory of what happened. After 30 min of quiet, conversations with ≥4 complete messages get a
+1–2 sentence third-person note from the current brain (local by default, so nothing leaves the PC unless the owner chose a cloud brain).
+A local model serves one request at a time, so notes run only when no chat is streaming and are cancelled when the owner sends a message;
+interrupted notes are retried on the next 5-minute tick. Notes pass the same credential filter as memories. They live on the conversation
+row, so deleting a conversation deletes its note.
+
 ### D-025 · 2026-10-31 · More commands handled by code (extends D-016)
 A CPU-only local brain takes 40–90 s per answer and sometimes fumbles tool calls; these commands are too common for that. Strict whole-message
 patterns (open a URL/domain, add to / show the list, weather, arithmetic) run the same registered tools through the same policy engine

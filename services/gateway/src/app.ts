@@ -22,6 +22,7 @@ import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
 import { EmbeddingService } from "./embeddings/index.ts";
 import { Greeter } from "./greeting.ts";
+import { Summarizer } from "./summarizer.ts";
 import { OllamaManager } from "./local-ai/ollama.ts";
 import { recommendModel } from "./local-ai/recommend.ts";
 import { z } from "zod";
@@ -39,6 +40,7 @@ export interface Gateway {
   token: string;
   config: GatewayConfig;
   logLines: string[];
+  summarizer: Summarizer;
 }
 
 export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Promise<Gateway> {
@@ -108,6 +110,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const deps = { embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
+  const summarizer = new Summarizer(deps, () => streams.size > 0);
+  summarizer.start();
   app.get("/api/greeting", async () => {
     const g = await greeter.get().catch(() => null);
     return { greeting: g ? { text: g.text, at: g.at } : null };
@@ -257,6 +261,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     });
     try {
       greeter.cancel();
+      summarizer.cancel();
       await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, signal: ctl.signal, emit });
     } catch (err) {
       app.log.error(err);
@@ -643,11 +648,12 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   app.addHook("onClose", async () => {
     scheduler.stop();
+    summarizer.stop();
     files.stop();
     connectors.stop();
     streams.stopAll();
     stores.close();
   });
 
-  return { app, stores, token, config, logLines };
+  return { app, stores, token, config, logLines, summarizer };
 }

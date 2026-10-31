@@ -275,7 +275,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
         <ul>
           {conversations.map((c) => (
             <li key={c.id} className={c.id === activeId ? "is-active" : ""}>
-              <button className="chat__item" onClick={() => open(c.id)} aria-current={c.id === activeId ? "true" : undefined}>
+              <button className="chat__item" onClick={() => open(c.id)} aria-current={c.id === activeId ? "true" : undefined} title={c.summary ? `ULTRON's note: ${c.summary}` : undefined}>
                 <span className="chat__title">{c.title}</span>
                 <time className="chat__time">{new Date(c.updatedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time>
               </button>

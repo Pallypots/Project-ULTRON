@@ -41,6 +41,8 @@ export const Conversation = z.object({
   title: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** ULTRON's own one-or-two-sentence note of what was discussed, once the conversation went quiet. */
+  summary: z.string().nullable().optional(),
 });
 export type Conversation = z.infer<typeof Conversation>;
 

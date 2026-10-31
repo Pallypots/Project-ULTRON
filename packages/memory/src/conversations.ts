@@ -41,11 +41,12 @@ const toMessage = (r: MessageRow): Message => ({
   createdAt: r.created_at,
 });
 
-const toConversation = (r: { id: string; title: string; created_at: string; updated_at: string }): Conversation => ({
+const toConversation = (r: { id: string; title: string; created_at: string; updated_at: string; summary?: string | null }): Conversation => ({
   id: r.id,
   title: r.title,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  summary: r.summary ?? null,
 });
 
 export class ConversationStore {
@@ -140,5 +141,24 @@ export class ConversationStore {
       )
       .all(q, opts.excludeConversationId ?? "", opts.sinceIso ?? "", opts.limit ?? 8) as any[];
     return rows.map((r) => ({ conversationId: r.conversation_id, title: r.title, role: r.role, createdAt: r.created_at, snippet: r.snippet }));
+  }
+
+  /** Stores ULTRON's note about a conversation. Doesn't touch updated_at (that tracks the owner's activity). */
+  setSummary(id: string, summary: string): void {
+    this.db.prepare("UPDATE conversations SET summary = ?, summarized_at = ? WHERE id = ?").run(summary, now(), id);
+  }
+
+  /** Conversations quiet since before `idleBefore`, with new messages since their last summary, oldest first. */
+  needingSummary(idleBefore: string, minMessages = 4, limit = 3): Conversation[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT c.* FROM conversations c
+           WHERE c.updated_at < ? AND (c.summarized_at IS NULL OR c.summarized_at < c.updated_at)
+             AND (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.status = 'complete') >= ?
+           ORDER BY c.updated_at ASC LIMIT ?`,
+        )
+        .all(idleBefore, minMessages, limit) as any[]
+    ).map(toConversation);
   }
 }

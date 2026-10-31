@@ -56,7 +56,7 @@ export class Greeter {
     if (resolution.provider.id === "mock") {
       // The test brain can't improvise, so it gets a simple, honest line built from the same facts.
       text = rapport.lastChat
-        ? `Welcome back. We last talked ${rapport.lastChat}${rapport.recentTopics[0] ? `, about "${rapport.recentTopics[0]}"` : ""}.`
+        ? `Welcome back. We last talked ${rapport.lastChat}${rapport.recentTopics[0] ? `, about "${rapport.recentTopics[0].replace(/^[^:]+: /, "")}"` : ""}.`
         : "Hello. I'm ULTRON. Tell me a little about yourself and I'll take it from there.";
       if (rapport.agenda.length) text += ` Coming up: ${rapport.agenda.slice(0, 2).join("; ")}.`;
     } else {

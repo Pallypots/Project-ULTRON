@@ -389,7 +389,8 @@ export function rapportFor(stores: Stores, conversationId: string, inputMode?: "
   const last = [prevHere, lastOther].filter(Boolean).sort().at(-1) ?? null;
   return {
     lastChat: last ? humanAgo(Date.now() - new Date(last).getTime()) : null,
-    recentTopics: others.slice(0, 5).map((c) => c.title.slice(0, 80)),
+    // ULTRON's own note when it has one, otherwise the title; with when it was, so catch-up can say "yesterday you…".
+    recentTopics: others.slice(0, 5).map((c) => `${humanAgo(Date.now() - new Date(c.updatedAt).getTime())}: ${c.summary ? c.summary.slice(0, 300) : c.title.slice(0, 80)}`),
     inputMode,
   };
 }

@@ -254,4 +254,17 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE messages_fts;
     `,
   },
+  {
+    version: 9,
+    name: "conversation_summaries",
+    // ULTRON's own short note of what each conversation was about (written when it goes quiet).
+    up: `
+      ALTER TABLE conversations ADD COLUMN summary TEXT;
+      ALTER TABLE conversations ADD COLUMN summarized_at TEXT;
+    `,
+    down: `
+      ALTER TABLE conversations DROP COLUMN summarized_at;
+      ALTER TABLE conversations DROP COLUMN summary;
+    `,
+  },
 ];
