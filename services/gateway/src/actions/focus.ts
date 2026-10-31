@@ -15,6 +15,7 @@ const GROUPS: { when: RegExp; tools: string[] }[] = [
   { when: /\b(github|repo|repository|issues?|commits?|pull requests?|prs?|ci|builds?)\b|what'?s new|any updates/i, tools: ["connected_updates", "github_create_issue"] },
   { when: /\b(morning|brief|briefing|my day|catch me up|agenda|today)\b/i, tools: ["daily_briefing"] },
   { when: /\b(time|date|day is it|what day)\b/i, tools: ["get_current_time"] },
+  { when: /\b(we (?:talked|discussed|spoke|chatted|said)|did i (?:say|tell|mention)|i (?:told|mentioned|said)|last (?:time|week|month)|yesterday|remember when|earlier|before|conversations?)\b/i, tools: ["search_conversations"] },
   // Personal statements are where "want me to remember that?" comes from.
   { when: /\b(my|i'm|i am|i've|i have|i'll|i will|we're)\b/i, tools: ["save_memory"] },
 ];

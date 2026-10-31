@@ -13,6 +13,8 @@
 - **To-do list:** "add milk and eggs to my list", "what's on my list?", "I paid the electric bill" (ticks it off; asks if it's ambiguous).
   Also on the Reminders page, and in the morning briefing.
 - Conversations are titled by their first real message, not "hey Ultron".
+- **Remembers past conversations:** "what did we say about the Oogie release?" searches everything you and ULTRON said before
+  (on this computer only). Deleting a conversation removes it from what ULTRON can recall.
 - **Honesty check:** if a brain *says* it set a reminder, opened a page or requested approval but no action actually ran, ULTRON adds a
   visible correction (and logs it in Activity). Found in CI: a small local model claimed "approval requested" without asking for anything.
 - **Tool focusing for local brains:** small local models get only the tools your message plausibly needs (e.g. weather words → weather tool),

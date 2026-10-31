@@ -248,3 +248,23 @@ describe("greeting never blocks the owner", () => {
   });
 });
 
+
+describe("remembering past conversations", () => {
+  it("finds what was said in other conversations, newest index kept in sync, deleted chats gone", async () => {
+    const g = await gateway();
+    const a = await g.newConversation();
+    await g.chat(a, "Planning the Oogie port release for December, need to fix the audio crackle first");
+    const b = await g.newConversation();
+    await g.chat(b, "Pizza dough needs 48 hours in the fridge");
+    const now = await g.newConversation();
+    const text = replyText(await g.chat(now, "what did we say about the oogie release?"));
+    expect(text).toMatch(/"said_by":"owner".*«Oogie».*«release»/);
+    expect(text).not.toMatch(/Pizza/);
+    // The current conversation isn't searched (it's already in context).
+    expect(replyText(await g.chat(now, "did I mention sourdough"))).toMatch(/Nothing in earlier conversations matches/);
+    // Deleting a conversation removes it from what ULTRON can recall.
+    await g.api("DELETE", `/api/conversations/${a}`);
+    expect(replyText(await g.chat(now, "what did we say about the oogie release?"))).toMatch(/Nothing in earlier conversations matches/);
+    expect(g.gw.stores.conversations.search("pizza dough", {}).length).toBeGreaterThan(0);
+  });
+});

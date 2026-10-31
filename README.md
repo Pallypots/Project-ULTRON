@@ -20,6 +20,7 @@ remembers what you explicitly ask it to, and tells you honestly what it can and 
 | Memories recalled in *new* conversations, cited as `[memory:xxxxxxxx]` | ✅ working |
 | **Personality**: banter and jokes, catches up on what you last talked about, asks about your life; editable character | ✅ working (tone depends on the brain) |
 | **Offers to remember** personal facts you mention, saved only after you approve | ✅ working |
+| **Recalls past conversations** ("what did we say about…?"), searched on your PC | ✅ working |
 | **To-do list** by chat ("add … to my list", "I paid the bill") and on the Reminders page; in the morning briefing | ✅ working |
 | **Everyday help**: exact calculator, Wikipedia, weather + forecast, read/summarize a page you link | ✅ working (tested against local fakes; live services not yet checked in CI) |
 | Memory recall **by meaning** (local embeddings), merged with keyword search | ✅ working (real model tested in CI) |

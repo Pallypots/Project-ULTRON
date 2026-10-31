@@ -11,7 +11,7 @@ import { TodoStore } from "./todos.ts";
 
 export { openDatabase, migrate, rollback, type Db } from "./db.ts";
 export { MIGRATIONS } from "./migrations.ts";
-export { ConversationStore } from "./conversations.ts";
+export { ConversationStore, type ConversationHit } from "./conversations.ts";
 export { MemoryStore, toFtsQuery } from "./memories.ts";
 export { AuditLog, redact } from "./audit.ts";
 export { PreferenceStore } from "./preferences.ts";

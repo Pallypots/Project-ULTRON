@@ -1,6 +1,15 @@
 import type { Conversation, InputMode, Message, MessageStatus, Role } from "@ultron/schemas";
 import type { Db } from "./db.ts";
 import { now, uuid } from "./util.ts";
+import { toFtsQuery } from "./memories.ts";
+
+export interface ConversationHit {
+  conversationId: string;
+  title: string;
+  role: Role;
+  createdAt: string;
+  snippet: string;
+}
 
 interface MessageRow {
   id: string;
@@ -116,5 +125,20 @@ export class ConversationStore {
     return Number(
       this.db.prepare("UPDATE messages SET status = 'cancelled', content = content || ' [interrupted]' WHERE status = 'streaming'").run().changes,
     );
+  }
+
+  /** Full-text search over past messages (best matches first), optionally excluding one conversation and limited to recent days. */
+  search(text: string, opts: { limit?: number; excludeConversationId?: string | null; sinceIso?: string } = {}): ConversationHit[] {
+    const q = toFtsQuery(text);
+    if (!q) return [];
+    const rows = this.db
+      .prepare(
+        `SELECT m.conversation_id, c.title, m.role, m.created_at, snippet(messages_fts, 0, '«', '»', '…', 16) AS snippet
+         FROM messages_fts JOIN messages m ON m.rowid = messages_fts.rowid JOIN conversations c ON c.id = m.conversation_id
+         WHERE messages_fts MATCH ? AND m.role IN ('user', 'assistant') AND m.status != 'error' AND m.conversation_id != ? AND m.created_at >= ?
+         ORDER BY bm25(messages_fts) LIMIT ?`,
+      )
+      .all(q, opts.excludeConversationId ?? "", opts.sinceIso ?? "", opts.limit ?? 8) as any[];
+    return rows.map((r) => ({ conversationId: r.conversation_id, title: r.title, role: r.role, createdAt: r.created_at, snippet: r.snippet }));
   }
 }
