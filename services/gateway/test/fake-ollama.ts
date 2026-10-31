@@ -55,7 +55,10 @@ export async function startFakeOllama(): Promise<FakeOllama> {
         return res.end(JSON.stringify({ error: `"${body.model}" does not support thinking` }));
       }
       res.writeHead(200, { "content-type": "application/x-ndjson" });
-      for (const m of state.chatScript) line({ model: body.model, message: { role: "assistant", ...m }, done: false });
+      // "format test …" is echoed back, so the browser test can check how replies are formatted.
+      const lastUser = [...(body.messages ?? [])].reverse().find((m: { role: string }) => m.role === "user")?.content ?? "";
+      if (/^format test /.test(lastUser)) line({ model: body.model, message: { role: "assistant", content: `Echo: ${lastUser.slice(12)}` }, done: false });
+      else for (const m of state.chatScript) line({ model: body.model, message: { role: "assistant", ...m }, done: false });
       line({ model: body.model, message: { role: "assistant", content: "" }, done: true, done_reason: "stop" });
       return res.end();
     }

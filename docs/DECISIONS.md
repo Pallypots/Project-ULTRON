@@ -98,6 +98,13 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-029 · 2026-10-31 · SearXNG as the keyless web search; Markdown parsed to elements, never HTML
+Many self-hosted assistants use SearXNG for search because it needs no account or key. The owner types its address on the PC (PC-only route);
+ULTRON checks it answers JSON before saving. Its address may be on this PC or the home network, so it is exempt from the public-only rule that
+applies to pages the model asks for; only the query text varies, redirects are refused, and only http(s) result links are kept. If both are set,
+SearXNG is used. Replies are rendered with a small in-house Markdown reader that outputs data for React elements (no `innerHTML`, no library),
+so text from a model or a web page can't inject HTML; only http(s) links become clickable.
+
 ### D-028 · 2026-10-31 · Phone access via `tailscale serve`, per-device keys, PC-only settings
 Options: bind to the LAN (no HTTPS, so no microphone on phones; exposed to everyone on the Wi-Fi), a cloud relay (data leaves the owner's
 devices), or Tailscale. Tailscale gives a private, end-to-end encrypted network of the owner's own devices with a real HTTPS certificate, and

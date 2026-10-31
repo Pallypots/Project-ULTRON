@@ -552,6 +552,24 @@ try {
   if ((await page.locator(".msg--user", { hasText: "good night" }).count()) !== 1) throw new Error("try again duplicated the question");
   step("↻ Try again re-asks the last question without duplicating it");
 
+  // ---- Reply formatting: Markdown shows as formatting (the test brain echoes what it's sent); the owner's own text stays as typed ----
+  await page.getByLabel("Message ULTRON").fill("format test **bold red** and `a code bit` <b>not html</b>");
+  await page.getByLabel("Message ULTRON").press("Enter");
+  await page.locator(".msg--assistant .md strong", { hasText: "bold red" }).waitFor();
+  await page.locator(".msg--assistant .md code", { hasText: "a code bit" }).waitFor();
+  if (await page.locator(".msg--assistant .md b").count()) throw new Error("HTML in a reply was rendered as HTML");
+  await page.locator(".msg--user", { hasText: "**bold red**" }).waitFor();
+  step("Replies show bold and code formatting; HTML in replies stays plain text");
+
+  // ---- Web search: the free SearXNG option checks the address before saving ----
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel("SearXNG address").fill("http://127.0.0.1:9");
+  await page.getByRole("button", { name: "Connect SearXNG" }).click();
+  await page.locator(".banner--error", { hasText: /Couldn't reach|took too long/ }).waitFor();
+  await page.getByRole("radio", { name: "Brave Search key" }).check();
+  await page.getByLabel("Brave Search API key").waitFor();
+  step("Web search settings: SearXNG address is checked before saving; Brave key option available");
+
   // ---- Phone access over Tailscale (simulated: the "phone" reaches ULTRON through a pretend tailnet address) ----
   const TAILNET = "e2e-pc.tail0000.ts.net";
   await page.getByRole("button", { name: "Settings" }).click();

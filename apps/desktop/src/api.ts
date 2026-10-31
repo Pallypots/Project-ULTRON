@@ -303,9 +303,10 @@ export const api = {
   saveRemote: (s: { enabled: boolean; host: string }) => call<{ settings: { enabled: boolean; host: string } }>("PUT", "/api/remote", s),
   startPairing: () => call<{ code: string; expiresAt: string }>("POST", "/api/remote/pairing"),
   revokeDevice: (id: string) => call("DELETE", `/api/remote/devices/${id}`),
-  searchSettings: () => call<{ configured: boolean }>("GET", "/api/settings/search"),
-  saveSearchKey: (apiKey: string) => call<{ configured: boolean }>("PUT", "/api/settings/search", { apiKey }),
-  removeSearchKey: () => call<{ configured: boolean }>("DELETE", "/api/settings/search"),
+  searchSettings: () => call<SearchStatus>("GET", "/api/settings/search"),
+  saveSearchKey: (apiKey: string) => call<SearchStatus>("PUT", "/api/settings/search", { apiKey }),
+  saveSearxng: (searxngUrl: string) => call<SearchStatus>("PUT", "/api/settings/search", { searxngUrl }),
+  removeSearchKey: () => call<SearchStatus>("DELETE", "/api/settings/search"),
   room: () => call<{ enabled: boolean }>("GET", "/api/voice/room"),
   setRoom: (enabled: boolean) => call<{ enabled: boolean }>("PUT", "/api/voice/room", { enabled }),
   retry: (conversationId: string) => call<{ content: string; inputMode: "text" | "voice" }>("POST", `/api/conversations/${conversationId}/retry`),
@@ -436,4 +437,10 @@ export function deviceId(): string {
   } catch {
     return "desktop";
   }
+}
+
+export interface SearchStatus {
+  configured: boolean;
+  engine: "searxng" | "brave" | null;
+  searxngUrl: string | null;
 }

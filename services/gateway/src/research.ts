@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { ModelProvider } from "@ultron/agent-core";
 import type { Stores } from "@ultron/memory";
-import { braveSearch, fetchPage, SEARCH_SECRET, wikiArticles } from "./actions/knowledge.ts";
+import { fetchPage, searchEngine, wikiArticles } from "./actions/knowledge.ts";
 import { extractText } from "./files/indexer.ts";
 import type { FileService } from "./files/service.ts";
 
@@ -64,7 +64,7 @@ export async function gatherSources(opts: {
   progress(`Plan: ${queries.map((q) => `"${q}"`).join(", ")}`);
 
   // 2. Search
-  const key = opts.secrets.get(SEARCH_SECRET);
+  const engine = searchEngine(opts.secrets, opts.stores);
   const sources: Source[] = [];
   const seen = new Set<string>();
   const add = (s: Omit<Source, "n">) => {
@@ -73,10 +73,10 @@ export async function gatherSources(opts: {
     sources.push({ ...s, n: sources.length + 1 });
   };
   const candidates: { title: string; url: string }[] = [];
-  if (key) {
+  if (engine) {
     for (const q of queries) {
       if (signal.aborted) break;
-      const hits = await braveSearch(key, q, 4).catch(() => []);
+      const hits = await engine.search(q, 4).catch(() => []);
       progress(`Searched the web for "${q}" (${hits.length} results)`);
       for (const h of hits) if (!candidates.some((c) => c.url === h.url)) candidates.push({ title: h.title, url: h.url });
     }
@@ -115,7 +115,7 @@ export async function gatherSources(opts: {
       }
     }
   }
-  return { sources: sources.slice(0, 8), queries, webSearch: Boolean(key) };
+  return { sources: sources.slice(0, 8), queries, webSearch: Boolean(engine) };
 }
 
 export function synthesisPrompt(topic: string, sources: Source[]): string {

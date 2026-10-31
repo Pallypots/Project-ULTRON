@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.23.0 · 2026-10-31 · Free web search and formatted replies
+Looked at how other self-hosted assistants search the web without paid keys: most use SearXNG.
+- **Free web search, no account:** Settings → Web search → "Free: my own SearXNG". Run SearXNG (one Docker command), turn on its JSON
+  answers, enter its address (like `http://localhost:8888`). ULTRON tries a search before saving. Web search and deep research then use it,
+  with no monthly limit. The Brave key option is still there.
+- **Formatted replies:** bold, headings, bullet and numbered lists, code and links now show as proper formatting in chat instead of `**`
+  and `##` symbols. Research briefs are much easier to read. It's built safely: nothing in a reply can turn into hidden web code, and only
+  normal web links are clickable.
+
 ## 0.22.0 · 2026-10-31 · Deep research
 Researched how others do local deep research (Local Deep Research, open_deep_research): plan → search → read → synthesize with citations.
 - **Deep research:** "research solid-state batteries", "do some research on budget 4K monitors", "deep dive into …". ULTRON plans a few

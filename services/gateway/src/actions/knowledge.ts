@@ -6,6 +6,7 @@ import { z } from "zod";
 import { blockedReason, classifyKind } from "@ultron/agent-core";
 import { calculate, tidy } from "./calc.ts";
 import type { Risk, ToolContext, ToolDef } from "./tools.ts";
+import type { Stores } from "@ultron/memory";
 
 // Endpoints are overridable so tests can use local fakes. All are free and need no account or key.
 const WIKI = () => process.env.ULTRON_WIKIPEDIA_API ?? "https://en.wikipedia.org";
@@ -398,6 +399,54 @@ export async function braveSearch(key: string, query: string, count = 6) {
   return (data.web?.results ?? []).slice(0, count).map((r) => ({ title: strip(r.title), url: r.url, untrusted_snippet: strip(r.description).slice(0, 300), age: r.age }));
 }
 
+// ---- SearXNG (free, no account: a search engine the owner runs themselves, often on this same PC) ------------------
+
+export const SEARXNG_PREF = "searxng_url";
+export type SearchHit = { title: string; url: string; untrusted_snippet: string; age?: string };
+
+/** Tidies an owner-typed address ("localhost:8888", "http://nas:8080/searxng/") into a base URL, or null if it isn't one. */
+export function searxngBase(input: string): string | null {
+  let s = input.trim();
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)) s = `http://${s}`;
+  try {
+    const u = new URL(s);
+    if (u.username || u.password || u.search || u.hash) return null;
+    return `${u.origin}${u.pathname.replace(/\/+(?:search)?\/?$/, "")}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The owner's own SearXNG. Its address is set on the PC by the owner and may be on this computer or their home network,
+ * so (unlike pages the model asks for) it isn't limited to public addresses; only the query is variable.
+ */
+export async function searxngSearch(base: string, query: string, count = 6): Promise<SearchHit[]> {
+  const url = `${base}/search?q=${encodeURIComponent(query)}&format=json&safesearch=1`;
+  const res = await reach(url, { headers: { accept: "application/json", "user-agent": UA }, signal: AbortSignal.timeout(12_000), redirect: "error" });
+  if (res.status === 403) throw new Error("SearXNG refused JSON answers. In its settings.yml, add json under search → formats, then restart it.");
+  if (res.status === 429) throw new Error("SearXNG is limiting requests. Turn its limiter off for your own use.");
+  if (!res.ok) throw new Error(`SearXNG answered ${res.status}.`);
+  const data = (await res.json().catch(() => {
+    throw new Error("That address didn't answer like SearXNG. Check it in Settings → Web search.");
+  })) as { results?: { title?: string; url?: string; content?: string; publishedDate?: string }[] };
+  if (!Array.isArray(data.results)) throw new Error("That address didn't answer like SearXNG. Check it in Settings → Web search.");
+  return data.results
+    .filter((r) => typeof r.url === "string" && /^https?:\/\//i.test(r.url))
+    .slice(0, count)
+    .map((r) => ({ title: String(r.title ?? r.url).slice(0, 200), url: r.url!, untrusted_snippet: String(r.content ?? "").replace(/<[^>]+>/g, "").slice(0, 300), age: r.publishedDate || undefined }));
+}
+
+/** Which web search the owner set up: their SearXNG (preferred, keyless) or a Brave key. */
+export function searchEngine(secrets: { get(name: string): string | undefined } | undefined, stores: Stores): { name: string; search: (q: string, n?: number) => Promise<SearchHit[]> } | null {
+  const base = stores.preferences.get<string>(SEARXNG_PREF, "");
+  if (base) return { name: "SearXNG", search: (q, n) => searxngSearch(base, q, n) };
+  const key = secrets?.get(SEARCH_SECRET);
+  if (key) return { name: "Brave Search", search: (q, n) => braveSearch(key, q, n) };
+  return null;
+}
+
 const webSearch: ToolDef<{ query: string }> = {
   name: "web_search",
   description:
@@ -408,10 +457,10 @@ const webSearch: ToolDef<{ query: string }> = {
   timeoutMs: 15_000,
   describe: (i) => `Search the web for "${i.query}"`,
   run: async (i, ctx) => {
-    const key = ctx.secrets?.get(SEARCH_SECRET);
-    if (!key) return JSON.stringify({ configured: false, note: "Web search isn't set up (the owner can add a free Brave Search key in Settings → Web search). Use lookup_wikipedia instead if it helps, and say web search isn't available." });
-    const results = await braveSearch(key, i.query);
-    return JSON.stringify({ query: i.query, results, source: "Brave Search" });
+    const engine = searchEngine(ctx.secrets, ctx.stores);
+    if (!engine) return JSON.stringify({ configured: false, note: "Web search isn't set up (the owner can connect it in Settings → Web search). Use lookup_wikipedia instead if it helps, and say web search isn't available." });
+    const results = await engine.search(i.query);
+    return JSON.stringify({ query: i.query, results, source: engine.name });
   },
 };
 

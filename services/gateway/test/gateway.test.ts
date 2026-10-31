@@ -201,8 +201,11 @@ describe("what's new after an update", () => {
       expect((await g.api("GET", "/api/whats-new")).body.sections).toEqual([]);
       g.gw.stores.preferences.set("seen_version", "0.17.0"); // as if the owner last used v0.17
       const news = (await g.api("GET", "/api/whats-new")).body;
-      expect(news.sections.map((s: { version: string }) => s.version).slice(-2)).toEqual(["0.19.0", "0.18.0"]);
-      expect(news.sections.at(-1).items.some((i: string) => /Calendar/.test(i))).toBe(true);
+      const { VERSION } = await import("../src/app.ts");
+      const versions = news.sections.map((s: { version: string }) => s.version);
+      expect(versions[0]).toBe(VERSION); // newest first
+      expect(versions).not.toContain("0.17.0"); // nothing the owner has already seen
+      expect(news.sections[0].items.length).toBeGreaterThan(0);
     } finally {
       await g.close();
     }

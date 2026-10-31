@@ -5,6 +5,7 @@ import { Core, type CoreState } from "../Core.tsx";
 import { usePushToTalk } from "../voice/usePushToTalk.ts";
 import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
 import { SentenceSplitter } from "@ultron/audio";
+import { Markdown } from "../Markdown.tsx";
 import { ToolChips } from "../ToolChips.tsx";
 import { useHandsFree } from "../voice/handsFree.ts";
 import { loadVoicePrefs } from "../voice/prefs.ts";
@@ -370,7 +371,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
             <article key={m.id} className={`msg msg--${m.role} msg--${m.status}`}>
               <div className="msg__who">{m.role === "user" ? (m.inputMode === "voice" ? "You · 🎙 voice" : "You") : "ULTRON"}</div>
               <div className="msg__body">
-                {m.content || (m.status === "streaming" ? <span className="typing" aria-label="ULTRON is thinking"><i /><i /><i /></span> : null)}
+                {m.content ? (m.role === "assistant" ? <Markdown text={m.content} /> : m.content) : m.status === "streaming" ? <span className="typing" aria-label="ULTRON is thinking"><i /><i /><i /></span> : null}
               </div>
               {m.toolEvents?.length > 0 && <ToolChips events={m.toolEvents} />}
               {m.role === "assistant" && m.id === messages.at(-1)?.id && !busy && m.status !== "streaming" && (

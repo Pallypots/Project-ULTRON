@@ -166,8 +166,13 @@ Clear commands like these are answered instantly by ULTRON itself, without waiti
 - **Maths:** "what's 15% of 80?", "split $86.40 four ways": ULTRON uses an exact calculator instead of guessing.
 - **Facts:** "who was Ada Lovelace?" looks it up on Wikipedia and says so.
 - **Weather:** "what's the weather?" (set your **Home city** in Settings → Personality) or "weather in Tokyo". It's also in your morning briefing.
-- **Web search (optional):** Settings → Web search: get a free key at brave.com/search/api, paste it there (not in chat), then ask
-  "search the web for…" or just ask about something recent. Searches go to Brave; nothing else leaves your PC.
+- **Web search (optional):** Settings → Web search, two ways:
+  - **Free, no account: your own SearXNG.** SearXNG is a free search engine you run yourself. With Docker Desktop installed, run
+    `docker run -d -p 8888:8080 searxng/searxng`, add `json` under `search → formats` in its `settings.yml`, restart it, then enter
+    `http://localhost:8888` in Settings. ULTRON tries a search before saving.
+  - **Brave Search key:** get a free key at brave.com/search/api and paste it there (not in chat). Searches then go to Brave.
+
+  Then ask "search the web for…", "research …", or just ask about something recent. Nothing else leaves your PC.
 - **Web pages:** paste a link and say "summarize this". Links you paste are read straight away; if ULTRON wants to open a page you *didn't* give it,
   it asks first. It never reads pages on your own computer or home network.
 - **Past conversations:** "what did we talk about yesterday?", "did I mention the dentist?" ULTRON searches your earlier chats (stored only

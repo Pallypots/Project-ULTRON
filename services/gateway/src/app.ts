@@ -14,7 +14,7 @@ import { WatcherService } from "./watchers.ts";
 import { CalendarError, CalendarService } from "./calendar/service.ts";
 import { MorningCheckIn } from "./checkin.ts";
 import { loadRoutines, Routine, ROUTINE_EXAMPLES } from "./routines.ts";
-import { braveSearch, SEARCH_SECRET } from "./actions/knowledge.ts";
+import { braveSearch, SEARCH_SECRET, SEARXNG_PREF, searxngBase, searxngSearch } from "./actions/knowledge.ts";
 import { currentCapabilities } from "./capabilities.ts";
 import { ActiveStreams, handleUserMessage } from "./chat.ts";
 import { loadConfig, type GatewayConfig, REPO_ROOT } from "./config.ts";
@@ -38,7 +38,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.22.0";
+export const VERSION = "0.23.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -184,22 +184,39 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   });
 
   // ---- web search (optional key) ----
-  app.get("/api/settings/search", async () => ({ configured: secrets.has(SEARCH_SECRET) }));
+  const searchStatus = () => {
+    const searxng = stores.preferences.get<string>(SEARXNG_PREF, "");
+    return { configured: Boolean(searxng) || secrets.has(SEARCH_SECRET), engine: searxng ? "searxng" : secrets.has(SEARCH_SECRET) ? "brave" : null, searxngUrl: searxng || null };
+  };
+  app.get("/api/settings/search", async () => searchStatus());
   app.put("/api/settings/search", async (req, reply) => {
-    const { apiKey } = z.object({ apiKey: z.string().trim().min(10).max(200) }).parse(req.body);
+    const body = z.union([z.object({ apiKey: z.string().trim().min(10).max(200) }).strict(), z.object({ searxngUrl: z.string().trim().min(3).max(300) }).strict()]).parse(req.body);
+    if ("searxngUrl" in body) {
+      const base = searxngBase(body.searxngUrl);
+      if (!base) return reply.code(400).send({ error: "searxng_url", message: 'That doesn\'t look like an address. Try something like "http://localhost:8888".' });
+      try {
+        await searxngSearch(base, "weather", 1); // check it answers before saving
+      } catch (err) {
+        return reply.code(400).send({ error: "searxng_url", message: (err as Error).message });
+      }
+      stores.preferences.set(SEARXNG_PREF, base);
+      stores.audit.record("settings.searxng_saved", "owner", base);
+      return searchStatus();
+    }
     try {
-      await braveSearch(apiKey, "weather", 1); // check the key works before saving it
+      await braveSearch(body.apiKey, "weather", 1); // check the key works before saving it
     } catch (err) {
       return reply.code(400).send({ error: "search_key", message: (err as Error).message });
     }
-    secrets.set(SEARCH_SECRET, apiKey);
+    secrets.set(SEARCH_SECRET, body.apiKey);
     stores.audit.record("settings.search_key_saved", "owner");
-    return { configured: true };
+    return searchStatus();
   });
   app.delete("/api/settings/search", async () => {
     secrets.set(SEARCH_SECRET, null);
-    stores.audit.record("settings.search_key_removed", "owner");
-    return { configured: false };
+    stores.preferences.set(SEARXNG_PREF, "");
+    stores.audit.record("settings.search_removed", "owner");
+    return searchStatus();
   });
 
   // ---- watched pages ----
