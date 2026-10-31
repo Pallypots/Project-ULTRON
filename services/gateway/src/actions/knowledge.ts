@@ -9,7 +9,7 @@ import type { Risk, ToolContext, ToolDef } from "./tools.ts";
 const WIKI = () => process.env.ULTRON_WIKIPEDIA_API ?? "https://en.wikipedia.org";
 const GEOCODE = () => process.env.ULTRON_GEOCODE_API ?? "https://geocoding-api.open-meteo.com";
 const WEATHER = () => process.env.ULTRON_WEATHER_API ?? "https://api.open-meteo.com";
-const UA = "ULTRON-personal-assistant/0.12 (local, single user)";
+const UA = "ULTRON-personal-assistant/0.13 (local, single user)";
 
 /** Network failures in plain English ("fetch failed" means nothing to anyone). */
 async function reach(url: string | URL, init: RequestInit): Promise<Response> {

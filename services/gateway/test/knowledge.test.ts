@@ -276,3 +276,25 @@ describe("remembering past conversations", () => {
     expect(g.gw.stores.conversations.search("pizza dough", {}).length).toBeGreaterThan(0);
   });
 });
+
+describe("what's coming up", () => {
+  it("knows about due and overdue to-dos and today's reminders, and the greeting mentions them", async () => {
+    const { agendaFor } = await import("../src/chat.ts");
+    const g = await gateway();
+    const s = g.gw.stores;
+    const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toLocaleDateString("en-CA");
+    s.todos.add({ text: "Renew passport", dueDate: day(1) });
+    s.todos.add({ text: "Pay rent", dueDate: day(-2) });
+    s.todos.add({ text: "Plan holiday", dueDate: day(30) });
+    s.todos.add({ text: "No date" });
+    s.reminders.create({ text: "Dentist", dueAt: new Date(Date.now() + 3 * 3_600_000), source: "manual" });
+    s.reminders.create({ text: "Next week thing", dueAt: new Date(Date.now() + 7 * 86_400_000), source: "manual" });
+    const agenda = agendaFor(s);
+    expect(agenda.some((a) => a.startsWith('to-do "Renew passport" due tomorrow'))).toBe(true);
+    expect(agenda.some((a) => a.startsWith(`to-do "Pay rent" overdue since ${day(-2)}`))).toBe(true);
+    expect(agenda.some((a) => a.startsWith('reminder "Dentist" at'))).toBe(true);
+    expect(agenda.join()).not.toMatch(/Plan holiday|No date|Next week/);
+    expect((await g.api("GET", "/api/greeting")).body.greeting.text).toMatch(/Coming up: .*(Renew passport|Pay rent)/);
+    expect(buildSystemPrompt(loadPersona(new URL("../../../config/persona.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1")), { capabilities: [], memories: [], nowIso: "", rapport: { lastChat: null, recentTopics: [], agenda } })).toMatch(/Coming up for the owner.*Renew passport/);
+  });
+});

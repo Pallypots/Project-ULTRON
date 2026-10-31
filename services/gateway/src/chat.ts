@@ -292,7 +292,7 @@ export async function handleUserMessage(
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
-    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories) },
+    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: agendaFor(stores) },
   });
   const turns: ChatTurn[] = turnsSoFar;
 
@@ -452,5 +452,20 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
     }
   }
   void stores;
+}
+
+/** To-dos due by tomorrow (or overdue) and reminders in the next 12 hours, for catching up. */
+export function agendaFor(stores: Stores, now = new Date()): string[] {
+  const tomorrow = new Date(now.getTime() + 86_400_000).toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+  const today = now.toLocaleDateString("en-CA");
+  const todos = stores.todos
+    .list()
+    .filter((t) => t.dueDate && t.dueDate <= tomorrow)
+    .map((t) => `to-do "${t.text}" ${t.dueDate! < today ? `overdue since ${t.dueDate}` : t.dueDate === today ? "due today" : "due tomorrow"}`);
+  const soon = stores.reminders
+    .upcoming()
+    .filter((r) => new Date(r.dueAt).getTime() - now.getTime() < 12 * 3_600_000)
+    .map((r) => `reminder "${r.text}" at ${new Date(r.dueAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`);
+  return [...todos, ...soon].slice(0, 6);
 }
 

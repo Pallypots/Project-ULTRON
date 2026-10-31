@@ -1,6 +1,6 @@
 import { buildSystemPrompt } from "@ultron/agent-core";
 import { currentCapabilities } from "./capabilities.ts";
-import { rapportFor, recentMemories, type ChatDeps } from "./chat.ts";
+import { agendaFor, rapportFor, recentMemories, type ChatDeps } from "./chat.ts";
 import { readProviderSettings, resolveProvider } from "./providers.ts";
 
 const FRESH_MS = 3 * 3_600_000;
@@ -39,13 +39,14 @@ export class Greeter {
     const settings = readProviderSettings(stores.preferences);
     const resolution = resolveProvider(settings, this.deps.secrets, 0);
     if (!resolution.ok) return null;
-    const rapport = { ...rapportFor(stores, "", "text"), recentMemories: recentMemories(stores, []) };
+    const rapport = { ...rapportFor(stores, "", "text"), recentMemories: recentMemories(stores, []), agenda: agendaFor(stores) };
     let text = "";
     if (resolution.provider.id === "mock") {
       // The test brain can't improvise, so it gets a simple, honest line built from the same facts.
       text = rapport.lastChat
         ? `Welcome back. We last talked ${rapport.lastChat}${rapport.recentTopics[0] ? `, about "${rapport.recentTopics[0]}"` : ""}.`
         : "Hello. I'm ULTRON. Tell me a little about yourself and I'll take it from there.";
+      if (rapport.agenda.length) text += ` Coming up: ${rapport.agenda.slice(0, 2).join("; ")}.`;
     } else {
       const system = buildSystemPrompt(this.deps.persona(), {
         capabilities: currentCapabilities(settings, resolution, this.deps.stt?.(), this.deps.ttsEngine?.()),

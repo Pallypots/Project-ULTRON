@@ -1,13 +1,6 @@
 # Changelog
 
-## 0.12.0 · 2026-10-30 · Red ULTRON, a real personality, and new abilities
-- **Red interface** inspired by the films' Ultron (new red icon too). Local brain = red; cloud = amber; test = violet.
-- **Personality:** witty, a little theatrical, warm. It banters, makes the occasional joke, asks about your projects and plans, and **catches up**
-  (it knows when you last talked and what about). Spoken questions get spoken-style answers (no lists or Markdown read aloud).
-  Settings → Personality → **Character** lets you rewrite how it talks.
-- **Offers to remember** things you mention ("my sister's birthday is March 3"). Saved only if you click Approve; secrets are still refused.
-- **New abilities:** exact calculator, Wikipedia look-ups, weather + 3-day forecast (set your **Home city** in Settings → Personality),
-  and reading/summarizing a web page you link. The morning briefing now includes the weather.
+## 0.13.0 · 2026-10-31 · Smarter and more alive
 - **ULTRON speaks first:** opening the app shows a short in-character catch-up line from your current brain (cached for 3 hours).
 - Catching up also uses memories from the last two weeks (never ones marked sensitive), so it can ask how the interview went.
 - **To-do list:** "add milk and eggs to my list", "what's on my list?", "I paid the electric bill" (ticks it off; asks if it's ambiguous).
@@ -24,6 +17,16 @@
   which makes them more reliable and faster. Cloud brains still see everything.
 - A new message cancels a greeting that's still being written, so a busy local brain never makes you wait.
 - Fixed: approving an action while ULTRON was still finishing its reply could show it as "waiting" again afterwards.
+- Catching up and the greeting also know what's **coming up**: to-dos due today/tomorrow (or overdue) and the next reminders.
+
+## 0.12.0 · 2026-10-30 · Red ULTRON, a real personality, and new abilities
+- **Red interface** inspired by the films' Ultron (new red icon too). Local brain = red; cloud = amber; test = violet.
+- **Personality:** witty, a little theatrical, warm. It banters, makes the occasional joke, asks about your projects and plans, and **catches up**
+  (it knows when you last talked and what about). Spoken questions get spoken-style answers (no lists or Markdown read aloud).
+  Settings → Personality → **Character** lets you rewrite how it talks.
+- **Offers to remember** things you mention ("my sister's birthday is March 3"). Saved only if you click Approve; secrets are still refused.
+- **New abilities:** exact calculator, Wikipedia look-ups, weather + 3-day forecast (set your **Home city** in Settings → Personality),
+  and reading/summarizing a web page you link. The morning briefing now includes the weather.
 
 ## 0.11.0 · 2026-10-30 · Meaning-based memory recall (local)
 - ULTRON now finds memories by *meaning*, not only shared words: "how hot should the oven be?" recalls "I bake bread at 230 degrees".
