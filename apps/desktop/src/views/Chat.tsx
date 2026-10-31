@@ -97,6 +97,8 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
 
   // The conversation the owner most recently picked; late responses for any other one are ignored.
   const wanted = useRef<string | null>(null);
+  // A message sent while a new conversation is still being created must go to the new one, never the previous one.
+  const creating = useRef<Promise<string> | null>(null);
   const open = useCallback(async (id: string) => {
     wanted.current = id;
     try {
@@ -115,6 +117,8 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
 
   useEffect(() => {
     loadList().then((list) => {
+      // Opened from Home with a question or "Talk": a new conversation is already on its way, don't jump back to an old one.
+      if (creating.current || wanted.current) return;
       const id = activeId && list.some((c) => c.id === activeId) ? activeId : list[0]?.id;
       if (id) open(id);
     }).catch((e) => setError((e as Error).message));
@@ -125,15 +129,22 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
     endRef.current?.scrollIntoView({ block: "end", behavior: document.documentElement.dataset.motion === "reduced" ? "auto" : "smooth" });
   }, [messages]);
 
-  const newConversation = async () => {
-    const { conversation } = await api.createConversation();
-    wanted.current = conversation.id;
-    await loadList();
-    setActiveId(conversation.id);
-    setMessages([]);
-    localStorage.setItem("ultron.activeConversation", conversation.id);
-    inputRef.current?.focus();
-    return conversation.id;
+  const newConversation = () => {
+    const p = (async () => {
+      const { conversation } = await api.createConversation();
+      wanted.current = conversation.id;
+      setActiveId(conversation.id);
+      setMessages([]);
+      localStorage.setItem("ultron.activeConversation", conversation.id);
+      inputRef.current?.focus();
+      loadList().catch(() => {});
+      return conversation.id;
+    })();
+    creating.current = p;
+    p.finally(() => {
+      if (creating.current === p) creating.current = null;
+    }).catch(() => {});
+    return p;
   };
 
   const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text") => {
@@ -148,7 +159,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
     setBusy(true);
     onCoreState("thinking");
     // wanted.current updates synchronously on "New conversation"/selection, so a fast Enter can't go to the old chat.
-    const id = wanted.current ?? activeId ?? (await newConversation());
+    const id = creating.current ? await creating.current : (wanted.current ?? activeId ?? (await newConversation()));
     const ctl = new AbortController();
     abortRef.current = ctl;
     let assistantId = "";

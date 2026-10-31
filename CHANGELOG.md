@@ -10,6 +10,7 @@
 - **PDFs in your second brain:** Files now indexes the text of PDFs (up to 25 MB / 300 pages; no OCR, so scanned pages without text
   aren't readable), so "find the invoice for Mike Johnson" and reading a PDF work like any other document.
 - **"How's my PC doing?"** memory and disk use, battery, uptime and CPU.
+- Fixed: a message sent right after "+ New conversation" (or from a Home shortcut) could land in the previous conversation.
 
 ## 0.15.0 · 2026-10-31 · Thinks harder, remembers better, never leaves you in silence
 - **Deep thinking on request:** "think hard about…", "take your time", "step by step" lets the brain reason before answering (local models
