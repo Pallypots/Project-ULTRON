@@ -184,7 +184,8 @@ describe("capabilities", () => {
     const { chat, newConversation } = await gateway();
     const text = replyText(await chat(await newConversation(), "What can you do right now?"));
     expect(text).toMatch(/Spoken replies: enabled/);
-    expect(text).toMatch(/Phone \/ remote access: disabled/);
+    expect(text).toMatch(/Phone access: enabled \(from the owner.s paired phones over Tailscale/);
+    expect(text).toMatch(/Screen viewing: enabled \(only when the owner asks/);
     expect(text).toMatch(/Long-term memory: enabled/);
   });
 });

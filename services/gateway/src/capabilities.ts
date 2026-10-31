@@ -43,17 +43,17 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
       id: "tools",
       label: "Actions",
       status: "enabled",
-      detail: "check the time; set, list and cancel reminders and timers; keep a to-do list (add, list, tick off); search and read files in folders you approved; open a website, a file or an installed app (asks for approval first); media keys and volume (Windows); PC status (memory, disk, battery). App control not yet available",
+      detail: "check the time; set, list and cancel reminders and timers; keep a to-do list (add, list, tick off); search and read files (text, Word, PDF; by words or meaning) in folders the owner approved; open a website, a file or an installed app (asks for approval first); media keys and volume, lock the PC on the owner's command, PC status (Windows); routines (one phrase runs several commands). No typing or clicking inside other apps",
     },
     {
       id: "knowledge",
       label: "Knowledge & everyday help",
       status: "enabled",
-      detail: "exact calculator; Wikipedia look-ups; weather and 3-day forecast (Open-Meteo); read a web page the owner links (other pages need approval); search past conversations; review everything it remembers about the owner. web search when the owner has added a Brave Search key (queries go to Brave)",
+      detail: "exact calculator; Wikipedia look-ups; weather and 3-day forecast (Open-Meteo); read a web page the owner links (other pages need approval); search past conversations; review everything it remembers about the owner; unit and currency conversion (ECB rates), definitions, world time; web search when the owner has added a Brave Search key (queries go to Brave)",
     },
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
     { id: "integrations", label: "Connected accounts", status: "enabled", detail: "GitHub (read-only, if connected in Connections); calendar (read-only, via its private iCal link, if connected); YouTube, Reddit, Discord and email not available yet. Use connected_updates for real data; never guess" },
-    { id: "screen", label: "Screen viewing", status: "disabled", detail: "not available" },
-    { id: "remote", label: "Phone / remote access", status: "disabled", detail: "local computer only for now" },
+    { id: "screen", label: "Screen viewing", status: "enabled", detail: "only when the owner asks ('look at my screen'): one screenshot of the main screen for that message, never saved; Windows; needs a brain that can see images" },
+    { id: "remote", label: "Phone access", status: "enabled", detail: "from the owner's paired phones over Tailscale, if turned on in Settings → Phone access" },
   ];
 }
