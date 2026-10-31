@@ -21,6 +21,7 @@ interface Cached {
  */
 export class Greeter {
   private inflight: Promise<Cached | null> | null = null;
+  private abort: AbortController | null = null;
   constructor(private deps: ChatDeps) {}
 
   async get(opts: { refresh?: boolean; signal?: AbortSignal } = {}): Promise<Cached | null> {
@@ -53,11 +54,13 @@ export class Greeter {
         localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }),
         rapport,
       });
-      const signal = AbortSignal.timeout(180_000);
+      this.abort = new AbortController();
+      const signal = AbortSignal.any([this.abort.signal, AbortSignal.timeout(180_000)]);
       for await (const t of resolution.provider.stream({ system, messages: [{ role: "user", content: INSTRUCTION }], memories: [], capabilities: [], signal })) {
         text += t;
         if (text.length > 600) break;
       }
+      if (signal.aborted) return null;
       text = text.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/[*_#`]/g, "").trim();
       if (!text) return null;
       // Keep it to a couple of sentences even if the model rambles.
@@ -67,5 +70,10 @@ export class Greeter {
     const out: Cached = { text, at: new Date().toISOString(), provider: providerId };
     stores.preferences.set("greeting_cache", out);
     return out;
+  }
+
+  /** The owner started talking: a local model serves one request at a time, so their message goes first. */
+  cancel() {
+    this.abort?.abort();
   }
 }

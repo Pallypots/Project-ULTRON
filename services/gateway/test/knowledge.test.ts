@@ -6,6 +6,7 @@ import { calculate, tidy } from "../src/actions/calc.ts";
 import { toolByName } from "../src/actions/tools.ts";
 import { fetchPage, htmlToText, isPrivateAddress } from "../src/actions/knowledge.ts";
 import { humanAgo, isSmallTalk, recentMemories } from "../src/chat.ts";
+import { Greeter } from "../src/greeting.ts";
 import { replyText, startGateway } from "./helpers.ts";
 
 // One local fake for Wikipedia, Open-Meteo and a couple of web pages.
@@ -223,3 +224,27 @@ describe("ULTRON speaks first", () => {
     expect((await g.api("GET", "/api/greeting")).body.greeting.text).toMatch(/Welcome back\. We last talked a moment ago, about "Planning the Oogie port release"/);
   });
 });
+
+describe("greeting never blocks the owner", () => {
+  it("is cancelled when the owner starts chatting (a local model answers one request at a time)", async () => {
+    // A "local brain" that accepts the request and then never answers, like a busy CPU-only Ollama.
+    const hang = createServer(() => {});
+    await new Promise<void>((r) => hang.listen(0, "127.0.0.1", r));
+    try {
+      const g = await gateway();
+      g.gw.stores.preferences.set("provider", { provider: "ollama", model: "gemma4:e2b", baseUrl: `http://127.0.0.1:${(hang.address() as AddressInfo).port}` });
+      const greeter = new Greeter({ stores: g.gw.stores, secrets: { get: () => null } as never, persona: () => loadPersona(new URL("../../../config/persona.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1")), mockDelayMs: 0 });
+      const t0 = Date.now();
+      const pending = greeter.get().catch(() => null);
+      await new Promise((r) => setTimeout(r, 100));
+      greeter.cancel();
+      expect(await pending).toBeNull();
+      expect(Date.now() - t0).toBeLessThan(3000);
+      expect(g.gw.stores.preferences.get("greeting_cache", null)).toBeNull();
+    } finally {
+      hang.closeAllConnections();
+      hang.close();
+    }
+  });
+});
+

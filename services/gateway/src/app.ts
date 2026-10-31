@@ -256,6 +256,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       if (!reply.raw.writableFinished) ctl.abort();
     });
     try {
+      greeter.cancel();
       await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, signal: ctl.signal, emit });
     } catch (err) {
       app.log.error(err);
