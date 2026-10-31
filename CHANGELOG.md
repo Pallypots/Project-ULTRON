@@ -8,6 +8,8 @@
 - **ULTRON reflects on your conversations:** half an hour after a chat goes quiet, ULTRON writes itself a one-or-two-sentence note about it
   (using your current brain, only while it's otherwise idle, stepping aside the moment you talk). Catching up and greetings use these notes
   ("yesterday you were fixing the audio crackle…"); hover a conversation in Chat to see its note. Passwords/ID numbers are never noted.
+- In a spoken conversation, if the brain takes more than 2.5 s to start answering, ULTRON says a short "Hmm, let me think." instead of
+  leaving you in silence.
 - Background noise that speech recognition mistakes for words ("Thank you.", "[BLANK_AUDIO]") is ignored when no wake word is required.
 
 ## 0.13.0 · 2026-10-31 · Smarter and more alive

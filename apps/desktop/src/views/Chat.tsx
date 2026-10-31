@@ -14,6 +14,17 @@ interface UiMessage extends Message {
   notice?: string;
 }
 
+const FILLER_AFTER_MS = 2500;
+const FILLERS = ["Hmm, let me think.", "Give me a second.", "Thinking.", "Good question. One moment.", "Let me see.", "Mm, working on it."];
+let lastFiller = -1;
+/** A short spoken "thinking" sound, never the same one twice in a row. */
+function pickFiller(): string {
+  let i = Math.floor(Math.random() * FILLERS.length);
+  if (i === lastFiller) i = (i + 1) % FILLERS.length;
+  lastFiller = i;
+  return FILLERS[i]!;
+}
+
 export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, status, onChanged }: {
   onCoreState: (s: CoreState) => void;
   core: CoreState;
@@ -141,6 +152,12 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
     const ctl = new AbortController();
     abortRef.current = ctl;
     let assistantId = "";
+    // In a spoken conversation, silence while a slow brain thinks feels broken: say something short, like a person would.
+    let filler: ReturnType<typeof setTimeout> | null = splitter && inputMode === "voice" ? setTimeout(() => sp.enqueue([pickFiller()]), FILLER_AFTER_MS) : null;
+    const noFiller = () => {
+      if (filler) clearTimeout(filler);
+      filler = null;
+    };
     const patch = (fn: (m: UiMessage) => UiMessage) => setMessages((cur) => cur.map((m) => (m.id === assistantId ? fn(m) : m)));
     try {
       await sendMessage(id, text, (e: ChatEvent) => {
@@ -169,6 +186,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
             patch((m) => ({ ...m, notice: "Not saved: sensitive data" }));
             break;
           case "delta":
+            noFiller();
             onCoreState("speaking");
             patch((m) => ({ ...m, content: m.content + e.text }));
             if (splitter) sp.enqueue(splitter.push(e.text));
@@ -187,6 +205,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
       if ((err as Error).name !== "AbortError") setError((err as Error).message);
       else patch((m) => ({ ...m, status: "cancelled" }));
     } finally {
+      noFiller();
       setBusy(false);
       abortRef.current = null;
       // The voice may still be reading the reply after the text has finished streaming.
