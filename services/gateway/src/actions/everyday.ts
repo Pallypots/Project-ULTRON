@@ -9,7 +9,8 @@ const DICT = () => process.env.ULTRON_DICT_API ?? "https://api.dictionaryapi.dev
 const GEO = () => process.env.ULTRON_GEOCODE_API ?? "https://geocoding-api.open-meteo.com";
 
 async function json(url: string): Promise<any> {
-  const res = await reach(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
+  // Some free APIs sit behind bot protection that refuses requests without a user agent.
+  const res = await reach(url, { headers: { accept: "application/json", "user-agent": "ULTRON-personal-assistant/0.20 (+https://github.com/Pallypots/Project-ULTRON)" }, signal: AbortSignal.timeout(10_000) });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`The service answered ${res.status}.`);
   return res.json();
@@ -49,7 +50,10 @@ const currency: ToolDef<{ amount: number; from: string; to: string }> = {
     const to = currencyCode(i.to) ?? i.to.toUpperCase();
     if (!/^[A-Z]{3}$/.test(from) || !/^[A-Z]{3}$/.test(to)) throw new Error("Use 3-letter currency codes like USD or EUR.");
     if (from === to) return JSON.stringify({ amount: i.amount, from, to, result: i.amount });
-    const data = await json(`${FX()}/latest?base=${from}&symbols=${to}`);
+    const data = await json(`${FX()}/latest?base=${from}&symbols=${to}`).catch((err: Error) =>
+      // Frankfurter's older address serves the same ECB data if the newer one refuses.
+      process.env.ULTRON_FX_API ? Promise.reject(err) : json(`https://api.frankfurter.app/latest?from=${from}&to=${to}`),
+    );
     const rate = data?.rates?.[to];
     if (typeof rate !== "number") throw new Error(`No exchange rate for ${from} → ${to}.`);
     return JSON.stringify({ amount: i.amount, from, to, rate, result: Math.round(i.amount * rate * 100) / 100, date: data.date, source: "European Central Bank via Frankfurter" });
