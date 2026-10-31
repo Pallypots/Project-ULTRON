@@ -6,6 +6,33 @@ import type { ToolDef } from "./tools.ts";
 // Free, keyless, read-only services (overridable for tests).
 const FX = () => process.env.ULTRON_FX_API ?? "https://api.frankfurter.dev/v1";
 const DICT = () => process.env.ULTRON_DICT_API ?? "https://api.dictionaryapi.dev/api/v2/entries/en";
+const WIKTIONARY = () => process.env.ULTRON_WIKTIONARY_API ?? "https://en.wiktionary.org/api/rest_v1/page/definition";
+const stripHtml = (s = "") => s.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
+
+/** Wiktionary (Wikimedia, same as Wikipedia) first; the free dictionary API as a fallback. */
+async function lookupWord(word: string): Promise<{ word: string; phonetic?: string; meanings: { part_of_speech: string; definitions: { definition: string; example?: string }[] }[] } | null> {
+  const wk = await json(`${WIKTIONARY()}/${encodeURIComponent(word.toLowerCase())}`).catch(() => undefined);
+  const en = wk?.en as { partOfSpeech: string; definitions: { definition: string; examples?: string[] }[] }[] | undefined;
+  if (en?.length) {
+    const meanings = en
+      .map((m) => ({ part_of_speech: m.partOfSpeech.toLowerCase(), definitions: m.definitions.map((d) => ({ definition: stripHtml(d.definition), example: d.examples?.[0] ? stripHtml(d.examples[0]) : undefined })).filter((d) => d.definition).slice(0, 2) }))
+      .filter((m) => m.definitions.length)
+      .slice(0, 3);
+    if (meanings.length) return { word, meanings };
+  }
+  if (wk === null) return null; // Wiktionary answered "no such word"
+  const data = await json(`${DICT()}/${encodeURIComponent(word.toLowerCase())}`);
+  const entry = Array.isArray(data) ? data[0] : null;
+  if (!entry) return null;
+  return {
+    word: entry.word,
+    phonetic: entry.phonetic ?? entry.phonetics?.find((p: { text?: string }) => p.text)?.text,
+    meanings: (entry.meanings ?? []).slice(0, 3).map((m: any) => ({
+      part_of_speech: m.partOfSpeech,
+      definitions: (m.definitions ?? []).slice(0, 2).map((d: any) => ({ definition: d.definition, example: d.example })),
+    })),
+  };
+}
 const GEO = () => process.env.ULTRON_GEOCODE_API ?? "https://geocoding-api.open-meteo.com";
 
 async function json(url: string): Promise<any> {
@@ -69,18 +96,9 @@ const define: ToolDef<{ word: string }> = {
   timeoutMs: 12_000,
   describe: (i) => `Look up the meaning of "${i.word}"`,
   run: async (i) => {
-    const data = await json(`${DICT()}/${encodeURIComponent(i.word.toLowerCase())}`);
-    const entry = Array.isArray(data) ? data[0] : null;
+    const entry = await lookupWord(i.word);
     if (!entry) return JSON.stringify({ found: false, note: `No dictionary entry for "${i.word}".` });
-    return JSON.stringify({
-      found: true,
-      word: entry.word,
-      phonetic: entry.phonetic ?? entry.phonetics?.find((p: { text?: string }) => p.text)?.text,
-      meanings: (entry.meanings ?? []).slice(0, 3).map((m: any) => ({
-        part_of_speech: m.partOfSpeech,
-        definitions: (m.definitions ?? []).slice(0, 2).map((d: any) => ({ definition: d.definition, example: d.example })),
-      })),
-    });
+    return JSON.stringify({ found: true, ...entry });
   },
 };
 

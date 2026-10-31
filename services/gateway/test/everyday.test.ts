@@ -15,6 +15,10 @@ beforeAll(async () => {
     if (url.pathname === "/dict/serendipity")
       return json([{ word: "serendipity", phonetic: "/ˌsɛɹ.ənˈdɪp.ɪ.ti/", meanings: [{ partOfSpeech: "noun", definitions: [{ definition: "A combination of events which have come together by chance to make a surprisingly good result.", example: "Meeting her there was pure serendipity." }] }] }]);
     if (url.pathname.startsWith("/dict/")) return json({ title: "No Definitions Found" }, 404);
+    // Wiktionary: knows "ephemeral" (HTML in definitions), is down for "serendipity" (so the fallback is used), 404 otherwise.
+    if (url.pathname === "/wikt/ephemeral") return json({ en: [{ partOfSpeech: "Adjective", definitions: [{ definition: "Lasting for a <b>short</b> period of time.", examples: ["an <i>ephemeral</i> fashion"] }] }] });
+    if (url.pathname === "/wikt/serendipity") return json({}, 503);
+    if (url.pathname.startsWith("/wikt/")) return json({}, 404);
     if (url.pathname === "/v1/search") return json({ results: url.searchParams.get("name") === "Atlantis" ? [] : [{ name: "Tokyo", country: "Japan", timezone: "Asia/Tokyo" }] });
     res.writeHead(404).end();
   });
@@ -22,11 +26,12 @@ beforeAll(async () => {
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   process.env.ULTRON_FX_API = `${base}/fx`;
   process.env.ULTRON_DICT_API = `${base}/dict`;
+  process.env.ULTRON_WIKTIONARY_API = `${base}/wikt`;
   process.env.ULTRON_GEOCODE_API = base;
 });
 afterAll(() => {
   server.close();
-  for (const k of ["ULTRON_FX_API", "ULTRON_DICT_API", "ULTRON_GEOCODE_API"]) delete process.env[k];
+  for (const k of ["ULTRON_FX_API", "ULTRON_DICT_API", "ULTRON_WIKTIONARY_API", "ULTRON_GEOCODE_API"]) delete process.env[k];
 });
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
@@ -75,6 +80,7 @@ describe("currency, definitions and world time", () => {
     const id = await g.newConversation();
     expect(replyText(await g.chat(id, "define serendipity"))).toMatch(/^serendipity \/ˌsɛɹ.ənˈdɪp.ɪ.ti\/\n• \(noun\) A combination of events.*E\.g\. "Meeting her there was pure serendipity\."/);
     expect(replyText(await g.chat(id, "what does flibbertigibbetx mean?"))).toMatch(/couldn't find "flibbertigibbetx"/);
+    expect(replyText(await g.chat(id, "define ephemeral"))).toBe('ephemeral\n• (adjective) Lasting for a short period of time. E.g. "an ephemeral fashion"');
     expect(replyText(await g.chat(id, "what time is it in Tokyo?"))).toMatch(/^It's .+ in Tokyo, Japan \((same time as you|[\d.]+ hours? (ahead of|behind) you)\)\.$/);
     expect(replyText(await g.chat(id, "what time is it in Atlantis"))).toMatch(/couldn't find a place called "Atlantis"/);
   });
