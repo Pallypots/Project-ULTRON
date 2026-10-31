@@ -2,6 +2,7 @@ import { buildSystemPrompt, detectIntent, detectQuickCommand, detectTimeIntent, 
 import type { ToolEvent } from "@ultron/schemas";
 import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
 import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
+import { calculate } from "./actions/calc.ts";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
 import type { Stores } from "@ultron/memory";
@@ -219,7 +220,15 @@ export async function handleUserMessage(
   }
 
   // Everyday commands answered by code: instant, and reliable even on a small local model.
-  const quick = intent.type === "chat" && !timeIntent && deps.actions ? detectQuickCommand(content) : null;
+  let quick = intent.type === "chat" && !timeIntent && deps.actions ? detectQuickCommand(content) : null;
+  // Maths the calculator can't parse goes to the brain instead of answering with an error.
+  if (quick?.type === "calculate") {
+    try {
+      calculate(quick.expression);
+    } catch {
+      quick = null;
+    }
+  }
   if (quick && deps.actions) {
     const run = async (tool: string, args: Record<string, unknown>) => {
       const r = await deps.actions!.propose(tool, args, { conversationId, requestedBy: "command" });

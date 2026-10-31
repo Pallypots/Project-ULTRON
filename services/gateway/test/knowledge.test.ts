@@ -79,7 +79,11 @@ describe("calculator", () => {
     // Through the model when it's not a plain command.
     expect(replyText(await g.chat(await g.newConversation(), 'mock-tool calculate {"expression":"15% * 80"}'))).toContain('"result":12');
     expect(replyText(await g.chat(await g.newConversation(), "what's 15% of 80?"))).toBe("15% * (80) = 12");
-    expect(replyText(await g.chat(await g.newConversation(), "calculate 1/0"))).toMatch(/couldn't work that out: .*finite/);
+    expect(replyText(await g.chat(await g.newConversation(), "What is 1299 times 0.85, plus 4.99?"))).toBe("1299 * 0.85 + 4.99 = 1,109.14");
+    // Maths the calculator rejects isn't answered by the quick path; the brain handles it (the test brain tries the tool and reports honestly).
+    const hard = await g.chat(await g.newConversation(), "calculate 1/0");
+    expect(hard.find((e) => e.type === "tool")).toMatchObject({ event: { tool: "calculate", status: "failed" } });
+    expect(replyText(hard)).toMatch(/couldn't do that.*finite/);
   });
 });
 

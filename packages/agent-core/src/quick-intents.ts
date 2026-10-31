@@ -42,7 +42,8 @@ export function detectQuickCommand(message: string): QuickCommand | null {
 
   const calc = /^(?:what(?:'s| is)|calculate|compute|how much is)\s+(.+)$/i.exec(m);
   if (calc) {
-    let expr = calc[1]!.trim();
+    // A comma followed by a space is a spoken pause ("1299 times 0.85, plus 4.99"); "1,299" stays a thousands separator.
+    let expr = calc[1]!.trim().replace(/,\s+/g, " ");
     const pct = /^(\d+(?:\.\d+)?)\s*%\s+of\s+(.+)$/i.exec(expr);
     if (pct) expr = `${pct[1]}% * (${pct[2]})`;
     expr = expr.replace(/(\d)\s*x\s*(?=[\d(])/gi, "$1*").replace(/\btimes\b/gi, "*").replace(/\bplus\b/gi, "+").replace(/\bminus\b/gi, "-").replace(/\bdivided by\b/gi, "/");
