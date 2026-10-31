@@ -111,7 +111,7 @@ listen, remember, reflect and follow up like a good companion, which is what thi
 
 ---
 
-# Sprint 3: overnight Oct 31 (v0.15 → v0.19)
+# Sprint 3: overnight Oct 31 (v0.15 → v0.20)
 
 You asked me to work through the night, follow the development plan, and make ULTRON smarter and able to do more. Everything below is
 pushed to GitHub and passes the automatic checks on GitHub's Windows and Linux machines.
@@ -132,6 +132,19 @@ pushed to GitHub and passes the automatic checks on GitHub's Windows and Linux m
   daylight-saving changes correctly (tested).
 - **Web search (optional):** add a free Brave Search key in Settings → Web search, and ULTRON can look up news, prices and anything recent.
 - **Follow-through:** after you approve something ULTRON needed (like reading a page), it carries on and answers instead of stopping.
+
+**Routines and everyday answers (v0.20)**
+- **Routines** (Settings → Routines): say "good night" and ULTRON pauses the music, reads tomorrow's calendar and your to-do list.
+  Click "+ Add" on the ready-made ones ("Good night", "Work mode", "I'm home") or write your own.
+- **Instant, exact answers:**
+  - conversions: "convert 5 miles to km", "72 F in C", "how many cups in a litre";
+  - money: "$50 in euros" (today's rates);
+  - definitions: "define serendipity";
+  - world time: "what time is it in Tokyo?"
+- **"Lock my computer"**: only your own voice or typing can do this, never a web page.
+- **Calendar heads-up** 10 minutes before each event (spoken too).
+- **Faster first answer:** ULTRON pre-loads the local brain when you open it.
+- **"What's new" card:** after you update, Home shows what changed since your last version.
 
 **More alive**
 - **Morning check-in** (8:00): it says good morning first with your day at a glance and a "Brief me" button.
@@ -158,12 +171,13 @@ pushed to GitHub and passes the automatic checks on GitHub's Windows and Linux m
 | Local brain, deep thinking on the bat-and-ball trick question | **correct (5 cents)** |
 | Meaning-based file search | "popping noise glitch" → the "audio crackle" notes (keyword search: nothing) |
 | Real Windows | 141 Start-menu apps found, media keys sent, screenshot captured (322 KB) |
-| Automated tests | **229 passed** |
-| Browser end-to-end test | **49 steps** on Windows and Linux, including phone pairing and removal, calendar, opening apps, the voice effect and voice interruption |
+| Automated tests | **239 passed** |
+| Browser end-to-end test | **50 steps** on Windows and Linux, including routines, phone pairing and removal, calendar, opening apps, the voice effect and voice interruption |
 
 ## Try it this morning
 1. Download the new ZIP from GitHub, extract it over your folder, then run **Start-ULTRON.bat**.
-2. Say or type: "pause the music" · "open notepad" (then Approve) · "how's my PC doing?" · "look at my screen, what am I looking at?"
+2. Say or type: "pause the music" · "open notepad" (then Approve) · "how's my PC doing?" · "look at my screen, what am I looking at?" ·
+   "convert 5 miles to km" · "what time is it in Tokyo?" · Settings → Routines → + Add "Good night", then say "good night".
 3. **Connections → Calendar**: follow the 3 steps shown there to paste your Google Calendar's secret iCal address.
 4. Optional: **Settings → Web search** (free Brave key) · **Settings → Phone access** (Tailscale) · **Settings → Spoken replies → Ultron voice effect**.
 
