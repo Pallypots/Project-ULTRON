@@ -226,6 +226,16 @@ try {
   await page.screenshot({ path: join(shots, "10-spoken-replies-settings.png") });
   await page.getByRole("button", { name: "■ Stop", exact: true }).click();
   step("Settings → Spoken replies: preview plays and can be stopped");
+  // The Ultron voice effect plays through its own audio chain: check it still produces sound, then switch it back off.
+  const fxErrors = [];
+  page.on("pageerror", (e) => fxErrors.push(e.message));
+  await page.getByLabel(/Ultron voice effect/).check();
+  await page.getByRole("button", { name: "▶ Preview voice" }).click();
+  await page.getByRole("button", { name: "■ Stop", exact: true }).waitFor();
+  await page.getByRole("button", { name: "▶ Preview voice" }).waitFor({ timeout: 20000 }); // played to the end
+  await page.getByLabel(/Ultron voice effect/).uncheck();
+  if (fxErrors.length) throw new Error(`voice effect errors: ${fxErrors.join("; ")}`);
+  step("Ultron voice effect: preview plays through the effect without errors");
   await page.getByLabel(/Send right after I stop talking/).uncheck();
   await page.getByRole("button", { name: "Chat" }).click();
   await talk.click();

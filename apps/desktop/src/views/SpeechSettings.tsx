@@ -115,6 +115,12 @@ export function SpeechSettings() {
         <span>Speaking speed: {s.speed.toFixed(2)}×</span>
         <input type="range" min={0.7} max={1.4} step={0.05} value={s.speed} onChange={(e) => setS({ ...s, speed: Number(e.target.value) })} onMouseUp={() => save({ speed: s.speed })} onKeyUp={() => save({ speed: s.speed })} onTouchEnd={() => save({ speed: s.speed })} />
       </label>
+      {s.engine !== "browser" && (
+        <label className="toggle">
+          <input type="checkbox" checked={prefs.ultronEffect} onChange={(e) => updatePrefs({ ultronEffect: e.target.checked })} />
+          <span>Ultron voice effect: a little deeper with a faint metallic edge (preview it to hear)</span>
+        </label>
+      )}
 
       <div className="row">
         <button type="button" className="btn btn--primary" onClick={previewing ? () => speaker.current?.stop() : preview}>{previewing ? "■ Stop" : "▶ Preview voice"}</button>

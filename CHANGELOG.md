@@ -6,6 +6,7 @@
   and your morning briefing, greetings and catch-ups now include what's coming up. Understands time zones (including daylight-saving
   changes and Outlook's zone names), repeating events (daily/weekly on chosen days/monthly incl. "second Tuesday"/yearly, with end dates
   and counts), skipped and moved occurrences, cancelled events and all-day events. Cached for 10 minutes.
+- **Ultron voice effect** (Settings → Spoken replies, off by default): the local voice gets a little deeper with a faint metallic edge.
 - **Web search (optional):** add a free Brave Search key in Settings → Web search (checked, stored encrypted) and ULTRON can search the web
   for news, prices, opening hours and anything recent, then read the results. Links a search returned can be read without extra approval.
 - **"Look at my screen"** (Windows): ask "what's this error on my screen?" and ULTRON takes one screenshot of your main screen and shows it to

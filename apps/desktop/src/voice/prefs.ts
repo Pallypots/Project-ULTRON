@@ -10,9 +10,11 @@ export interface VoicePrefs {
   conversation: boolean;
   /** Hands-free: talking over ULTRON (loudly enough) stops it and takes what you say as the reply. */
   bargeIn: boolean;
+  /** Spoken replies get the "Ultron" colour: a little deeper, faintly metallic. */
+  ultronEffect: boolean;
 }
 const KEY = "ultron.voice";
-const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true, bargeIn: false };
+const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true, bargeIn: false, ultronEffect: false };
 
 export function loadVoicePrefs(): VoicePrefs {
   try {

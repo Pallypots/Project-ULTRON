@@ -1,4 +1,5 @@
 import { speak as fetchSpeech } from "../api.ts";
+import { loadVoicePrefs } from "./prefs.ts";
 
 export type SpeakMode = "voice" | "always" | "never";
 export type TtsEngineId = "local" | "browser" | "mock";
@@ -76,7 +77,10 @@ export class Speaker {
       await new Promise<void>((resolve) => {
         const src = this.ctx!.createBufferSource();
         src.buffer = buffer;
-        src.connect(this.analyser!);
+        if (loadVoicePrefs().ultronEffect) {
+          src.playbackRate.value = 0.95; // a touch deeper
+          src.connect(this.effectInput());
+        } else src.connect(this.analyser!);
         src.onended = () => resolve();
         this.current = src;
         src.start();
@@ -84,6 +88,51 @@ export class Speaker {
       this.current = null;
     }
     if (gen === this.generation) this.setPlaying(false);
+  }
+
+  private fxInput: AudioNode | null = null;
+
+  /**
+   * The optional "Ultron" voice colour: extra low end, a faint metallic ring (amplitude modulation) and a very short
+   * resonant echo, mixed with the dry voice so it stays easy to understand. Built once per audio context, feeding the analyser.
+   */
+  private effectInput(): AudioNode {
+    if (this.fxInput) return this.fxInput;
+    const ctx = this.ctx!;
+    const input = ctx.createBiquadFilter();
+    input.type = "lowshelf";
+    input.frequency.value = 220;
+    input.gain.value = 5;
+    const out = ctx.createGain();
+    out.connect(this.analyser!);
+    // Dry voice.
+    const dry = ctx.createGain();
+    dry.gain.value = 0.8;
+    input.connect(dry).connect(out);
+    // Metallic ring: the voice's loudness wobbles fast (55 Hz), which reads as "synthetic"; mixed in lightly.
+    const ring = ctx.createGain();
+    ring.gain.value = 0;
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 55;
+    const depth = ctx.createGain();
+    depth.gain.value = 0.9;
+    osc.connect(depth).connect(ring.gain);
+    osc.start();
+    const ringMix = ctx.createGain();
+    ringMix.gain.value = 0.28;
+    input.connect(ring).connect(ringMix).connect(out);
+    // Short comb echo for a hollow, "inside a suit" resonance.
+    const delay = ctx.createDelay(0.05);
+    delay.delayTime.value = 0.012;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.35;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.25;
+    input.connect(delay);
+    delay.connect(feedback).connect(delay);
+    delay.connect(wet).connect(out);
+    this.fxInput = input;
+    return input;
   }
 
   private speakBrowser(text: string) {
