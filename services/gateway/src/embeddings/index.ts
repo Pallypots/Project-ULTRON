@@ -118,7 +118,7 @@ export class EmbeddingService {
   async similarFiles(text: string, limit = 8) {
     if (this.state !== "ready" || !this.embed) return [];
     const [q] = await this.embed([text]);
-    return this.stores.files.nearestDocs(q!, this.model, limit, this.mode === "mock" ? 0.25 : 0.35);
+    return this.stores.files.nearestDocs(q!, this.model, limit, this.mode === "mock" ? 0.25 : 0.3);
   }
 
   /** Meaning-based matches for a message; empty if the model isn't ready (keyword recall still applies). */
