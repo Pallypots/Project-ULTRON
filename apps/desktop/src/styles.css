@@ -167,7 +167,9 @@ textarea { resize: vertical; }
 .todo .toggle { flex: 1; }
 .todo--done span { text-decoration: line-through; color: var(--muted); }
 .hello { display: grid; gap: 4px; color: var(--text); padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 3px 0 0 var(--accent), var(--glow); animation: hello-in 400ms ease-out; }
-.hello__who { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--accent); }
+.hello__who { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
+.hello__play { background: none; border: 1px solid var(--line); border-radius: 8px; color: var(--text); cursor: pointer; padding: 2px 8px; font-size: 0.85rem; }
+.hello__play:hover { border-color: var(--accent); box-shadow: var(--glow); }
 @keyframes hello-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .hello { animation: none; } }
 .ask { display: flex; gap: 8px; }

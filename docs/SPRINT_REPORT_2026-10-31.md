@@ -56,7 +56,7 @@ on GitHub's Windows and Linux machines.
 ## Try it (10 minutes)
 1. Update: on GitHub, **Code → Download ZIP**, extract it over your folder, then run **Start-ULTRON.bat**.
 2. Settings → Personality → set your **Home city**. Click Save.
-3. Go back to Home and read what ULTRON says to you.
+3. Go back to Home and read what ULTRON says to you. Press 🔊 to hear it.
 4. Try: "my sister's birthday is March 3" (then Approve) · "add milk and eggs to my list" · "what's the weather?" · "tell me a joke" ·
    "what's 18% of 64.50?" · "what did we talk about yesterday?"
 
@@ -66,4 +66,4 @@ on GitHub's Windows and Linux machines.
 - Instant commands only catch clearly worded requests. Everything else goes to the brain.
 - There's no general web search yet. Wikipedia, weather and links you paste work. A full search engine needs a search service account,
   which I can add if you want it.
-- The greeting is text on the Home screen. It isn't spoken aloud yet, because browsers block sound until you click something.
+- The greeting doesn't speak by itself (browsers block sound until you click something). Press 🔊 on it to hear it.

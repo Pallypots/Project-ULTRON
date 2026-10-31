@@ -2,6 +2,7 @@
 
 ## 0.13.0 · 2026-10-31 · Smarter and more alive
 - **ULTRON speaks first:** opening the app shows a short in-character catch-up line from your current brain (cached for 3 hours).
+  Press 🔊 on it to hear it in ULTRON's voice.
 - Catching up also uses memories from the last two weeks (never ones marked sensitive), so it can ask how the interview went.
 - **To-do list:** "add milk and eggs to my list", "what's on my list?", "I paid the electric bill" (ticks it off; asks if it's ambiguous).
   Also on the Reminders page, and in the morning briefing.

@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
+import { loadVoicePrefs } from "../voice/prefs.ts";
 import type { Capability } from "@ultron/schemas";
 import { api, type FeedEvent, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
@@ -30,6 +32,19 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
   const hour = new Date().getHours();
   const greet = hour < 5 ? "Burning the midnight oil" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const [quip] = useState(() => QUIPS[Math.floor(Math.random() * QUIPS.length)]!);
+  // Spoken on request: browsers only allow sound after a click, so the greeting has a play button.
+  const speaker = useRef<Speaker | null>(null);
+  const voice = useRef<{ engine: TtsEngineId; speed: number }>({ engine: "local", speed: 1 });
+  useEffect(() => () => speaker.current?.stop(), []);
+  const sayHello = async () => {
+    if (!hello) return;
+    const s = await api.ttsStatus().catch(() => null);
+    if (s) voice.current = { engine: s.engine, speed: s.speed };
+    speaker.current ??= new Speaker(() => voice.current.engine, () => loadVoicePrefs().browserVoice, () => voice.current.speed);
+    speaker.current.unlock();
+    speaker.current.stop();
+    speaker.current.enqueue(hello.match(/[^.!?]+[.!?]*/g) ?? [hello]);
+  };
   // ULTRON speaks first: a catch-up line from the current brain (may take a while on a slow local model).
   const [hello, setHello] = useState<string | null>(null);
   useEffect(() => {
@@ -48,7 +63,10 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
           <p className="muted">{quip}</p>
           {hello && (
             <div className="hello" role="status">
-              <span className="hello__who">ULTRON</span>
+              <span className="hello__who">
+                ULTRON
+                <button type="button" className="hello__play" onClick={sayHello} aria-label="Say it out loud" title="Say it out loud">🔊</button>
+              </span>
               <span className="hello__text">{hello}</span>
             </div>
           )}
