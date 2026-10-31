@@ -111,6 +111,9 @@ describe("Wikipedia and weather", () => {
     expect(replyText(await g.chat(id, "weather in Nowhere"))).toMatch(/couldn't find a place/);
     // The morning briefing now includes it.
     expect(replyText(await g.chat(id, "good morning"))).toMatch(/"weather":\{"found":true,"place":"Leeds/);
+    // ...and so does ULTRON's greeting on Home.
+    g.gw.stores.preferences.set("greeting_cache", null);
+    expect((await g.api("GET", "/api/greeting")).body.greeting.text).toMatch(/Coming up: weather at home \(Leeds, England, United Kingdom\): light rain, 12°[CF], high 13°[CF], 80% chance of rain/);
   });
 });
 

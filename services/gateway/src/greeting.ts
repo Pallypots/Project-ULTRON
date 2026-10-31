@@ -2,6 +2,17 @@ import { buildSystemPrompt } from "@ultron/agent-core";
 import { currentCapabilities } from "./capabilities.ts";
 import { agendaFor, rapportFor, recentMemories, type ChatDeps } from "./chat.ts";
 import { readProviderSettings, resolveProvider } from "./providers.ts";
+import { homeLocation, weatherFor } from "./actions/knowledge.ts";
+
+/** One line about the weather at home, or nothing (no home city, offline, slow service). */
+async function weatherLine(stores: ChatDeps["stores"]): Promise<string | null> {
+  const home = homeLocation({ stores });
+  if (!home) return null;
+  const w = await Promise.race([weatherFor(home, Intl.DateTimeFormat().resolvedOptions().locale === "en-US").catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 5000))]);
+  if (!w?.found || !w.now) return null;
+  const today = w.next_days?.[0];
+  return `weather at home (${w.place}): ${w.now.conditions}, ${w.now.temperature}${today ? `, high ${today.high}${today.chance_of_rain ? `, ${today.chance_of_rain} chance of rain` : ""}` : ""}`;
+}
 
 const FRESH_MS = 3 * 3_600_000;
 const INSTRUCTION =
@@ -39,7 +50,8 @@ export class Greeter {
     const settings = readProviderSettings(stores.preferences);
     const resolution = resolveProvider(settings, this.deps.secrets, 0);
     if (!resolution.ok) return null;
-    const rapport = { ...rapportFor(stores, "", "text"), recentMemories: recentMemories(stores, []), agenda: agendaFor(stores) };
+    const weather = await weatherLine(stores);
+    const rapport = { ...rapportFor(stores, "", "text"), recentMemories: recentMemories(stores, []), agenda: [...(weather ? [weather] : []), ...agendaFor(stores)] };
     let text = "";
     if (resolution.provider.id === "mock") {
       // The test brain can't improvise, so it gets a simple, honest line built from the same facts.

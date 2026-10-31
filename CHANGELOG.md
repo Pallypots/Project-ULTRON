@@ -18,7 +18,7 @@
   which makes them more reliable and faster. Cloud brains still see everything.
 - A new message cancels a greeting that's still being written, so a busy local brain never makes you wait.
 - Fixed: approving an action while ULTRON was still finishing its reply could show it as "waiting" again afterwards.
-- Catching up and the greeting also know what's **coming up**: to-dos due today/tomorrow (or overdue) and the next reminders.
+- Catching up and the greeting also know what's **coming up**: the weather at home, to-dos due today/tomorrow (or overdue) and the next reminders.
 
 ## 0.12.0 · 2026-10-30 · Red ULTRON, a real personality, and new abilities
 - **Red interface** inspired by the films' Ultron (new red icon too). Local brain = red; cloud = amber; test = violet.
