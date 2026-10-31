@@ -1,4 +1,4 @@
-import { buildSystemPrompt, detectIntent, detectQuickCommand, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
+import { buildSystemPrompt, shield, detectIntent, detectQuickCommand, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
 import type { ToolEvent } from "@ultron/schemas";
 import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
 import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
@@ -387,7 +387,21 @@ export async function handleUserMessage(
   try {
     // Model ↔ tools loop, bounded so a confused model can't spin (cost and safety cap).
     for (let round = 0; round <= MAX_TOOL_ROUNDS && !opts.signal.aborted; round++) {
-      const req = { system, messages: turns, memories, capabilities, signal: opts.signal, deep };
+      // Privacy shield: a cloud brain never receives card numbers, passwords, keys or ID numbers (local brains see the original).
+      const cloud = provider.id === "anthropic" || provider.id === "openai";
+      let hidden = 0;
+      const out = (t: string) => {
+        if (!cloud) return t;
+        const r = shield(t);
+        hidden += r.hidden;
+        return r.text;
+      };
+      const req = { system: out(system), messages: turns.map((t) => ({ ...t, content: out(t.content) })) as ChatTurn[], memories, capabilities, signal: opts.signal, deep };
+      if (round === 0 && hidden > 0) {
+        const exec = stores.actions.create({ conversationId, tool: "privacy_shield", input: {}, risk: 0, requestedBy: "owner", summary: `Hid ${hidden} sensitive item${hidden > 1 ? "s" : ""} (like card numbers or passwords) before sending to the cloud brain`, status: "succeeded" });
+        stores.audit.record("privacy.shielded", "system", exec.id, { provider: provider.id, hidden });
+        recordTool(toEvent(exec));
+      }
       const events = useTools && round < MAX_TOOL_ROUNDS ? provider.streamWithTools!({ ...req, tools: toolSpecs }) : textOnly(provider.stream(req));
       const calls: ToolCall[] = [];
       let roundText = "";

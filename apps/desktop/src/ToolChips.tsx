@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ToolEvent } from "@ultron/schemas";
 import { api } from "./api.ts";
 
-const ICON: Record<string, string> = { get_current_time: "🕒", create_reminder: "⏰", list_reminders: "📋", cancel_reminder: "🗑", open_website: "🌐", search_files: "🔎", read_file: "📄", open_on_screen: "🖥", connected_updates: "⛓", daily_briefing: "☀", github_create_issue: "🐙", calculate: "🧮", lookup_wikipedia: "📚", get_weather: "⛅", read_webpage: "📰", save_memory: "🧠", add_todo: "📝", list_todos: "📝", complete_todo: "✅", search_conversations: "💬", recall_everything_about_owner: "🧠", get_calendar: "📅", look_at_screen: "📸", web_search: "🔍", media_control: "🎵", open_app: "🚀", find_apps: "🚀", pc_status: "💻" };
+const ICON: Record<string, string> = { get_current_time: "🕒", create_reminder: "⏰", list_reminders: "📋", cancel_reminder: "🗑", open_website: "🌐", search_files: "🔎", read_file: "📄", open_on_screen: "🖥", connected_updates: "⛓", daily_briefing: "☀", github_create_issue: "🐙", calculate: "🧮", lookup_wikipedia: "📚", get_weather: "⛅", read_webpage: "📰", save_memory: "🧠", add_todo: "📝", list_todos: "📝", complete_todo: "✅", search_conversations: "💬", recall_everything_about_owner: "🧠", get_calendar: "📅", look_at_screen: "📸", privacy_shield: "🛡", web_search: "🔍", media_control: "🎵", open_app: "🚀", find_apps: "🚀", pc_status: "💻" };
 // Approval-gated tools whose effect stays inside ULTRON (nothing leaves this computer).
 const INTERNAL = new Set(["save_memory"]);
 // After approval, ULTRON carries on with the result instead of stopping at the approval card.
