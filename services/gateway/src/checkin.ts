@@ -6,8 +6,19 @@ export interface CheckInSettings {
   enabled: boolean;
   /** Local time, "HH:MM". */
   time: string;
+  /** Evening "how did today go?" check-in. */
+  evening: boolean;
+  eveningTime: string;
 }
-export const DEFAULT_CHECKIN: CheckInSettings = { enabled: true, time: "08:00" };
+export const DEFAULT_CHECKIN: CheckInSettings = { enabled: true, time: "08:00", evening: true, eveningTime: "21:00" };
+
+// Varied so it doesn't feel like a cron job.
+const EVENING_LINES = [
+  "How did today go? I'm all ears (well, microphones).",
+  "Day's nearly done. Anything worth telling me about?",
+  "Evening. How was today? Wins, disasters, both?",
+  "Got a minute? Tell me how today went.",
+];
 
 /**
  * ULTRON reaches out first once a morning: at the owner's chosen time (or when ULTRON starts later that morning) it
@@ -39,8 +50,29 @@ export class MorningCheckIn {
     this.timer = null;
   }
 
-  /** Sends today's check-in if it's due. Returns whether it did. */
+  /** Sends today's check-ins if they're due. Returns whether one was sent. */
   async tick(): Promise<boolean> {
+    return (await this.morning()) || this.evening();
+  }
+
+  /** "How did today go?" once an evening (not after midnight, and only if ULTRON is running then). */
+  evening(): boolean {
+    const s = this.settings();
+    if (!s.evening) return false;
+    const now = this.now();
+    const today = now.toLocaleDateString("en-CA");
+    if (this.stores.preferences.get<string>("checkin_evening_last", "") === today) return false;
+    const [h, m] = s.eveningTime.split(":").map(Number) as [number, number];
+    if (now.getHours() * 60 + now.getMinutes() < h * 60 + m) return false;
+    this.stores.preferences.set("checkin_evening_last", today);
+    const open = this.stores.todos.list().length;
+    const body = EVENING_LINES[now.getDate() % EVENING_LINES.length]! + (open ? ` (${open} thing${open > 1 ? "s" : ""} still on your list.)` : "");
+    this.stores.audit.record("checkin.evening_sent", "system");
+    this.bus.emit({ type: "checkin", title: "Evening check-in", body, kind: "evening" });
+    return true;
+  }
+
+  private async morning(): Promise<boolean> {
     const s = this.settings();
     if (!s.enabled) return false;
     const now = this.now();
@@ -65,7 +97,7 @@ export class MorningCheckIn {
     if (reminders.length) parts.push(`${reminders.length} reminder${reminders.length > 1 ? "s" : ""} later`);
     const body = parts.length ? `Today: ${parts.join(", ")}.` : "Nothing urgent on the radar. Want the full briefing anyway?";
     this.stores.audit.record("checkin.sent", "system", null, { items: parts.length });
-    this.bus.emit({ type: "checkin", title: "Good morning", body });
+    this.bus.emit({ type: "checkin", title: "Good morning", body, kind: "morning" });
     return true;
   }
 }

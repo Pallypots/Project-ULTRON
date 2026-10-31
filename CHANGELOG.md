@@ -13,6 +13,7 @@
   the brain for that question only. Never taken unless you ask, never saved, shown as a chip and in Activity. With a local brain it stays on
   your PC; with a cloud brain the chip says where it went. Needs a brain that can see (e.g. gemma3:4b or qwen2.5vl:7b locally, or Claude);
   ULTRON tells you if the current one can't.
+- **Evening check-in:** at 9 p.m. (your choice) ULTRON asks how your day went, with a **Talk** button that opens a voice conversation.
 - **Morning check-in:** ULTRON says good morning first, once a day at the time you choose (default 8:00, or when it starts later that
   morning; never after noon): a pop-up and Windows notification with your day at a glance and a **Brief me** button. Settings → Morning check-in.
 

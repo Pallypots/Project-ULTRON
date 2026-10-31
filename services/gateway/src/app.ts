@@ -162,7 +162,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   // ---- morning check-in ----
   app.get("/api/settings/checkin", async () => ({ checkin: checkIn.settings() }));
   app.put("/api/settings/checkin", async (req) => {
-    const body = z.object({ enabled: z.boolean(), time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 08:00.") }).parse(req.body);
+    const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 08:00.");
+    const body = z.object({ enabled: z.boolean(), time: hhmm, evening: z.boolean(), eveningTime: hhmm }).parse(req.body);
     stores.preferences.set("checkin", body);
     stores.audit.record("settings.checkin_changed", "owner", null, body);
     return { checkin: checkIn.settings() };

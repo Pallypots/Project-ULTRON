@@ -42,8 +42,16 @@ export function App() {
       setChatSeed((e as CustomEvent<string>).detail);
       setView("chat");
     };
+    const talk = () => {
+      setTalkNow(true);
+      setView("chat");
+    };
     window.addEventListener("ultron-ask", ask);
-    return () => window.removeEventListener("ultron-ask", ask);
+    window.addEventListener("ultron-talk", talk);
+    return () => {
+      window.removeEventListener("ultron-ask", ask);
+      window.removeEventListener("ultron-talk", talk);
+    };
   }, []);
   useEffect(() => {
     const on = () => setNeedPair(true);
@@ -78,7 +86,11 @@ export function App() {
         setRemindersKey((k) => k + 1);
       } else if (e.type === "checkin") {
         // ULTRON reaching out first: a morning summary with a button for the full briefing.
-        toast({ kind: "info", title: `☀ ${e.title}`, body: e.body, action: { label: "Brief me", run: () => window.dispatchEvent(new CustomEvent("ultron-ask", { detail: "Good morning, brief me" })) } });
+        toast(
+          e.kind === "evening"
+            ? { kind: "info", title: `🌙 ${e.title}`, body: e.body, action: { label: "Talk", run: () => window.dispatchEvent(new Event("ultron-talk")) } }
+            : { kind: "info", title: `☀ ${e.title}`, body: e.body, action: { label: "Brief me", run: () => window.dispatchEvent(new CustomEvent("ultron-ask", { detail: "Good morning, brief me" })) } },
+        );
         if ("Notification" in window && Notification.permission === "granted") new Notification(`ULTRON: ${e.title}`, { body: e.body, icon: "/ultron.svg" });
       } else if (e.type === "connector_synced") {
         window.dispatchEvent(new CustomEvent("ultron-connector", { detail: e }));

@@ -19,7 +19,7 @@ describe("morning check-in (ULTRON reaches out first)", () => {
     s.reminders.create({ text: "Call mum", dueAt: new Date(2026, 10, 2, 18, 0), source: "manual" });
     expect(await new MorningCheckIn(s, bus, undefined, at(7, 59)).tick()).toBe(false); // too early
     expect(await new MorningCheckIn(s, bus, undefined, at(8, 5)).tick()).toBe(true);
-    expect(seen.at(-1)).toEqual({ type: "checkin", title: "Good morning", body: "Today: 1 to-do due, 1 reminder later." });
+    expect(seen.at(-1)).toEqual({ type: "checkin", title: "Good morning", body: "Today: 1 to-do due, 1 reminder later.", kind: "morning" });
     expect(await new MorningCheckIn(s, bus, undefined, at(9, 30)).tick()).toBe(false); // already done today
     expect(await new MorningCheckIn(s, bus, undefined, at(8, 1, 1)).tick()).toBe(true); // next day
   });
@@ -33,5 +33,20 @@ describe("morning check-in (ULTRON reaches out first)", () => {
     expect(await new MorningCheckIn(s, bus, undefined, at(9, 45)).tick()).toBe(true);
     s.preferences.set("checkin", { enabled: false, time: "09:30" });
     expect(await new MorningCheckIn(s, bus, undefined, at(9, 45, 1)).tick()).toBe(false);
+  });
+
+  it("asks how the day went once an evening, and can be turned off", async () => {
+    const s = openStores(":memory:");
+    const bus = new EventBus();
+    const seen: any[] = [];
+    bus.subscribe((e) => seen.push(e));
+    s.preferences.set("checkin", { enabled: false });
+    s.todos.add({ text: "Call mum" });
+    expect(await new MorningCheckIn(s, bus, undefined, at(20, 59)).tick()).toBe(false);
+    expect(await new MorningCheckIn(s, bus, undefined, at(21, 5)).tick()).toBe(true);
+    expect(seen.at(-1)).toMatchObject({ type: "checkin", kind: "evening", title: "Evening check-in", body: expect.stringMatching(/today.*\(1 thing still on your list\.\)$/i) });
+    expect(await new MorningCheckIn(s, bus, undefined, at(22, 0)).tick()).toBe(false);
+    s.preferences.set("checkin", { enabled: false, evening: false });
+    expect(await new MorningCheckIn(s, bus, undefined, at(21, 5, 1)).tick()).toBe(false);
   });
 });

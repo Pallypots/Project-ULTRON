@@ -6,7 +6,7 @@ export type ServerEvent =
   | { type: "action_updated"; execution: ToolExecution }
   | { type: "connector_synced"; source: string; added: number }
   | { type: "hello"; at: string }
-  | { type: "checkin"; title: string; body: string };
+  | { type: "checkin"; title: string; body: string; kind: "morning" | "evening" };
 
 /** Fan-out of live events to every connected ULTRON window (desktop now, phone later). */
 export class EventBus {

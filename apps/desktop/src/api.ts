@@ -103,6 +103,12 @@ export interface Reminder {
   createdAt: string;
   firedAt: string | null;
 }
+export interface CheckIn {
+  enabled: boolean;
+  time: string;
+  evening: boolean;
+  eveningTime: string;
+}
 export interface Todo {
   id: string;
   text: string;
@@ -186,7 +192,7 @@ export type ServerEvent =
   | { type: "reminders_missed"; reminders: Reminder[] }
   | { type: "action_updated"; execution: ActionRecord }
   | { type: "connector_synced"; source: string; added: number }
-  | { type: "checkin"; title: string; body: string };
+  | { type: "checkin"; title: string; body: string; kind: "morning" | "evening" };
 
 /** Keeps a live connection for reminders and approvals; reconnects with backoff. Returns a stop function. */
 export function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {
@@ -283,8 +289,8 @@ export const api = {
   searchSettings: () => call<{ configured: boolean }>("GET", "/api/settings/search"),
   saveSearchKey: (apiKey: string) => call<{ configured: boolean }>("PUT", "/api/settings/search", { apiKey }),
   removeSearchKey: () => call<{ configured: boolean }>("DELETE", "/api/settings/search"),
-  checkin: () => call<{ checkin: { enabled: boolean; time: string } }>("GET", "/api/settings/checkin"),
-  saveCheckin: (c: { enabled: boolean; time: string }) => call<{ checkin: { enabled: boolean; time: string } }>("PUT", "/api/settings/checkin", c),
+  checkin: () => call<{ checkin: CheckIn }>("GET", "/api/settings/checkin"),
+  saveCheckin: (c: CheckIn) => call<{ checkin: CheckIn }>("PUT", "/api/settings/checkin", c),
   calendar: () => call<{ calendar: { connected: boolean; lastSyncAt: string | null; error: string | null } }>("GET", "/api/calendar"),
   connectCalendar: (url: string) => call<{ calendar: { connected: boolean; lastSyncAt: string | null; error: string | null }; events: number }>("PUT", "/api/calendar", { url }),
   disconnectCalendar: () => call<{ calendar: { connected: boolean; lastSyncAt: string | null; error: string | null } }>("DELETE", "/api/calendar"),

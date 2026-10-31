@@ -89,6 +89,9 @@ the background so reminders and GitHub updates keep working; open it from the de
 Each morning at the time you choose (Settings → Morning check-in, default 8:00), ULTRON pops up first: "Good morning. Today: 3 events, first:
 Standup, 1 to-do due." Click **Brief me** for the full briefing. If ULTRON starts later that morning it checks in then; never after noon.
 
+**Evening check-in:** at 9 p.m. by default ULTRON asks how your day went. Click **Talk** and just tell it; it may offer to remember
+the highlights. Turn either check-in off or change the times in Settings → Check-ins.
+
 ## Good morning briefing
 Say "Ultron, good morning", "brief me" or "what's my day like?" (or tap **Good morning, brief me** on Home). ULTRON gathers today's reminders,
 anything missed while it was off, actions waiting for your approval, and GitHub highlights from the last 24 hours. It tells you plainly which sources
