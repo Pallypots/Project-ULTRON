@@ -20,13 +20,15 @@ const PREROLL_FRAMES = 15; // keep 300 ms before speech started
 const MAX_SEC = 10;
 const MIN_SEC = 0.4;
 const AWAKE_MS = 8000; // after just "Ultron", the next phrase is the command
-const FOLLOW_MS = 10_000; // conversation mode: how long ULTRON waits for your reply after answering
+const FOLLOW_MS = 10_000;
+const BARGE_FRAMES = 15; // 300 ms of clearly loud speech while ULTRON talks counts as interrupting
+const BARGE_GRACE_MS = 2000; // after an interruption, keep listening while the reply is being cancelled // conversation mode: how long ULTRON waits for your reply after answering
 
 /**
  * Opt-in hands-free listening: a simple voice-activity detector cuts speech into phrases, each phrase is checked
  * for the wake word on this PC, and anything not addressed to ULTRON is discarded by the server unheard.
  */
-export function useHandsFree(onCommand: (text: string) => void, paused: boolean) {
+export function useHandsFree(onCommand: (text: string) => void, paused: boolean, opts: { speaking?: boolean; onBargeIn?: () => void } = {}) {
   const [state, setState] = useState<HandsFreeState>("off");
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +50,16 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
     on: false,
     conversing: false,
     followTimer: 0 as ReturnType<typeof setTimeout> | 0,
+    speaking: false,
+    bargeIn: false,
+    bargeAbove: 0,
+    bargedUntil: 0,
+    onBargeIn: undefined as (() => void) | undefined,
   });
   const set = (s: HandsFreeState) => setState(s);
   r.current.paused = paused;
+  r.current.speaking = Boolean(opts.speaking);
+  r.current.onBargeIn = opts.onBargeIn;
   // What to show while waiting: a reply window, a just-heard-"Ultron" window, or plain listening for the wake word.
   const idle = (): HandsFreeState => {
     const st = r.current;
@@ -111,9 +120,31 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
       for (const s of f) sum += s * s;
       const rms = Math.sqrt(sum / f.length);
       setLevel(Math.min(1, rms * 4));
+      const barging = Date.now() < st.bargedUntil;
+      // Interrupt by voice (opt-in): while ULTRON speaks, only clearly loud, sustained speech counts, well above its own
+      // echo (which the browser's echo cancellation mostly removes). Then it stops talking and listens.
+      if (st.paused && !barging && st.speaking && st.bargeIn && st.onBargeIn && !st.busy && !st.inPhrase) {
+        st.preroll.push(f);
+        if (st.preroll.length > PREROLL_FRAMES) st.preroll.shift();
+        if (rms > Math.max(0.05, st.floor * 8)) {
+          if (++st.bargeAbove >= BARGE_FRAMES) {
+            st.bargeAbove = 0;
+            st.bargedUntil = Date.now() + BARGE_GRACE_MS;
+            st.awakeUntil = Date.now() + FOLLOW_MS; // what you say next needs no wake word
+            st.conversing = loadVoicePrefs().conversation;
+            st.inPhrase = true;
+            st.below = 0;
+            st.phrase = [...st.preroll];
+            st.preroll = [];
+            set("hearing");
+            st.onBargeIn();
+          }
+        } else st.bargeAbove = 0;
+        return;
+      }
       // Ignore everything while ULTRON is talking/thinking or a phrase is being checked (no self-triggering).
       // (A phrase starting in the follow-up window counts even if the window ends while you're still talking.)
-      if (st.paused || st.busy) {
+      if ((st.paused && !barging) || st.busy) {
         st.inPhrase = false;
         st.phrase = [];
         st.above = 0;
@@ -190,6 +221,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
       mute.gain.value = 0;
       src.connect(st.node).connect(mute).connect(st.ctx.destination);
       st.on = true;
+      st.bargeIn = loadVoicePrefs().bargeIn;
       if (opts.conversation) {
         st.conversing = true;
         st.awakeUntil = Date.now() + FOLLOW_MS * 2;
@@ -212,6 +244,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
   useEffect(() => {
     if (state === "off" || state === "starting") return;
     const st = r.current;
+    if (Date.now() < st.bargedUntil && (st.inPhrase || st.busy)) return; // mid-interruption: keep showing "hearing"
     if (paused && state !== "paused") set("paused");
     if (!paused && state === "paused") {
       // ULTRON just finished answering: in conversation mode, listen for a reply without the wake word.

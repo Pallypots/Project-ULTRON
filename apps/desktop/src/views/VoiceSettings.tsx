@@ -163,6 +163,10 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
         <input type="checkbox" checked={prefs.conversation} onChange={(e) => updatePrefs({ conversation: e.target.checked })} />
         <span>Conversation mode: in hands-free, after ULTRON answers, keep listening so I can just reply (no "Ultron" needed). Say "that's all" to stop.</span>
       </label>
+      <label className="toggle">
+        <input type="checkbox" checked={prefs.bargeIn} onChange={(e) => updatePrefs({ bargeIn: e.target.checked })} />
+        <span>Interrupt by voice (experimental): in hands-free, talking over ULTRON stops it and it listens to you. Works best with headphones; with loud speakers it may interrupt itself.</span>
+      </label>
     </section>
   );
 }

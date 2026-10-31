@@ -54,6 +54,10 @@ for about 10 seconds, so you can simply reply, like a normal conversation. The b
 while it waits. Say **"that's all"**, "goodbye" or "never mind" to wrap up; after that it only responds to "Ultron, …" again.
 Turn conversation mode off in Settings → Voice if you prefer to say the name every time.
 
+**Interrupting by voice (experimental):** turn on Settings → Voice → "Interrupt by voice", then in hands-free you can simply talk over
+ULTRON: it stops and listens. It needs you to speak clearly louder than its voice; with headphones it works best. With loud speakers
+it might occasionally interrupt itself, which is why it's off by default.
+
 ## Hands-free mode ("Ultron, …")
 Click **🎧 Hands-free** in Chat. A green bar shows whenever it's on. Start what you say with **"Ultron"**: "Ultron, set a timer for ten minutes",
 or just "Ultron" and then your request. Anything that doesn't start with ULTRON's name is thrown away immediately: not saved, not shown, not sent anywhere.

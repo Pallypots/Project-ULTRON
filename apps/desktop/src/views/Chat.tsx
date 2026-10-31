@@ -228,7 +228,15 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
   );
   const ptt = usePushToTalk(onTranscript, !busy, stopSpeaking);
   const onWakeCommand = useCallback((text: string) => send(text, "voice"), [send]);
-  const hands = useHandsFree(onWakeCommand, busy || speaking || ptt.state !== "idle");
+  const hands = useHandsFree(onWakeCommand, busy || speaking || ptt.state !== "idle", {
+    speaking,
+    // You talked over ULTRON: stop the voice and the reply, and listen.
+    onBargeIn: () => {
+      console.info("[ultron] interrupted by voice");
+      abortRef.current?.abort();
+      stopSpeaking();
+    },
+  });
   useEffect(() => {
     if (!talk) return;
     clearTalk?.();

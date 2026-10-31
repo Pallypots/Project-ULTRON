@@ -8,9 +8,11 @@ export interface VoicePrefs {
   browserVoice: string;
   /** Conversation mode: after ULTRON answers a hands-free request, keep listening for a reply without the wake word. */
   conversation: boolean;
+  /** Hands-free: talking over ULTRON (loudly enough) stops it and takes what you say as the reply. */
+  bargeIn: boolean;
 }
 const KEY = "ultron.voice";
-const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true };
+const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true, bargeIn: false };
 
 export function loadVoicePrefs(): VoicePrefs {
   try {

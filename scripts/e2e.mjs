@@ -344,6 +344,23 @@ try {
   await page.getByRole("button", { name: "Hands-free on" }).click();
   step('"Talk to ULTRON" on Home opens a conversation that listens straight away');
 
+  // Interrupt by voice (opt-in): with it on, talking while ULTRON speaks stops it and the next words are taken as the reply.
+  await page.evaluate(() => {
+    const p = JSON.parse(localStorage.getItem("ultron.voice") ?? "{}");
+    localStorage.setItem("ultron.voice", JSON.stringify({ ...p, bargeIn: true, speakMode: "voice" }));
+  });
+  const interrupted = page.waitForEvent("console", { predicate: (m) => m.text().includes("[ultron] interrupted by voice"), timeout: 45000 });
+  await page.getByRole("button", { name: "Home" }).click();
+  await page.getByRole("button", { name: "🎙 Talk to ULTRON" }).click();
+  await interrupted;
+  await page.locator(".msg--user", { hasText: "🎙 voice" }).nth(1).waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: "Hands-free on" }).click();
+  await page.evaluate(() => {
+    const p = JSON.parse(localStorage.getItem("ultron.voice") ?? "{}");
+    localStorage.setItem("ultron.voice", JSON.stringify({ ...p, bargeIn: false }));
+  });
+  step("Interrupt by voice: talking over ULTRON stops it and the next words are taken as the reply");
+
   // ---- Files / second brain ----
   // Windows temp lives in AppData, which ULTRON refuses to index; use a folder inside the repo there.
   const projectsBase = process.platform === "win32" ? join(import.meta.dirname, "../.test-tmp") : tmpdir();
