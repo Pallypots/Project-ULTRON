@@ -1,6 +1,8 @@
 // End-to-end with a REAL local model through Ollama. Needs Ollama running and network for the first pull,
 // so it only runs when ULTRON_TEST_OLLAMA=1 (CI sets it on Linux). Model: ULTRON_TEST_OLLAMA_MODEL or gemma4:e2b.
 import { afterAll, describe, expect, it } from "vitest";
+import { loadPersona } from "@ultron/agent-core";
+import { Summarizer } from "../src/summarizer.ts";
 import { ciNote, replyText, startGateway } from "./helpers.ts";
 
 const enabled = process.env.ULTRON_TEST_OLLAMA === "1";
@@ -66,5 +68,12 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     ciNote("Local brain maths", mathSummary);
     ciNote("Local brain personality", `reply=${Date.now() - t4}ms text="${hi.replace(/\s+/g, " ").slice(0, 300)}"`);
     expect(hi).not.toMatch(/<\/?think>/);
+
+    // Informational: the note ULTRON writes itself about a finished conversation.
+    const t5 = Date.now();
+    const persona = () => loadPersona(new URL("../../../config/persona.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));
+    const notes = await new Summarizer({ stores: g.gw.stores, secrets: { get: () => null } as never, persona, mockDelayMs: 0 }, () => false, { idleMs: 0 }).tick();
+    const noted = g.gw.stores.conversations.list().filter((c) => c.summary).map((c) => c.summary);
+    ciNote("Local brain conversation notes", `notes=${notes} took=${Date.now() - t5}ms ${JSON.stringify(noted).slice(0, 700)}`);
   }, 1_800_000);
 });
