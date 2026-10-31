@@ -1,10 +1,17 @@
-import { appendFileSync, mkdtempSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ChatEvent } from "@ultron/schemas";
 import { buildGateway, type Gateway } from "../src/app.ts";
 
 export const tmpDataDir = () => mkdtempSync(join(tmpdir(), "ultron-gw-"));
+
+/** A folder ULTRON may index. On Windows the system temp folder is under AppData, which ULTRON refuses on purpose. */
+export function indexableFolder(prefix: string): string {
+  const base = process.platform === "win32" ? join(import.meta.dirname, "..", "..", "..", ".test-tmp") : tmpdir();
+  mkdirSync(base, { recursive: true });
+  return mkdtempSync(join(base, prefix));
+}
 
 // Tests don't download the real embedding model (each gateway has its own temp data folder); see embeddings tests.
 process.env.ULTRON_EMBEDDINGS ??= "off";

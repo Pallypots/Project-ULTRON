@@ -1,9 +1,9 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { pdfText } from "../src/files/pdf.ts";
 import { makePdf } from "./fixtures/pdf.ts";
-import { replyText, startGateway, tmpDataDir } from "./helpers.ts";
+import { indexableFolder, replyText, startGateway } from "./helpers.ts";
 
 const cleanup: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
@@ -20,7 +20,7 @@ describe("PDF text in the second brain", () => {
   it("indexes PDFs in approved folders, so search and read work on them", async () => {
     const g = await startGateway();
     cleanup.push(g.close);
-    const root = mkdtempSync(join(tmpDataDir(), "docs-"));
+    const root = indexableFolder("docs-");
     writeFileSync(join(root, "invoice-2026-10.pdf"), makePdf(["Invoice for Mike Johnson", "Roof repair, total due: $450"]));
     const add = await g.api("POST", "/api/files/folders", { path: root });
     expect(add.status).toBe(200);
