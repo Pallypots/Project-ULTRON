@@ -14,11 +14,14 @@ interface UiMessage extends Message {
   notice?: string;
 }
 
-export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged }: {
+export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, status, onChanged }: {
   onCoreState: (s: CoreState) => void;
   core: CoreState;
   seed: string | null;
   clearSeed: () => void;
+  /** Opened from "Talk to ULTRON": start a fresh conversation, listening right away. */
+  talk?: boolean;
+  clearTalk?: () => void;
   status: Status | null;
   onChanged: () => void;
 }) {
@@ -207,6 +210,12 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
   const ptt = usePushToTalk(onTranscript, !busy, stopSpeaking);
   const onWakeCommand = useCallback((text: string) => send(text, "voice"), [send]);
   const hands = useHandsFree(onWakeCommand, busy || speaking || ptt.state !== "idle");
+  useEffect(() => {
+    if (!talk) return;
+    clearTalk?.();
+    newConversation().then(() => hands.start({ conversation: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [talk]);
   const HF_LABEL: Record<string, string> = {
     starting: "Starting hands-free…",
     listening: 'Hands-free · say "Ultron, …" (anything else is ignored and discarded)',
@@ -214,6 +223,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, status, onChanged
     checking: "Hands-free · checking for the wake word (on this PC)…",
     awake: "Yes? I'm listening for your request…",
     paused: "Hands-free · paused while ULTRON is busy",
+    followup: "Conversation · I'm listening, just reply (no \"Ultron\" needed) · say \"that's all\" to stop",
   };
 
   useEffect(() => {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.0 · 2026-10-31 · Just talk to it
+- **Conversation mode:** in hands-free, after ULTRON answers it keeps listening for about 10 seconds, so you just reply, with no "Ultron" each
+  time. Say "that's all", "goodbye" or "never mind" to end it (it still answers, then goes back to waiting for its name). On by default;
+  Settings → Voice to turn it off.
+- **🎙 Talk to ULTRON** button on Home: one click opens a fresh conversation that's already listening.
+- Background noise that speech recognition mistakes for words ("Thank you.", "[BLANK_AUDIO]") is ignored when no wake word is required.
+
 ## 0.13.0 · 2026-10-31 · Smarter and more alive
 - **ULTRON speaks first:** opening the app shows a short in-character catch-up line from your current brain (cached for 3 hours).
   Press 🔊 on it to hear it in ULTRON's voice.

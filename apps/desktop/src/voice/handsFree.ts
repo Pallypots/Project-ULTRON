@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { concatFloat32, encodeWav, resample } from "@ultron/audio";
+import { concatFloat32, encodeWav, ENDS_CONVERSATION, isNoise, resample } from "@ultron/audio";
 import { api, transcribeWake } from "../api.ts";
 import { explainMicError } from "./recorder.ts";
 import { loadVoicePrefs } from "./prefs.ts";
@@ -11,7 +11,7 @@ class Tap extends AudioWorkletProcessor {
 registerProcessor("ultron-vad-tap", Tap);
 `;
 
-export type HandsFreeState = "off" | "starting" | "listening" | "hearing" | "checking" | "awake" | "paused";
+export type HandsFreeState = "off" | "starting" | "listening" | "hearing" | "checking" | "awake" | "followup" | "paused";
 
 const FRAME_SEC = 0.02;
 const START_FRAMES = 3; // 60 ms above threshold starts a phrase
@@ -20,6 +20,7 @@ const PREROLL_FRAMES = 15; // keep 300 ms before speech started
 const MAX_SEC = 10;
 const MIN_SEC = 0.4;
 const AWAKE_MS = 8000; // after just "Ultron", the next phrase is the command
+const FOLLOW_MS = 10_000; // conversation mode: how long ULTRON waits for your reply after answering
 
 /**
  * Opt-in hands-free listening: a simple voice-activity detector cuts speech into phrases, each phrase is checked
@@ -45,9 +46,17 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
     awakeUntil: 0,
     paused: false,
     on: false,
+    conversing: false,
+    followTimer: 0 as ReturnType<typeof setTimeout> | 0,
   });
   const set = (s: HandsFreeState) => setState(s);
   r.current.paused = paused;
+  // What to show while waiting: a reply window, a just-heard-"Ultron" window, or plain listening for the wake word.
+  const idle = (): HandsFreeState => {
+    const st = r.current;
+    if (Date.now() >= st.awakeUntil) return "listening";
+    return st.conversing ? "followup" : "awake";
+  };
 
   const finishPhrase = useCallback(async () => {
     const st = r.current;
@@ -57,16 +66,23 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
     st.inPhrase = false;
     if (!ctx || !chunks.length) return;
     const samples = resample(concatFloat32(chunks), ctx.sampleRate);
-    if (samples.length / 16000 < MIN_SEC) return set("listening");
+    if (samples.length / 16000 < MIN_SEC) return set(idle());
     st.busy = true;
     set("checking");
+    let sent = false;
     try {
       const awake = Date.now() < st.awakeUntil;
+      const following = awake && st.conversing;
       const res = await transcribeWake(encodeWav(samples), !awake);
       if (!st.on) return;
+      // In a follow-up there's no wake word, so filter Whisper's noise "words" before treating it as a reply.
+      if (following && res.text && isNoise(res.text)) return;
       if (res.addressed) {
         if (res.text) {
           st.awakeUntil = 0;
+          if (st.followTimer) clearTimeout(st.followTimer);
+          st.conversing = loadVoicePrefs().conversation && !ENDS_CONVERSATION.test(res.text);
+          sent = true;
           onCommand(res.text);
         } else {
           // Just the name: listen for the command next.
@@ -79,7 +95,12 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
       setError((err as Error).message);
     } finally {
       st.busy = false;
-      if (st.on && Date.now() >= st.awakeUntil) set("listening");
+      if (sent || !st.on) {
+        // The reply is coming; the pause/unpause cycle around it opens the follow-up window.
+      } else {
+        if (Date.now() >= st.awakeUntil) st.conversing = false;
+        set(idle());
+      }
     }
   }, [onCommand]);
 
@@ -91,6 +112,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
       const rms = Math.sqrt(sum / f.length);
       setLevel(Math.min(1, rms * 4));
       // Ignore everything while ULTRON is talking/thinking or a phrase is being checked (no self-triggering).
+      // (A phrase starting in the follow-up window counts even if the window ends while you're still talking.)
       if (st.paused || st.busy) {
         st.inPhrase = false;
         st.phrase = [];
@@ -126,6 +148,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
     const st = r.current;
     if (st.on) api.setHandsFree(false).catch(() => {});
     st.on = false;
+    st.conversing = false;
+    if (st.followTimer) clearTimeout(st.followTimer);
     st.stream?.getTracks().forEach((t) => t.stop());
     st.node?.disconnect();
     st.ctx?.close().catch(() => {});
@@ -134,7 +158,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
     set("off");
   }, []);
 
-  const start = useCallback(async () => {
+  /** `conversation`: start already listening for you (no wake word for the first thing you say), e.g. from "Talk to ULTRON". */
+  const start = useCallback(async (opts: { conversation?: boolean } = {}) => {
     const st = r.current;
     if (st.on) return;
     setError(null);
@@ -165,7 +190,16 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
       mute.gain.value = 0;
       src.connect(st.node).connect(mute).connect(st.ctx.destination);
       st.on = true;
-      set("listening");
+      if (opts.conversation) {
+        st.conversing = true;
+        st.awakeUntil = Date.now() + FOLLOW_MS * 2;
+        set("followup");
+        st.followTimer = setTimeout(() => {
+          if (!st.on || st.inPhrase || st.busy || st.paused || Date.now() < st.awakeUntil) return;
+          st.conversing = false;
+          set("listening");
+        }, FOLLOW_MS * 2 + 50);
+      } else set("listening");
     } catch (err) {
       const message = (err as { status?: number }).status === 409 ? (err as Error).message : explainMicError(err).message;
       st.on = true; // so stop() records "off"
@@ -177,8 +211,24 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean)
   useEffect(() => () => stop(), [stop]);
   useEffect(() => {
     if (state === "off" || state === "starting") return;
+    const st = r.current;
     if (paused && state !== "paused") set("paused");
-    if (!paused && state === "paused") set("listening");
+    if (!paused && state === "paused") {
+      // ULTRON just finished answering: in conversation mode, listen for a reply without the wake word.
+      if (st.conversing && st.on) {
+        st.awakeUntil = Date.now() + FOLLOW_MS;
+        set("followup");
+        if (st.followTimer) clearTimeout(st.followTimer);
+        st.followTimer = setTimeout(() => {
+          // Only give up if nothing was said; a reply in progress keeps the conversation going.
+          // ULTRON started talking again (or you're mid-reply): the next pause/unpause re-opens the window instead.
+          if (!st.on || st.inPhrase || st.busy || st.paused) return;
+          st.conversing = false;
+          st.awakeUntil = 0;
+          set("listening");
+        }, FOLLOW_MS);
+      } else set("listening");
+    }
   }, [paused, state]);
 
   return { state, level, error, clearError: () => setError(null), start, stop, on: state !== "off" };

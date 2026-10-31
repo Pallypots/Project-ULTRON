@@ -18,7 +18,7 @@ const QUIPS = [
   "Your secrets stay here. I'm many things, but a gossip isn't one of them.",
 ];
 
-export function HomeView({ status, core, onAsk, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onNavigate: (v: View) => void }) {
+export function HomeView({ status, core, onAsk, onTalk, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onTalk: () => void; onNavigate: (v: View) => void }) {
   const [caps, setCaps] = useState<Capability[]>([]);
   const [q, setQ] = useState("");
   const [news, setNews] = useState<FeedEvent[]>([]);
@@ -75,6 +75,9 @@ export function HomeView({ status, core, onAsk, onNavigate }: { status: Status |
             <input id="home-ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask ULTRON…" autoComplete="off" />
             <button className="btn btn--primary" type="submit">Ask</button>
           </form>
+          <button type="button" className="btn talk-btn" onClick={onTalk} title="Opens a conversation and listens: just speak. Say &quot;that's all&quot; when you're done.">
+            🎙 Talk to ULTRON
+          </button>
           <div className="chips">
             {SUGGESTIONS.map((s) => (
               <button key={s} className="chip" onClick={() => onAsk(s)}>{s}</button>

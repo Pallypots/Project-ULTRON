@@ -6,9 +6,11 @@ export interface VoicePrefs {
   speakMode: "voice" | "always" | "never";
   /** Chosen built-in system voice (when the "browser" engine is used). */
   browserVoice: string;
+  /** Conversation mode: after ULTRON answers a hands-free request, keep listening for a reply without the wake word. */
+  conversation: boolean;
 }
 const KEY = "ultron.voice";
-const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "" };
+const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true };
 
 export function loadVoicePrefs(): VoicePrefs {
   try {

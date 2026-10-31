@@ -34,6 +34,7 @@ export function App() {
   const [coreState, setCoreState] = useState<CoreState>("idle");
   const [prefs, setPrefs] = useUiPrefs();
   const [chatSeed, setChatSeed] = useState<string | null>(null);
+  const [talkNow, setTalkNow] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [remindersKey, setRemindersKey] = useState(0);
   const speaker = useRef<Speaker | null>(null);
@@ -122,8 +123,8 @@ export function App() {
             ULTRON's service isn't responding. If you closed the ULTRON window or launcher, start it again. Retrying every 5 seconds…
           </div>
         )}
-        {view === "home" && <HomeView status={status} core={effectiveCore} onAsk={(q) => { setChatSeed(q); go("chat"); }} onNavigate={go} />}
-        {view === "chat" && <ChatView onCoreState={setCoreState} core={effectiveCore} seed={chatSeed} clearSeed={() => setChatSeed(null)} status={status} onChanged={refreshStatus} />}
+        {view === "home" && <HomeView status={status} core={effectiveCore} onAsk={(q) => { setChatSeed(q); go("chat"); }} onTalk={() => { setTalkNow(true); go("chat"); }} onNavigate={go} />}
+        {view === "chat" && <ChatView onCoreState={setCoreState} core={effectiveCore} seed={chatSeed} clearSeed={() => setChatSeed(null)} talk={talkNow} clearTalk={() => setTalkNow(false)} status={status} onChanged={refreshStatus} />}
         {view === "reminders" && <RemindersView refreshKey={remindersKey} />}
         {view === "files" && <FilesView />}
         {view === "connections" && <ConnectionsView onAsk={(q) => { setChatSeed(q); go("chat"); }} />}

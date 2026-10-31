@@ -47,6 +47,12 @@ Every action is listed in **Activity** with who asked for it and what happened.
 ULTRON can only see folders you added. It always skips hidden folders, system folders, `node_modules`, and secrets (`.env`, key files, password files).
 It can read files to answer you, but opening something on your screen needs your Approve click. **Remove** a folder to delete its index (your files are untouched).
 
+## Just talk: conversation mode
+Click **🎙 Talk to ULTRON** on Home (or turn on 🎧 Hands-free in Chat and say "Ultron, …"). After each answer, ULTRON keeps listening
+for about 10 seconds, so you can simply reply, like a normal conversation. The bar under the chat says **"Conversation · I'm listening"**
+while it waits. Say **"that's all"**, "goodbye" or "never mind" to wrap up; after that it only responds to "Ultron, …" again.
+Turn conversation mode off in Settings → Voice if you prefer to say the name every time.
+
 ## Hands-free mode ("Ultron, …")
 Click **🎧 Hands-free** in Chat. A green bar shows whenever it's on. Start what you say with **"Ultron"**: "Ultron, set a timer for ten minutes",
 or just "Ultron" and then your request. Anything that doesn't start with ULTRON's name is thrown away immediately: not saved, not shown, not sent anywhere.

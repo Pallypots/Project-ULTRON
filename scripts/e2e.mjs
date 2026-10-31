@@ -307,11 +307,29 @@ try {
   if (/^ultron/i.test(heard)) throw new Error(`wake word was not stripped: ${heard}`);
   await page.locator(".msg--assistant.msg--complete").first().waitFor();
   step(`Hands-free: speech addressed to "Ultron" is picked up without pressing anything ("${heard.slice(0, 40)}…")`);
+
+  // Conversation mode: after the answer, ULTRON keeps listening and the next phrase needs no wake word.
+  const followUp = page.waitForRequest((r) => r.url().includes("/api/voice/transcribe") && !r.url().includes("mode=wake"), { timeout: 30000 });
+  await page.locator(".listening--followup").waitFor({ timeout: 30000 });
+  await page.screenshot({ path: join(shots, "20-conversation-mode.png") });
+  await followUp;
+  await page.locator(".msg--user", { hasText: "🎙 voice" }).nth(1).waitFor({ timeout: 30000 });
+  step("Conversation mode: after answering, ULTRON listens for a reply without the wake word");
   await page.getByRole("button", { name: "Hands-free on" }).click();
   await page.locator(".listening--hands").waitFor({ state: "detached" });
   await page.getByRole("button", { name: "Activity" }).click();
   await page.getByText("Hands-free listening turned ON").first().waitFor();
   step("Hands-free can be turned off, and on/off is recorded in Activity");
+
+  // One click from Home: a fresh conversation that's already listening (no wake word for the first sentence).
+  await page.getByRole("button", { name: "Home" }).click();
+  const firstWords = page.waitForRequest((r) => r.url().includes("/api/voice/transcribe") && !r.url().includes("mode=wake"), { timeout: 30000 });
+  await page.getByRole("button", { name: "🎙 Talk to ULTRON" }).click();
+  await page.locator(".listening--followup").waitFor();
+  await firstWords;
+  await page.locator(".msg--user", { hasText: "🎙 voice" }).first().waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: "Hands-free on" }).click();
+  step('"Talk to ULTRON" on Home opens a conversation that listens straight away');
 
   // ---- Files / second brain ----
   // Windows temp lives in AppData, which ULTRON refuses to index; use a folder inside the repo there.

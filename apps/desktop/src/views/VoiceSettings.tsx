@@ -159,6 +159,10 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
         <input type="checkbox" checked={prefs.autoSend} onChange={(e) => updatePrefs({ autoSend: e.target.checked })} />
         <span>Send right after I stop talking (turn off to review and edit the transcript first)</span>
       </label>
+      <label className="toggle">
+        <input type="checkbox" checked={prefs.conversation} onChange={(e) => updatePrefs({ conversation: e.target.checked })} />
+        <span>Conversation mode: in hands-free, after ULTRON answers, keep listening so I can just reply (no "Ultron" needed). Say "that's all" to stop.</span>
+      </label>
     </section>
   );
 }
