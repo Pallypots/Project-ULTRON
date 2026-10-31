@@ -311,3 +311,18 @@ describe("what's coming up", () => {
     expect(buildSystemPrompt(loadPersona(new URL("../../../config/persona.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1")), { capabilities: [], memories: [], nowIso: "", rapport: { lastChat: null, recentTopics: [], agenda } })).toMatch(/Coming up for the owner.*Renew passport/);
   });
 });
+
+describe("what ULTRON knows about the owner", () => {
+  it("reviews all memories, leaving sensitive ones out unless asked", async () => {
+    const g = await gateway();
+    const m = g.gw.stores.memories;
+    m.create({ content: "Works on the Oogie port", kind: "project", source: "chat" });
+    m.create({ content: "Sister Mia's birthday is March 3", kind: "fact", source: "chat" });
+    m.create({ content: "Takes medication daily", kind: "fact", source: "chat", sensitivity: "sensitive" });
+    const text = replyText(await g.chat(await g.newConversation(), "what do you know about me?"));
+    expect(text).toMatch(/"count":2,"hidden_sensitive":1/);
+    expect(text).toMatch(/Mia's birthday.*Oogie port|Oogie port.*Mia's birthday/);
+    expect(text).not.toMatch(/medication/);
+    expect(replyText(await g.chat(await g.newConversation(), 'mock-tool recall_everything_about_owner {"include_sensitive":true}'))).toMatch(/medication/);
+  });
+});

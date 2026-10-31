@@ -281,4 +281,25 @@ const searchConversations: ToolDef<{ query: string; days?: number }> = {
   },
 };
 
-export const KNOWLEDGE_TOOLS: ToolDef[] = [calc, wikipedia, weather, readWebpage, saveMemory, searchConversations];
+const aboutOwner: ToolDef<{ include_sensitive?: boolean }> = {
+  name: "recall_everything_about_owner",
+  description:
+    "Everything the owner has asked you to remember (facts, preferences, projects, people), newest first. Use it for 'what do you know about me?', 'what have you learned about me?', or when you need the full picture. Sensitive memories are left out unless the owner explicitly asks for them.",
+  input: z.object({ include_sensitive: z.boolean().optional() }).strict(),
+  parameters: { type: "object", properties: { include_sensitive: { type: "boolean", description: "Only if the owner explicitly asked for sensitive ones too" } }, additionalProperties: false },
+  risk: 0,
+  timeoutMs: 2000,
+  describe: () => "Review everything I remember about you",
+  run: async (i, ctx) => {
+    const all = ctx.stores.memories.list();
+    const shown = all.filter((m) => i.include_sensitive || m.sensitivity !== "sensitive");
+    return JSON.stringify({
+      count: shown.length,
+      hidden_sensitive: all.length - shown.length || undefined,
+      memories: shown.slice(0, 60).map((m) => ({ tag: `memory:${m.id.slice(0, 8)}`, kind: m.kind, saved: m.createdAt.slice(0, 10), pinned: m.pinned || undefined, text: m.content })),
+      note: shown.length ? "Cite tags like [memory:abcd1234] when you mention them." : "Nothing saved yet. Say so, and maybe ask the owner something about themselves.",
+    });
+  },
+};
+
+export const KNOWLEDGE_TOOLS: ToolDef[] = [calc, wikipedia, weather, readWebpage, saveMemory, searchConversations, aboutOwner];

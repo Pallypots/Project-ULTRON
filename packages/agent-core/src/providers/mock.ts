@@ -60,6 +60,7 @@ export class MockProvider implements ModelProvider {
     // A personal fact ("my sister's birthday is March 3") → offer to remember it, like a real model is told to.
     const fact = /^(?:ultron[,\s]+)?my\s+(.{3,120}?)\s+(is|are|was)\s+(.{2,120}?)[.!]*$/i.exec(text);
     if (fact && has("save_memory")) return { name: "save_memory", args: { content: `Their ${fact[1]} ${fact[2]} ${fact[3]}` } };
+    if (has("recall_everything_about_owner") && /what do you (?:know|remember) about me|what have you learned about me/i.test(text)) return { name: "recall_everything_about_owner", args: {} };
     const past = /^(?:what did (?:we|i) (?:say|talk about|discuss) about|did i (?:mention|tell you about))\s+(.+?)[?.!]*$/i.exec(text);
     if (past && has("search_conversations")) return { name: "search_conversations", args: { query: past[1] } };
     const addTodo = /^add\s+(.+?)\s+to\s+my\s+(?:to-?do\s+)?list[.!]*$/i.exec(text);

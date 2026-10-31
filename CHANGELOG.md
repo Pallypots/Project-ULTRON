@@ -6,6 +6,8 @@
 - **ULTRON reflects on your conversations:** half an hour after a chat goes quiet, ULTRON writes itself a one-or-two-sentence note about it
   (using your current brain, only while it's otherwise idle, stepping aside the moment you talk). Catching up and greetings use these notes
   ("yesterday you were fixing the audio crackle…"); hover a conversation in Chat to see its note. Passwords/ID numbers are never noted.
+- **"What do you know about me?"** ULTRON reviews everything you've had it remember (sensitive items left out unless you ask) instead of
+  only the memories that match your words.
 - In a spoken conversation, if the brain takes more than 2.5 s to start answering, ULTRON says a short "Hmm, let me think." instead of
   leaving you in silence.
 

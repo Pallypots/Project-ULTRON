@@ -125,6 +125,9 @@ ULTRON only keeps long-term memories you explicitly give it:
 ULTRON finds memories by meaning, not just matching words: ask *"how hot should the oven be?"* and it can recall
 *"I bake bread at 230 degrees"*. This uses a small model on your PC (about 23 MB, downloaded automatically the first time).
 
+Ask **"what do you know about me?"** and ULTRON goes through everything it remembers (memories marked sensitive stay out unless you ask
+for them).
+
 When ULTRON uses a memory in a reply, it appears as a small `memory:xxxxxxxx` tag under the message.
 Forgetting is permanent: the memory is deleted from the database and the search index (older backups you made yourself still contain it).
 

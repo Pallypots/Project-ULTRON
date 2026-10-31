@@ -49,7 +49,7 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
       id: "knowledge",
       label: "Knowledge & everyday help",
       status: "enabled",
-      detail: "exact calculator; Wikipedia look-ups; weather and 3-day forecast (Open-Meteo); read a web page the owner links (other pages need approval); search past conversations. No general web search yet",
+      detail: "exact calculator; Wikipedia look-ups; weather and 3-day forecast (Open-Meteo); read a web page the owner links (other pages need approval); search past conversations; review everything it remembers about the owner. No general web search yet",
     },
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
     { id: "integrations", label: "Connected accounts", status: "enabled", detail: "GitHub (read-only, if connected in Connections); YouTube, Reddit, Discord, email and calendar not available yet. Use connected_updates for real data; never guess" },
