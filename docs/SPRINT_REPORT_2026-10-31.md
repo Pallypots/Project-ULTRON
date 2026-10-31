@@ -108,3 +108,69 @@ listen, remember, reflect and follow up like a good companion, which is what thi
   (or a bigger local model on a strong GPU) makes a huge difference.
 - You can interrupt ULTRON while it's talking with the Talk button, Esc or Stop, but not by voice alone yet in hands-free mode.
 - It can't hear you while it's speaking (by design, so it doesn't answer itself).
+
+---
+
+# Sprint 3: overnight Oct 31 (v0.15 → v0.19)
+
+You asked me to work through the night, follow the development plan, and make ULTRON smarter and able to do more. Everything below is
+pushed to GitHub and passes the automatic checks on GitHub's Windows and Linux machines.
+
+## What ULTRON can do now that it couldn't last night
+**On your PC (Windows)**
+- **Music and volume:** "pause the music", "next song", "turn it up a bit", "mute". Instant.
+- **Open apps:** "open Spotify", "launch Notepad". The card shows exactly which Start-menu app it will open; you click Approve.
+- **"How's my PC doing?"** memory, disk space, battery, uptime.
+- **"Look at my screen, what's this error?"** One screenshot, only when you ask, never saved, shown to the brain for that question. Your
+  local brain (gemma4:e2b) can see: on GitHub's test machine it was shown a red screen and answered "Red."
+
+**Smarter**
+- **Reads PDFs** in your approved folders, and **finds files by meaning**: "that popping noise glitch" found notes about an "audio crackle"
+  (keyword search found nothing).
+- **Calendar (read-only):** paste your calendar's private iCal link in Connections → Calendar. Then "what's on my calendar today?",
+  "what do I have tomorrow?". Your calendar also appears in the morning briefing and greetings. It handles repeating events, time zones and
+  daylight-saving changes correctly (tested).
+- **Web search (optional):** add a free Brave Search key in Settings → Web search, and ULTRON can look up news, prices and anything recent.
+- **Follow-through:** after you approve something ULTRON needed (like reading a page), it carries on and answers instead of stopping.
+
+**More alive**
+- **Morning check-in** (8:00): it says good morning first with your day at a glance and a "Brief me" button.
+- **Evening check-in** (9 p.m.): "How did today go?" with a "Talk" button. Change the times or turn either off in Settings → Check-ins.
+- **Interrupt by voice** (opt-in, Settings → Voice): in hands-free, talk over ULTRON and it stops and listens. Best with headphones.
+- **Ultron voice effect** (opt-in, Settings → Spoken replies): a little deeper, faintly metallic. Preview it and see if you like it.
+
+**On your phone**
+- **Phone access** over Tailscale (Settings → Phone access): talk to ULTRON from your phone anywhere, privately. Each phone pairs with
+  a 6-digit code shown on your PC, and you can remove it at any time. Keys, folders and connections can only be changed on the PC.
+
+**Safety**
+- A **prompt-injection test suite**: hostile web pages and files can't make ULTRON save, forget, approve or send anything.
+- Bugs found and fixed tonight:
+  - A message sent right after "New conversation" could land in the previous conversation.
+  - The GitHub "✓ posted" label could vanish.
+  - A crash during shutdown.
+
+## Proof (real models and services on GitHub's machines)
+| Check | Result |
+|---|---|
+| Local brain looks at a (fake, solid red) screen | answered **"Red."** in 25 s |
+| Local brain, maths word problem | used the calculator, **$1,109.14 correct**, then: *"Are you planning on putting this new machine to immediate use, or is it just another magnificent object gathering dust in its box?"* |
+| Local brain, deep thinking on the bat-and-ball trick question | **correct (5 cents)** |
+| Meaning-based file search | "popping noise glitch" → the "audio crackle" notes (keyword search: nothing) |
+| Real Windows | 141 Start-menu apps found, media keys sent, screenshot captured (322 KB) |
+| Automated tests | **229 passed** |
+| Browser end-to-end test | **49 steps** on Windows and Linux, including phone pairing and removal, calendar, opening apps, the voice effect and voice interruption |
+
+## Try it this morning
+1. Download the new ZIP from GitHub, extract it over your folder, then run **Start-ULTRON.bat**.
+2. Say or type: "pause the music" · "open notepad" (then Approve) · "how's my PC doing?" · "look at my screen, what am I looking at?"
+3. **Connections → Calendar**: follow the 3 steps shown there to paste your Google Calendar's secret iCal address.
+4. Optional: **Settings → Web search** (free Brave key) · **Settings → Phone access** (Tailscale) · **Settings → Spoken replies → Ultron voice effect**.
+
+## Honest limitations
+- Screen, media keys and opening apps work on **Windows only**.
+- Calendar is **read-only** (ULTRON can't add events yet). Creating events needs a Google sign-in setup that you would have to create.
+- Web search needs the free Brave key. Without it, ULTRON uses Wikipedia and pages you give it.
+- Phone access needs Tailscale on your PC and phone, and ULTRON running on the PC.
+- Voice interruption may trigger on loud speakers, which is why it's off by default.
+- I couldn't listen to the voice effect myself, so the effect is a best guess. Tell me if it's too much or not enough.
