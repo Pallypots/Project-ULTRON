@@ -147,7 +147,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
     return p;
   };
 
-  const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text") => {
+  const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text", continueFrom?: string) => {
     if (!text.trim() || busy) return;
     setError(null);
     setSpeakError(null);
@@ -211,7 +211,7 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
             onCoreState("error");
             break;
         }
-      }, ctl.signal, inputMode);
+      }, ctl.signal, inputMode, continueFrom);
     } catch (err) {
       if ((err as Error).name !== "AbortError") setError((err as Error).message);
       else patch((m) => ({ ...m, status: "cancelled" }));
@@ -239,6 +239,16 @@ export function ChatView({ onCoreState, core, seed, clearSeed, talk, clearTalk, 
   );
   const ptt = usePushToTalk(onTranscript, !busy, stopSpeaking);
   const onWakeCommand = useCallback((text: string) => send(text, "voice"), [send]);
+  // An approved action ULTRON needs the result of: carry on in the conversation it came from.
+  useEffect(() => {
+    const go = (ev: Event) => {
+      const a = (ev as CustomEvent<{ id: string; summary: string }>).detail;
+      if (!messages.some((m) => m.toolEvents?.some((t) => t.executionId === a.id))) return;
+      send(`✓ Approved: ${a.summary}`, "text", a.id);
+    };
+    window.addEventListener("ultron-continue", go);
+    return () => window.removeEventListener("ultron-continue", go);
+  }, [messages, send]);
   const hands = useHandsFree(onWakeCommand, busy || speaking || ptt.state !== "idle", {
     speaking,
     // You talked over ULTRON: stop the voice and the reply, and listen.

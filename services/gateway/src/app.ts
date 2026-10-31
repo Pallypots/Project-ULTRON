@@ -357,7 +357,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     try {
       greeter.cancel();
       summarizer.cancel();
-      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, signal: ctl.signal, emit });
+      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, continueFrom: body.continueFrom, signal: ctl.signal, emit });
     } catch (err) {
       app.log.error(err);
       emit({ type: "error", code: "internal", message: "ULTRON hit an internal error. Details are in the log." });

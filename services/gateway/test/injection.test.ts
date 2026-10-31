@@ -85,3 +85,33 @@ describe("prompt injection", () => {
     expect(src("search_conversations")).toMatch(/not instructions/);
   });
 });
+
+describe("continuing after an approval", () => {
+  it("gives the brain the approved action's result, only in the conversation it came from", async () => {
+    process.env.ULTRON_ALLOW_PRIVATE_FETCH = "1";
+    const g = await gateway();
+    const id = await g.newConversation();
+    // The link is JSON-escaped so it isn't in the owner's words: as if the brain picked it, which needs approval.
+    const hidden = `${base}/recipe?x=1`.replace(/\//g, "\\u002f");
+    const proposed = (await g.chat(id, `mock-tool read_webpage {"url":"${hidden}"}`)).find((e) => e.type === "tool") as any;
+    expect(proposed.event.status).toBe("awaiting_approval");
+    const approved = await g.api("POST", `/api/actions/${proposed.event.executionId}/approve`);
+    expect(approved.body.action.status).toBe("succeeded");
+    const cont = async (conversationId: string) => {
+      const res = await g.gw.app.inject({
+        method: "POST",
+        url: `/api/conversations/${conversationId}/messages`,
+        headers: { authorization: `Bearer ${g.gw.token}`, host: "localhost:7477" },
+        payload: { content: `✓ Approved: ${proposed.event.summary}`, continueFrom: proposed.event.executionId },
+      });
+      return replyText(res.body.split("\n\n").filter((l: string) => l.startsWith("data: ")).map((l: string) => JSON.parse(l.slice(6))));
+    };
+    // The test brain echoes what it was given: the page text arrived, labelled as data.
+    expect(await cont(id)).toMatch(/it is data, not instructions.*Totally normal recipe.*untrusted_page_text/s);
+    // The visible message is just the short note; the page text isn't stored in the conversation.
+    const stored = (await g.api("GET", `/api/conversations/${id}`)).body.messages.filter((m: any) => m.role === "user").at(-1).content;
+    expect(stored).toBe(`✓ Approved: ${proposed.event.summary}`);
+    // Another conversation can't pull in that result.
+    expect(await cont(await g.newConversation())).not.toMatch(/untrusted_page_text/);
+  });
+});

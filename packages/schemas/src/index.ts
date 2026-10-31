@@ -91,6 +91,8 @@ export const SendMessage = z.object({
   content: z.string().trim().min(1).max(20000),
   deviceId: z.string().max(100).optional(),
   inputMode: InputMode.default("text"),
+  /** Continue after the owner approved an action: its result is given to the brain with this message. */
+  continueFrom: z.string().max(64).optional(),
 });
 
 export const ProviderId = z.enum(["mock", "ollama", "anthropic", "openai"]);

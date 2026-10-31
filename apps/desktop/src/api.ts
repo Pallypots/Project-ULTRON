@@ -373,11 +373,11 @@ export async function transcribe(wav: Uint8Array): Promise<TranscribeResult> {
 }
 
 /** Sends a message and calls `onEvent` for each streamed server event. */
-export async function sendMessage(conversationId: string, content: string, onEvent: (e: ChatEvent) => void, signal?: AbortSignal, inputMode: InputMode = "text"): Promise<void> {
+export async function sendMessage(conversationId: string, content: string, onEvent: (e: ChatEvent) => void, signal?: AbortSignal, inputMode: InputMode = "text", continueFrom?: string): Promise<void> {
   const res = await fetch(`/api/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: { authorization: `Bearer ${await getToken()}`, "content-type": "application/json" },
-    body: JSON.stringify({ content, deviceId: deviceId(), inputMode }),
+    body: JSON.stringify({ content, deviceId: deviceId(), inputMode, ...(continueFrom ? { continueFrom } : {}) }),
     signal,
   });
   if (!res.ok || !res.body) {
