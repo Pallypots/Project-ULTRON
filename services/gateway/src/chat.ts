@@ -4,6 +4,8 @@ import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner
 import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
 import { calculate } from "./actions/calc.ts";
 import { findApps } from "./actions/system.ts";
+import { convertUnits, parseConversion, parseMoney } from "./actions/units.ts";
+import { currencyCode } from "./actions/everyday.ts";
 import { captureScreen, wantsScreen } from "./system/screen.ts";
 import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
@@ -227,6 +229,8 @@ export async function handleUserMessage(
 
   // Everyday commands answered by code: instant, and reliable even on a small local model.
   let quick = intent.type === "chat" && !timeIntent && deps.actions ? detectQuickCommand(content) : null;
+  // Conversions are quick commands only if the units or currencies are real; otherwise the brain decides.
+  if (quick?.type === "convert" && !conversionFor(quick.text)) quick = null;
   // "open X" is only a quick command if X really is an installed app; otherwise the brain decides what was meant.
   if (quick?.type === "open_app" && !findApps(quick.name).length) quick = null;
   // Maths the calculator can't parse goes to the brain instead of answering with an error.
@@ -526,6 +530,35 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       if (!ev.length) return `Nothing on your calendar ${label}. A rare and beautiful thing.`;
       return `${label[0]!.toUpperCase()}${label.slice(1)} (${ev.length}):\n${ev.map((e) => `• ${q.when === "next_7_days" ? `${e.day}, ` : ""}${e.time}: ${e.untrusted_title}${e.location ? ` (${e.location})` : ""}`).join("\n")}${r.data?.stale ? `\n(${r.data.stale})` : ""}`;
     }
+    case "convert": {
+      const c = conversionFor(q.text)!;
+      if (c.kind === "units") {
+        const r = await run("convert_units", { value: c.value, from: c.from, to: c.to });
+        if (r.status !== "succeeded") return failed(r);
+        // Temperatures read best as C/F/K; other units as the owner said them.
+        const temp = /^[CFK]$/.test(r.data.from);
+        return `${c.value.toLocaleString()} ${temp ? r.data.from : c.from} = ${Number(r.data.value).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${temp ? r.data.to : c.to}`;
+      }
+      const r = await run("convert_currency", { amount: c.amount, from: c.from, to: c.to });
+      if (r.status !== "succeeded") return failed(r);
+      return `${c.amount.toLocaleString()} ${c.from} = ${Number(r.data.result).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c.to} (rate ${r.data.rate}, ${r.data.date}, European Central Bank)`;
+    }
+    case "define": {
+      const r = await run("define_word", { word: q.word });
+      if (r.status !== "succeeded") return failed(r);
+      if (!r.data?.found) return `I couldn't find "${q.word}" in the dictionary. Check the spelling?`;
+      const lines = (r.data.meanings as { part_of_speech: string; definitions: { definition: string; example?: string }[] }[]).map(
+        (m) => `• (${m.part_of_speech}) ${m.definitions[0]?.definition ?? ""}${m.definitions[0]?.example ? ` E.g. "${m.definitions[0].example}"` : ""}`,
+      );
+      return `${r.data.word}${r.data.phonetic ? ` ${r.data.phonetic}` : ""}\n${lines.join("\n")}`;
+    }
+    case "world_time": {
+      const r = await run("world_time", { place: q.place });
+      if (r.status !== "succeeded") return failed(r);
+      if (!r.data?.found) return r.data?.note ?? "I couldn't find that place.";
+      const d = r.data.hours_ahead_of_you as number;
+      return `It's ${r.data.time} in ${r.data.place}${d === 0 ? " (same time as you)" : ` (${Math.abs(d)} hour${Math.abs(d) === 1 ? "" : "s"} ${d > 0 ? "ahead of" : "behind"} you)`}.`;
+    }
     case "calculate": {
       const r = await run("calculate", { expression: q.expression });
       if (r.status !== "succeeded") return `I couldn't work that out: ${r.data?.error ?? r.error ?? "that doesn't look like maths I can do"}.`;
@@ -575,5 +608,19 @@ async function canSee(provider: { id: string; model: string; capabilities?: () =
     ok: false,
     why: `Your current local brain (${provider.model}) can't see images. Download a model that can, like gemma3:4b or qwen2.5vl:7b, in Settings → Language model → Local AI, switch to it, and ask me again.`,
   };
+}
+
+/** A unit or money conversion from plain words, if the units/currencies are real. */
+export function conversionFor(text: string): { kind: "units"; value: number; from: string; to: string } | { kind: "money"; amount: number; from: string; to: string } | null {
+  const money = parseMoney(text, currencyCode);
+  if (money) return { kind: "money", ...money };
+  const u = parseConversion(text);
+  if (!u) return null;
+  try {
+    convertUnits(u.value, u.from, u.to);
+    return { kind: "units", ...u };
+  } catch {
+    return null;
+  }
 }
 

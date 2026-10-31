@@ -140,6 +140,8 @@ local brain the picture never leaves your PC. Your brain must be able to see ima
 Clear commands like these are answered instantly by ULTRON itself, without waiting for the AI brain: "open github.com",
 "add milk and eggs to my list", "what's on my list?", "what's the weather?", "what's 15% of 80?". Anything chattier goes to the brain.
 
+- **Conversions:** "convert 5 miles to km", "what's 72 F in C?", "how many cups in a litre?", "$50 in euros" (today's rates).
+- **Words and world time:** "define serendipity", "what does ephemeral mean?", "what time is it in Tokyo?"
 - **Maths:** "what's 15% of 80?", "split $86.40 four ways": ULTRON uses an exact calculator instead of guessing.
 - **Facts:** "who was Ada Lovelace?" looks it up on Wikipedia and says so.
 - **Weather:** "what's the weather?" (set your **Home city** in Settings → Personality) or "weather in Tokyo". It's also in your morning briefing.

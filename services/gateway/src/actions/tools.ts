@@ -8,6 +8,7 @@ import { openTarget, openWithDefaultApp, type FileService } from "../files/servi
 import type { ConnectorService } from "../connectors/service.ts";
 import { KNOWLEDGE_TOOLS, homeLocation, weatherFor } from "./knowledge.ts";
 import { CALENDAR_TOOLS } from "./calendar.ts";
+import { EVERYDAY_TOOLS } from "./everyday.ts";
 import { TODO_TOOLS } from "./todos.ts";
 import { SYSTEM_TOOLS } from "./system.ts";
 import { dayRange, eventLine, type CalendarService } from "../calendar/service.ts";
@@ -390,5 +391,5 @@ const githubCreateIssue: ToolDef<z.infer<typeof GithubIssue>> = {
   },
 };
 
-export const TOOLS: ToolDef[] = [...KNOWLEDGE_TOOLS, ...TODO_TOOLS, ...SYSTEM_TOOLS, ...CALENDAR_TOOLS, githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
+export const TOOLS: ToolDef[] = [...KNOWLEDGE_TOOLS, ...TODO_TOOLS, ...SYSTEM_TOOLS, ...CALENDAR_TOOLS, ...EVERYDAY_TOOLS, githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
 export const toolByName = (name: string) => TOOLS.find((t) => t.name === name);

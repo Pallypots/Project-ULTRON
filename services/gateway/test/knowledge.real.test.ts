@@ -30,4 +30,15 @@ describe.skipIf(!enabled)("knowledge tools against the real services", () => {
     note("Real web page", `${page.title}: ${page.text.slice(0, 100)}`);
     expect(page.title).toMatch(/Example Domain/);
   }, 30_000);
+
+  it("converts currency, defines a word and tells the time in Tokyo", async () => {
+    const { toolByName } = await import("../src/actions/tools.ts");
+    const fx = JSON.parse(await toolByName("convert_currency")!.run({ amount: 100, from: "USD", to: "EUR" }, {} as never));
+    const def = JSON.parse(await toolByName("define_word")!.run({ word: "serendipity" }, {} as never));
+    const tokyo = JSON.parse(await toolByName("world_time")!.run({ place: "Tokyo" }, {} as never));
+    note("Real everyday services", `100 USD = ${fx.result} EUR (${fx.date}) | serendipity: ${def.meanings?.[0]?.definitions?.[0]?.definition?.slice(0, 80)} | Tokyo: ${tokyo.time} (${tokyo.hours_ahead_of_you} h ahead)`);
+    expect(fx.result).toBeGreaterThan(50);
+    expect(def.found).toBe(true);
+    expect(tokyo.time_zone).toBe("Asia/Tokyo");
+  }, 30_000);
 });

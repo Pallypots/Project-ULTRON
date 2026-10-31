@@ -10,7 +10,10 @@ export type QuickCommand =
   | { type: "calculate"; expression: string }
   | { type: "media"; action: "play_pause" | "next" | "previous" | "mute" | "volume_up" | "volume_down"; steps?: number }
   | { type: "open_app"; name: string }
-  | { type: "calendar"; when: "today" | "tomorrow" | "next_7_days" };
+  | { type: "calendar"; when: "today" | "tomorrow" | "next_7_days" }
+  | { type: "convert"; text: string }
+  | { type: "define"; word: string }
+  | { type: "world_time"; place: string };
 
 const LEAD = /^\s*(?:(?:hey|ok|okay)\s+)?(?:ultron[\s,:!.-]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?/i;
 const TAIL = /(?:[\s,]+please)?[\s?.!]*$/i;
@@ -74,5 +77,19 @@ export function detectQuickCommand(message: string): QuickCommand | null {
     // Needs at least one operator; "what is 42" is a question about the number, not maths.
     if (MATHS.test(expr) && /\d/.test(expr) && /[-+*/^%x×÷]/.test(expr.replace(/^-/, ""))) return { type: "calculate", expression: expr };
   }
+
+  // "5 miles to km", "how many cups in a litre", "50 dollars in euros": the gateway checks the units are real.
+  if (/^(?:convert\s+|what(?:'s| is)\s+|how much is\s+)?[$€£¥]?-?\d[\d.,]*\s*[\p{L}°$€£¥'"²/. ]*?\s+(?:to|in|into)\s+[\p{L}°$€£¥'"²/. ]+$|^how many\s+[\p{L}°'"²/. ]+\s+(?:are )?(?:in|is)\s+(?:\d[\d.]*|an?|one)\s+[\p{L}°'"²/. ]+$/iu.test(m))
+    return { type: "convert", text: m };
+
+  // Only clear dictionary requests: "what's the meaning of life" is a conversation, not a lookup.
+  const define = /^(?:define|what does\s+(.+?)\s+mean)\s*(.*)$/i.exec(m);
+  if (define) {
+    const word = (define[1] ?? define[2] ?? "").replace(/^["'“]|["'”]$/g, "").trim();
+    if (word && word.split(/\s+/).length <= 3) return { type: "define", word };
+  }
+
+  const tz = /^(?:what(?:'s| is) the time|what time is it|time) in\s+([\p{L}][\p{L} ,.'-]{1,60})$/iu.exec(m);
+  if (tz) return { type: "world_time", place: tz[1]!.trim() };
   return null;
 }
