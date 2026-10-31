@@ -1,6 +1,7 @@
 import { buildSystemPrompt, detectIntent, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
 import type { ToolEvent } from "@ultron/schemas";
 import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
+import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
 import type { Stores } from "@ultron/memory";
@@ -28,7 +29,7 @@ export interface ChatDeps {
 }
 
 const MAX_TOOL_ROUNDS = 4;
-const TOOL_SPECS = TOOLS.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
+const specsFor = (tools: typeof TOOLS) => tools.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
 
 async function* textOnly(it: AsyncIterable<string>): AsyncIterable<ProviderEvent> {
   for await (const text of it) yield { type: "text", text };
@@ -260,7 +261,12 @@ export async function handleUserMessage(
   if (memories.length) emit({ type: "memories", memories: memories.map(brief) });
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
   const provider = resolution.provider;
-  const useTools = Boolean(provider.streamWithTools && deps.actions);
+  const turnsSoFar = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id));
+  // Small local models do better with only the tools this conversation plausibly needs (see focus.ts).
+  const recentUser = turnsSoFar.filter((t) => t.role === "user").slice(-2).map((t) => t.content);
+  const toolSet = provider.id === "ollama" ? focusTools(recentUser, TOOLS) : TOOLS;
+  const toolSpecs = specsFor(toolSet);
+  const useTools = Boolean(provider.streamWithTools && deps.actions) && toolSet.length > 0;
   const system = buildSystemPrompt(deps.persona(), {
     capabilities,
     toolsEnabled: useTools,
@@ -269,7 +275,7 @@ export async function handleUserMessage(
     nowIso: new Date().toISOString(),
     rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories) },
   });
-  const turns: ChatTurn[] = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id));
+  const turns: ChatTurn[] = turnsSoFar;
 
   let text = "";
   let lastFlush = Date.now();
@@ -278,7 +284,7 @@ export async function handleUserMessage(
     // Model ↔ tools loop, bounded so a confused model can't spin (cost and safety cap).
     for (let round = 0; round <= MAX_TOOL_ROUNDS && !opts.signal.aborted; round++) {
       const req = { system, messages: turns, memories, capabilities, signal: opts.signal };
-      const events = useTools && round < MAX_TOOL_ROUNDS ? provider.streamWithTools!({ ...req, tools: TOOL_SPECS }) : textOnly(provider.stream(req));
+      const events = useTools && round < MAX_TOOL_ROUNDS ? provider.streamWithTools!({ ...req, tools: toolSpecs }) : textOnly(provider.stream(req));
       const calls: ToolCall[] = [];
       let roundText = "";
       for await (const ev of events) {
@@ -312,6 +318,12 @@ export async function handleUserMessage(
         text += " ";
         emit({ type: "delta", text: " " });
       }
+    }
+    // Safety net: a reply that claims an action when none ran gets corrected in plain sight.
+    if (deps.actions && !opts.signal.aborted && toolEvents.length === 0 && claimsUnbackedAction(text)) {
+      text += HONESTY_NOTE;
+      emit({ type: "delta", text: HONESTY_NOTE });
+      stores.audit.record("model.unbacked_claim", "system", assistant.id, { provider: providerId });
     }
     const used = memories.filter((m) => text.includes(m.id.slice(0, 8))).map((m) => m.id);
     finish(text, opts.signal.aborted ? "cancelled" : "complete", used.length ? used : memories.map((m) => m.id));

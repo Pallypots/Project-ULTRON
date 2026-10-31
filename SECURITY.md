@@ -41,6 +41,10 @@ in the conversation is read directly; any other link needs an approval card, so 
 Page text is labelled untrusted and capped (2 MB download, 8,000 characters to the model). Residual risk: DNS rebinding between the check and the
 connection (low impact: only GET, response treated as data).
 
+## Model honesty (v0.12)
+Models can claim actions they never took. Every action appears as a card from the action log (never from model text), and replies that
+claim an action when none ran get a visible correction plus a `model.unbacked_claim` audit entry.
+
 ## Known gaps (tracked)
 | Gap | Plan |
 |---|---|

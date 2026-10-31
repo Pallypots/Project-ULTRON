@@ -13,6 +13,11 @@
 - **To-do list:** "add milk and eggs to my list", "what's on my list?", "I paid the electric bill" (ticks it off; asks if it's ambiguous).
   Also on the Reminders page, and in the morning briefing.
 - Conversations are titled by their first real message, not "hey Ultron".
+- **Honesty check:** if a brain *says* it set a reminder, opened a page or requested approval but no action actually ran, ULTRON adds a
+  visible correction (and logs it in Activity). Found in CI: a small local model claimed "approval requested" without asking for anything.
+- **Tool focusing for local brains:** small local models get only the tools your message plausibly needs (e.g. weather words → weather tool),
+  which makes them more reliable and faster. Cloud brains still see everything.
+- A new message cancels a greeting that's still being written, so a busy local brain never makes you wait.
 - Fixed: approving an action while ULTRON was still finishing its reply could show it as "waiting" again afterwards.
 
 ## 0.11.0 · 2026-10-30 · Meaning-based memory recall (local)

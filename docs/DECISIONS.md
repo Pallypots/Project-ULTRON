@@ -98,6 +98,13 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-024 · 2026-10-31 · Don't trust the model's account of its own actions
+CI caught gemma4:e2b answering "Approval requested to open https://example.com" with **no tool call** once the tool list grew to 19. Two
+deterministic guards: (1) for local brains, `focusTools` offers only tool groups matched by keywords in the last two user messages (cloud brains
+get all tools); a miss means the model answers in words, which the honesty check then covers. (2) `claimsUnbackedAction` scans the final reply;
+if it claims a completed/queued action and no tool ran that turn, a visible correction is appended and `model.unbacked_claim` is audited.
+Heuristic English regexes: false negatives are possible, false positives only add a harmless note.
+
 ### D-023 · 2026-10-30 · Knowledge tools without accounts, and input-dependent risk for web reads
 Calculator (own parser, no `eval`), Wikipedia REST API, Open-Meteo weather and geocoding: all free, keyless and read-only, so they work for
 every owner with no sign-up. Reading web pages is the dangerous one: a prompt-injected page or a confused model could put private data into a URL
