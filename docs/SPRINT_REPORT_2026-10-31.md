@@ -71,3 +71,40 @@ on GitHub's Windows and Linux machines.
 - There's no general web search yet. Wikipedia, weather and links you paste work. A full search engine needs a search service account,
   which I can add if you want it.
 - The greeting doesn't speak by itself (browsers block sound until you click something). Press 🔊 on it to hear it.
+
+---
+
+# Sprint 2: "just talk to him" (v0.14 → v0.15)
+
+You asked to be able to simply speak to ULTRON and have real conversations, and for it to keep getting smarter.
+(One honest line: no one can make software truly conscious today, and ULTRON is built never to pretend it is. What I *can* do is make it
+listen, remember, reflect and follow up like a good companion, which is what this sprint is about.)
+
+## What's new
+- **🎙 Talk to ULTRON** (Home): one click and it's listening. No button to hold, no "Ultron" needed for the first sentence.
+- **Conversation mode:** after it answers, it keeps listening for about 10 seconds, so you just reply, back and forth like a normal
+  conversation. Say "that's all" or "goodbye" to wrap up. (Settings → Voice to turn it off.)
+- **No awkward silences:** if the brain is slow to start answering, ULTRON says "Hmm, let me think." while it works.
+- **Reflects on your conversations:** when a chat has been quiet for half an hour, ULTRON writes itself a short note about it, so later it can
+  say "yesterday you were fixing the audio crackle…". Hover over a conversation in Chat to see its note.
+- **Deep thinking on request:** "think hard about…", "take your time" or "step by step" makes it reason carefully first (slower, smarter).
+- **"What do you know about me?"** now goes through everything you've had it remember.
+
+## Proof (real local brain on GitHub's Linux machines)
+| Check | Result |
+|---|---|
+| Conversation note written by the local brain | *"The owner asked for the capital of France and requested an action to open a specific website. The owner is curious about the system's ability to execute external commands."* |
+| Shopping maths, in character | used the calculator, **$1,109.14** correct, then: *"That should keep your wallet happy. Are you looking at a specific model, or is this a grand conquest of the digital realm?"* |
+| Browser test with a simulated microphone | **43 steps** pass on Windows and Linux, including conversation mode and Talk to ULTRON |
+| Automated tests | **198 passed** |
+
+## Try it
+1. Make sure speech is set up (Settings → Voice: **Download speech model now**; Spoken replies: **Download voice now**).
+2. Home → **🎙 Talk to ULTRON**, and just talk. Reply when it answers. Say "that's all" when you're done.
+3. Try: "think hard about whether I should learn Rust or Go next" · "what do you know about me?"
+
+## Honest limitations
+- Conversations feel best with a fast brain. On a CPU-only PC the small local model takes a long time per answer; a graphics card
+  (or a bigger local model on a strong GPU) makes a huge difference.
+- You can interrupt ULTRON while it's talking with the Talk button, Esc or Stop, but not by voice alone yet in hands-free mode.
+- It can't hear you while it's speaking (by design, so it doesn't answer itself).
