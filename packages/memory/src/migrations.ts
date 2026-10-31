@@ -282,4 +282,20 @@ export const MIGRATIONS: Migration[] = [
     `,
     down: `DROP TABLE doc_vectors;`,
   },
+  {
+    version: 11,
+    name: "devices",
+    // Phones/tablets paired for remote access. Only a hash of each device's key is stored.
+    up: `
+      CREATE TABLE devices (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        last_seen_at TEXT,
+        revoked_at TEXT
+      );
+    `,
+    down: `DROP TABLE devices;`,
+  },
 ];

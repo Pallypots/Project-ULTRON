@@ -1,14 +1,54 @@
 import type { AuditEvent, Capability, ChatEvent, Conversation, InputMode, Memory, MemoryKind, Message, TranscribeResult, TtsStatusResponse, VoiceStatus } from "@ultron/schemas";
 
 let token: string | null = null;
+const DEVICE_KEY = "ultron.deviceToken";
+
+/** This browser is a phone (or other device) that needs pairing before it can use ULTRON. */
+export class PairRequired extends Error {}
+function needPairing(): never {
+  try {
+    localStorage.removeItem(DEVICE_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+  token = null;
+  window.dispatchEvent(new Event("ultron-pair-required"));
+  throw new PairRequired("Pair this device with ULTRON first.");
+}
 
 async function getToken(): Promise<string> {
   if (token) return token;
   const res = await fetch("/api/bootstrap");
-  if (!res.ok) throw new Error("ULTRON refused the session. Open it from this computer.");
-  token = ((await res.json()) as { token: string }).token;
-  return token;
+  if (res.ok) {
+    token = ((await res.json()) as { token: string }).token;
+    return token;
+  }
+  // Opened over Tailscale from a phone: use this device's own key, or ask to pair.
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (data.error === "pair_required") {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(DEVICE_KEY);
+    } catch {
+      saved = null;
+    }
+    if (saved) return (token = saved);
+    needPairing();
+  }
+  throw new Error("ULTRON refused the session. Open it from this computer.");
 }
+
+/** Pairs this device using the 6-digit code shown on the PC, and keeps the device key in this browser. */
+export async function pairDevice(code: string, name: string): Promise<void> {
+  const res = await fetch("/api/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code, name }) });
+  const data = (await res.json().catch(() => ({}))) as { token?: string; message?: string };
+  if (!res.ok || !data.token) throw new Error(data.message ?? "Pairing failed.");
+  localStorage.setItem(DEVICE_KEY, data.token);
+  token = data.token;
+}
+
+/** True when this page was opened on the PC itself (not over Tailscale). */
+export const onThisPc = () => /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -24,6 +64,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   });
   if (res.status === 401) token = null;
   const data = res.headers.get("content-type")?.includes("json") ? await res.json() : await res.text();
+  if (res.status === 401 && (data as { error?: string })?.error === "pair_required") needPairing(); // removed on the PC
   if (!res.ok) throw new ApiError((data as { message?: string })?.message ?? `Request failed (${res.status})`, res.status);
   return data as T;
 }
@@ -234,6 +275,10 @@ export const api = {
   shortcuts: () => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("GET", "/api/system/shortcuts"),
   setStartAtLogin: (enabled: boolean) => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("POST", "/api/system/start-at-login", { enabled }),
   createDesktopShortcut: () => call<{ supported: boolean; startAtLogin: boolean; desktopShortcut: boolean }>("POST", "/api/system/desktop-shortcut"),
+  remote: () => call<{ settings: { enabled: boolean; host: string }; detectedHost: string | null; pairing: boolean; devices: { id: string; name: string; createdAt: string; lastSeenAt: string | null; revokedAt: string | null }[] }>("GET", "/api/remote"),
+  saveRemote: (s: { enabled: boolean; host: string }) => call<{ settings: { enabled: boolean; host: string } }>("PUT", "/api/remote", s),
+  startPairing: () => call<{ code: string; expiresAt: string }>("POST", "/api/remote/pairing"),
+  revokeDevice: (id: string) => call("DELETE", `/api/remote/devices/${id}`),
   greeting: () => call<{ greeting: { text: string; at: string } | null }>("GET", "/api/greeting"),
   persona: () => call<{ persona: PersonaInfo; homeLocation: string }>("GET", "/api/persona"),
   savePersona: (p: Partial<Omit<PersonaInfo, "boundaries" | "traits">> & { homeLocation?: string }) => call<{ persona: PersonaInfo; homeLocation: string }>("PUT", "/api/persona", p),

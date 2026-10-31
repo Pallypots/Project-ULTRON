@@ -8,6 +8,7 @@ import { decodeWav, rms, WavError } from "@ultron/audio";
 import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, TtsSettingsUpdate, VoiceSettingsUpdate, type ChatEvent, type TranscribeResult, type TtsStatusResponse, type VoiceStatus } from "@ultron/schemas";
 import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
+import { RemoteAccess } from "./remote.ts";
 import { currentCapabilities } from "./capabilities.ts";
 import { ActiveStreams, handleUserMessage } from "./chat.ts";
 import { loadConfig, type GatewayConfig } from "./config.ts";
@@ -31,7 +32,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.16.0";
+export const VERSION = "0.17.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -83,7 +84,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     return reply.code(status).send({ error: "error", message: status >= 500 ? "ULTRON hit an internal error. Details are in the log." : (err as Error).message });
   });
 
-  registerAuth(app, token);
+  const remote = new RemoteAccess(stores);
+  registerAuth(app, token, remote);
   if (recovered) stores.audit.record("recovery.interrupted_messages", "system", null, { count: recovered });
 
   const settings = () => readProviderSettings(stores.preferences);
@@ -124,8 +126,42 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   // ---- public ----
   app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));
   app.get("/api/bootstrap", async (req, reply) => {
+    // Phones never receive the PC's session key; they pair for a key of their own.
+    if (!isLoopbackRequest(req) && remote.isRemote(req)) return reply.code(403).send({ error: "pair_required", message: "Pair this device with the code shown on your PC." });
     if (!isLoopbackRequest(req) || req.headers["sec-fetch-site"] === "cross-site") return reply.code(403).send({ error: "forbidden" });
     return { token };
+  });
+
+  // ---- phone access (pairing) ----
+  app.post("/api/pair", async (req, reply) => {
+    const body = z.object({ code: z.string().regex(/^\d{6}$/, "The code is 6 digits."), name: z.string().trim().max(40).default("Phone") }).parse(req.body);
+    const r = remote.claim(body.code, body.name);
+    if (!r.ok) {
+      stores.audit.record("remote.pair_failed", "system", null, {});
+      return reply.code(403).send({ error: "pair_failed", message: r.reason });
+    }
+    stores.audit.record("remote.device_paired", "owner", r.device.id, { name: r.device.name });
+    return { token: r.token, device: r.device };
+  });
+  app.get("/api/remote", async () => ({ settings: remote.settings(), detectedHost: await remote.detectHost(), pairing: remote.pairingActive(), devices: stores.devices.list() }));
+  app.put("/api/remote", async (req, reply) => {
+    const body = z.object({ enabled: z.boolean(), host: z.string().max(200) }).parse(req.body);
+    try {
+      const s = remote.save(body);
+      stores.audit.record(s.enabled ? "remote.enabled" : "remote.disabled", "owner", null, { host: s.host });
+      return { settings: s };
+    } catch (err) {
+      return reply.code(400).send({ error: "invalid", message: (err as Error).message });
+    }
+  });
+  app.post("/api/remote/pairing", async (_req, reply) => {
+    if (!remote.settings().enabled) return reply.code(409).send({ error: "disabled", message: "Turn on phone access first." });
+    return remote.startPairing();
+  });
+  app.delete<{ Params: { id: string } }>("/api/remote/devices/:id", async (req, reply) => {
+    if (!stores.devices.revoke(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    stores.audit.record("remote.device_revoked", "owner", req.params.id);
+    return { ok: true };
   });
 
   // ---- status ----

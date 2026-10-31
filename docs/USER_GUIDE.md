@@ -100,6 +100,16 @@ in a spoken style. When you open the app after a while, ULTRON greets you first 
 Start with "think hard about…", "take your time" or "walk me through it step by step" and ULTRON reasons carefully before answering (it takes
 longer, especially on a local brain). Its reasoning stays hidden; you get the answer and how confident it is.
 
+## ULTRON on your phone
+1. Install **Tailscale** (free) on this PC and on your phone, and sign in to the same account on both.
+2. On the PC, open a terminal and run `tailscale serve --bg 7477` (this gives your PC a private https address only your devices can reach).
+3. In ULTRON: **Settings → Phone access**, enter the PC's Tailscale address (often filled in for you) and click **Turn phone access on**.
+4. On the phone, open `https://<that address>`. Click **Pair a phone** on the PC and type the 6-digit code on the phone.
+5. In the phone's browser menu choose **Add to Home Screen** for an ULTRON icon.
+
+The phone can chat, talk, approve actions and use the stop button. API keys, folders, connections and paired devices can only be changed
+on the PC. Remove a phone in Settings → Phone access and it's locked out at once. ULTRON has to be running on the PC.
+
 ## Controlling your PC (Windows)
 - **Music and volume:** "pause the music", "next song", "previous track", "turn it up", "turn it down a bit", "mute". These happen straight
   away (they're easy to undo) and are listed in Activity.

@@ -49,7 +49,7 @@ Also queued: live-key provider validation on the owner's PC, Tauri build on Wind
 - ⬜ Phase 2 voice + visualizer driven by real audio
 - ⬜ Phase 3 actions: weather, reminders, read-only authorized folders, safe app launch, approvals, prompt-injection tests
 - ⬜ Phase 4 Gmail (read + draft; send needs approval), Google Calendar, morning digest, notifications
-- ⬜ Phase 5 Tailscale remote access, device pairing/revocation, PWA, cross-device sync
+- 🟡 Phase 5 ✅ Tailscale remote access, device pairing/revocation, home-screen app (v0.17); ⬜ cross-device sync, push notifications
 - ⬜ Phase 6 opt-in wake word, local STT/TTS, screen understanding with approval, Home Assistant, MCP skills
 - ⬜ Phase 7 installer, signing, updates, restore drills, load tests
 

@@ -1,0 +1,13 @@
+{
+  "name": "ULTRON",
+  "short_name": "ULTRON",
+  "description": "Your private, local-first AI assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070203",
+  "theme_color": "#070203",
+  "icons": [
+    { "src": "/ultron-256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "/ultron.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

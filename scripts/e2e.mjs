@@ -503,6 +503,43 @@ try {
   await mobile.screenshot({ path: join(shots, "05-mobile-width.png") });
   step("Layout works at phone width");
 
+  // ---- Phone access over Tailscale (simulated: the "phone" reaches ULTRON through a pretend tailnet address) ----
+  const TAILNET = "e2e-pc.tail0000.ts.net";
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel("This PC's Tailscale address").fill(TAILNET);
+  await page.getByRole("button", { name: "Turn phone access on" }).click();
+  await page.getByRole("button", { name: "Pair a phone" }).click();
+  const shown = (await page.locator(".pair__code strong").innerText()).replace(/\s/g, "");
+  const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  // What `tailscale serve` does: HTTPS on the tailnet name, forwarded to ULTRON on the PC with that Host.
+  await phoneCtx.route(`https://${TAILNET}/**`, async (route) => {
+    const u = new URL(route.request().url());
+    // The live event stream never ends, which this simple forwarder can't relay; the phone works without it.
+    if (u.pathname === "/api/events") return route.abort().catch(() => {});
+    try {
+      const response = await route.fetch({ url: `${base}${u.pathname}${u.search}`, headers: { ...route.request().headers(), host: TAILNET } });
+      await route.fulfill({ response });
+    } catch {
+      /* the phone was closed mid-request */
+    }
+  });
+  const phonePage = await phoneCtx.newPage();
+  await phonePage.goto(`https://${TAILNET}/`);
+  await phonePage.getByRole("heading", { name: "Pair with ULTRON" }).waitFor();
+  await phonePage.getByLabel("Code from your PC").fill(shown);
+  await phonePage.getByRole("button", { name: "Pair" }).click();
+  await phonePage.getByText("Online").first().waitFor();
+  await phonePage.screenshot({ path: join(shots, "21-phone-paired.png") });
+  step("Phone access: a phone pairs with the code shown on the PC and gets in");
+  await page.reload();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.locator(".device", { hasText: "Phone" }).getByRole("button", { name: "Remove" }).click();
+  await phonePage.reload();
+  await phonePage.getByRole("heading", { name: "Pair with ULTRON" }).waitFor();
+  await phoneCtx.unrouteAll({ behavior: "ignoreErrors" });
+  await phoneCtx.close();
+  step("Removing the phone on the PC locks it out immediately");
+
   server.kill();
   await page.waitForTimeout(800);
   await page.getByRole("button", { name: "Home" }).click();

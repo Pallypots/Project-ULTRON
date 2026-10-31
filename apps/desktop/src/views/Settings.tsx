@@ -5,6 +5,7 @@ import { VoiceSettings } from "./VoiceSettings.tsx";
 import { LocalAiPanel } from "./LocalAiPanel.tsx";
 import { SpeechSettings } from "./SpeechSettings.tsx";
 import { PersonaSettings } from "./PersonaSettings.tsx";
+import { PhoneAccess } from "./PhoneAccess.tsx";
 
 const PROVIDERS = [
   { id: "ollama", name: "Local AI on this PC (Ollama), recommended", help: "Free, private and works offline: the AI runs entirely on this computer. Set it up below." },
@@ -121,6 +122,7 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
 
       <ActionsSettings />
       <WindowsSettings />
+      <PhoneAccess />
 
       <section className="panel form">
         <h2 className="panel__title">Display &amp; accessibility</h2>

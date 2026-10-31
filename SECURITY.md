@@ -45,6 +45,14 @@ connection (low impact: only GET, response treated as data).
 Models can claim actions they never took. Every action appears as a card from the action log (never from model text), and replies that
 claim an action when none ran get a visible correction plus a `model.unbacked_claim` audit entry.
 
+## Phone access (v0.17)
+ULTRON still binds to loopback only. With phone access on, `tailscale serve` forwards the PC's tailnet HTTPS name to it; requests are accepted
+only if their Host is exactly that configured name (and any Origin is `https://` that name). Such requests never receive the PC session key
+(`/api/bootstrap` answers `pair_required`) and the PC key isn't accepted from them. A device key is issued only for a 6-digit code generated
+on the PC (5 min, 5 attempts, single use, compared in constant time); only its SHA-256 is stored; revocation and turning access off take
+effect on the next request. PC-only for remote devices: provider keys, GitHub connect/disconnect, folder changes, system shortcuts, local
+model downloads, log/memory export, and everything under `/api/remote`. Tests: `remote.test.ts` and an E2E pairing/revocation flow.
+
 ## Opening apps (v0.16)
 `open_app` (L2, approval every time) can only launch `.lnk`/`.url` shortcuts found inside the two Start-menu folders, re-checked at run time;
 the approval card shows the exact shortcut path. Media keys (L1) only send play/pause/next/previous/mute/volume key presses.

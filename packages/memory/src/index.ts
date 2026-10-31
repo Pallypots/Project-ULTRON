@@ -8,6 +8,7 @@ import { ActionStore } from "./actions.ts";
 import { FileIndexStore } from "./files.ts";
 import { ConnectorStore } from "./connectors.ts";
 import { TodoStore } from "./todos.ts";
+import { DeviceStore } from "./devices.ts";
 
 export { openDatabase, migrate, rollback, type Db } from "./db.ts";
 export { MIGRATIONS } from "./migrations.ts";
@@ -19,6 +20,7 @@ export { ReminderStore, type Reminder } from "./reminders.ts";
 export { ActionStore, type ToolExecution, type ExecutionStatus } from "./actions.ts";
 export { FileIndexStore, type Folder, type FileHit } from "./files.ts";
 export { TodoStore, type Todo } from "./todos.ts";
+export { DeviceStore, type Device } from "./devices.ts";
 export { ConnectorStore, type ConnectorEvent, type IntegrationRow, type NewConnectorEvent } from "./connectors.ts";
 
 export interface Stores {
@@ -32,6 +34,7 @@ export interface Stores {
   files: FileIndexStore;
   connectors: ConnectorStore;
   todos: TodoStore;
+  devices: DeviceStore;
   close(): void;
 }
 
@@ -48,6 +51,7 @@ export function openStores(file: string): Stores {
     files: new FileIndexStore(db),
     connectors: new ConnectorStore(db),
     todos: new TodoStore(db),
+    devices: new DeviceStore(db),
     close: () => db.close(),
   };
 }

@@ -13,6 +13,7 @@ import { ChatView } from "./views/Chat.tsx";
 import { MemoryView } from "./views/Memory.tsx";
 import { ActivityView } from "./views/Activity.tsx";
 import { SettingsView } from "./views/Settings.tsx";
+import { PairScreen } from "./views/Pair.tsx";
 
 export type View = "home" | "chat" | "reminders" | "files" | "connections" | "memory" | "activity" | "settings";
 
@@ -35,6 +36,12 @@ export function App() {
   const [prefs, setPrefs] = useUiPrefs();
   const [chatSeed, setChatSeed] = useState<string | null>(null);
   const [talkNow, setTalkNow] = useState(false);
+  const [needPair, setNeedPair] = useState(false);
+  useEffect(() => {
+    const on = () => setNeedPair(true);
+    window.addEventListener("ultron-pair-required", on);
+    return () => window.removeEventListener("ultron-pair-required", on);
+  }, []);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [remindersKey, setRemindersKey] = useState(0);
   const speaker = useRef<Speaker | null>(null);
@@ -93,6 +100,8 @@ export function App() {
 
   const go = (v: View) => setView(v);
   const effectiveCore: CoreState = online === false ? "offline" : coreState;
+
+  if (needPair) return <PairScreen />;
 
   return (
     <div className="shell">

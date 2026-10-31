@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.17.0 · 2026-10-31 · ULTRON on your phone
+- **Phone access over Tailscale** (Settings → Phone access): talk to ULTRON from your phone anywhere, privately. ULTRON still runs only on
+  your PC; Tailscale gives it a private HTTPS address on your own devices. Each phone pairs with a 6-digit code shown on the PC (5 minutes,
+  5 tries), gets its own key (the PC's key is never sent), and can be removed instantly. Changing API keys, folders, connections or other
+  devices stays PC-only. Voice works on the phone too (HTTPS), and you can add ULTRON to your home screen like an app.
+- Prompt-injection test suite (hostile web pages and files can't save, forget, approve or send anything).
+- Tests create indexable folders outside AppData on Windows.
+
 ## 0.16.0 · 2026-10-31 · Controls your PC
 - **Media and volume** (Windows): "pause the music", "next song", "skip this", "turn it up a lot", "quieter", "mute". Works with whatever
   is playing (Spotify, YouTube in the browser…). Instant, low-risk and logged.
