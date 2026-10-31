@@ -6,6 +6,8 @@
   and your morning briefing, greetings and catch-ups now include what's coming up. Understands time zones (including daylight-saving
   changes and Outlook's zone names), repeating events (daily/weekly on chosen days/monthly incl. "second Tuesday"/yearly, with end dates
   and counts), skipped and moved occurrences, cancelled events and all-day events. Cached for 10 minutes.
+- **Morning check-in:** ULTRON says good morning first, once a day at the time you choose (default 8:00, or when it starts later that
+  morning; never after noon): a pop-up and Windows notification with your day at a glance and a **Brief me** button. Settings → Morning check-in.
 
 ## 0.17.0 · 2026-10-31 · ULTRON on your phone
 - **Phone access over Tailscale** (Settings → Phone access): talk to ULTRON from your phone anywhere, privately. ULTRON still runs only on

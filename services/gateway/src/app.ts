@@ -10,6 +10,7 @@ import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { RemoteAccess } from "./remote.ts";
 import { CalendarError, CalendarService } from "./calendar/service.ts";
+import { MorningCheckIn } from "./checkin.ts";
 import { currentCapabilities } from "./capabilities.ts";
 import { ActiveStreams, handleUserMessage } from "./chat.ts";
 import { loadConfig, type GatewayConfig } from "./config.ts";
@@ -115,6 +116,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   actions.similarFiles = (q) => embeddings.similarFiles(q);
   const calendar = new CalendarService(stores, secrets);
   actions.calendar = calendar;
+  const checkIn = new MorningCheckIn(stores, bus, calendar);
+  checkIn.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
   const deps = { calendar, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
@@ -133,6 +136,15 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     if (!isLoopbackRequest(req) && remote.isRemote(req)) return reply.code(403).send({ error: "pair_required", message: "Pair this device with the code shown on your PC." });
     if (!isLoopbackRequest(req) || req.headers["sec-fetch-site"] === "cross-site") return reply.code(403).send({ error: "forbidden" });
     return { token };
+  });
+
+  // ---- morning check-in ----
+  app.get("/api/settings/checkin", async () => ({ checkin: checkIn.settings() }));
+  app.put("/api/settings/checkin", async (req) => {
+    const body = z.object({ enabled: z.boolean(), time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 08:00.") }).parse(req.body);
+    stores.preferences.set("checkin", body);
+    stores.audit.record("settings.checkin_changed", "owner", null, body);
+    return { checkin: checkIn.settings() };
   });
 
   // ---- calendar (read-only, private iCal link) ----
@@ -710,6 +722,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   app.addHook("onClose", async () => {
     scheduler.stop();
     summarizer.stop();
+    checkIn.stop();
     files.stop();
     connectors.stop();
     streams.stopAll();

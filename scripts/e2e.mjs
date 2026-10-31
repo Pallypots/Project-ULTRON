@@ -57,7 +57,7 @@ const [githubUrl, githubToken] = await new Promise((resolve, reject) => {
 });
 
 const server = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "services/gateway/src/main.ts"], {
-  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_EMBEDDINGS: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_GITHUB_API: githubUrl, ULTRON_LOG_LEVEL: "warn", ULTRON_START_MENU_DIRS: startMenu, ULTRON_ALLOW_PRIVATE_FETCH: "1" },
+  env: { ...process.env, ULTRON_PORT: String(port), ULTRON_DATA_DIR: dataDir, ULTRON_PROVIDER: "mock", ULTRON_STT_ENGINE: "mock", ULTRON_TTS_ENGINE: "mock", ULTRON_ACTIONS_DRY_RUN: "1", ULTRON_MOCK_TRANSCRIPT_PREFIX: "Ultron, ", ULTRON_EMBEDDINGS: "mock", ULTRON_OLLAMA_URL: ollamaUrl, ULTRON_GITHUB_API: githubUrl, ULTRON_LOG_LEVEL: "warn", ULTRON_START_MENU_DIRS: startMenu, ULTRON_ALLOW_PRIVATE_FETCH: "1", ULTRON_CHECKIN: "off" },
   stdio: ["ignore", "pipe", "inherit"],
 });
 await new Promise((resolve, reject) => {

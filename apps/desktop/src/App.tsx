@@ -38,6 +38,14 @@ export function App() {
   const [talkNow, setTalkNow] = useState(false);
   const [needPair, setNeedPair] = useState(false);
   useEffect(() => {
+    const ask = (e: Event) => {
+      setChatSeed((e as CustomEvent<string>).detail);
+      setView("chat");
+    };
+    window.addEventListener("ultron-ask", ask);
+    return () => window.removeEventListener("ultron-ask", ask);
+  }, []);
+  useEffect(() => {
     const on = () => setNeedPair(true);
     window.addEventListener("ultron-pair-required", on);
     return () => window.removeEventListener("ultron-pair-required", on);
@@ -68,6 +76,10 @@ export function App() {
       } else if (e.type === "reminders_missed") {
         toast({ kind: "warn", title: "Missed while ULTRON was off", body: e.reminders.map((r) => r.text).join(", ") });
         setRemindersKey((k) => k + 1);
+      } else if (e.type === "checkin") {
+        // ULTRON reaching out first: a morning summary with a button for the full briefing.
+        toast({ kind: "info", title: `☀ ${e.title}`, body: e.body, action: { label: "Brief me", run: () => window.dispatchEvent(new CustomEvent("ultron-ask", { detail: "Good morning, brief me" })) } });
+        if ("Notification" in window && Notification.permission === "granted") new Notification(`ULTRON: ${e.title}`, { body: e.body, icon: "/ultron.svg" });
       } else if (e.type === "connector_synced") {
         window.dispatchEvent(new CustomEvent("ultron-connector", { detail: e }));
       } else if (e.type === "action_updated") {

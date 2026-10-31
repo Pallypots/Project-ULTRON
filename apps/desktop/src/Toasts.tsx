@@ -3,6 +3,7 @@ export interface Toast {
   title: string;
   body: string;
   kind: "reminder" | "warn" | "info";
+  action?: { label: string; run: () => void };
 }
 
 /** Pop-up notices (reminders, missed reminders). Each stays until dismissed so nothing is missed. */
@@ -16,6 +17,9 @@ export function Toasts({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: str
             <strong>{t.title}</strong>
             <div>{t.body}</div>
           </div>
+          {t.action && (
+            <button type="button" className="btn btn--small btn--primary" onClick={() => { t.action!.run(); dismiss(t.id); }}>{t.action.label}</button>
+          )}
           <button type="button" className="btn btn--small" onClick={() => dismiss(t.id)}>Dismiss</button>
         </div>
       ))}

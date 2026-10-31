@@ -5,7 +5,8 @@ export type ServerEvent =
   | { type: "reminders_missed"; reminders: Reminder[] }
   | { type: "action_updated"; execution: ToolExecution }
   | { type: "connector_synced"; source: string; added: number }
-  | { type: "hello"; at: string };
+  | { type: "hello"; at: string }
+  | { type: "checkin"; title: string; body: string };
 
 /** Fan-out of live events to every connected ULTRON window (desktop now, phone later). */
 export class EventBus {

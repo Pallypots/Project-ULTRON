@@ -185,7 +185,8 @@ export type ServerEvent =
   | { type: "reminder_fired"; reminder: Reminder }
   | { type: "reminders_missed"; reminders: Reminder[] }
   | { type: "action_updated"; execution: ActionRecord }
-  | { type: "connector_synced"; source: string; added: number };
+  | { type: "connector_synced"; source: string; added: number }
+  | { type: "checkin"; title: string; body: string };
 
 /** Keeps a live connection for reminders and approvals; reconnects with backoff. Returns a stop function. */
 export function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {
@@ -279,6 +280,8 @@ export const api = {
   saveRemote: (s: { enabled: boolean; host: string }) => call<{ settings: { enabled: boolean; host: string } }>("PUT", "/api/remote", s),
   startPairing: () => call<{ code: string; expiresAt: string }>("POST", "/api/remote/pairing"),
   revokeDevice: (id: string) => call("DELETE", `/api/remote/devices/${id}`),
+  checkin: () => call<{ checkin: { enabled: boolean; time: string } }>("GET", "/api/settings/checkin"),
+  saveCheckin: (c: { enabled: boolean; time: string }) => call<{ checkin: { enabled: boolean; time: string } }>("PUT", "/api/settings/checkin", c),
   calendar: () => call<{ calendar: { connected: boolean; lastSyncAt: string | null; error: string | null } }>("GET", "/api/calendar"),
   connectCalendar: (url: string) => call<{ calendar: { connected: boolean; lastSyncAt: string | null; error: string | null }; events: number }>("PUT", "/api/calendar", { url }),
   disconnectCalendar: () => call<{ calendar: { connected: boolean; lastSyncAt: string | null; error: string | null } }>("DELETE", "/api/calendar"),
