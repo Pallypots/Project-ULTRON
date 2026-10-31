@@ -78,6 +78,46 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     const { OllamaProvider } = await import("@ultron/agent-core");
     ciNote("Local brain abilities", `${MODEL}: ${JSON.stringify(await new OllamaProvider({ model: MODEL }).capabilities())}`);
 
+    // Informational: "look at my screen" with a real vision-capable local brain. The "screen" is a solid red picture.
+    const { deflateSync } = await import("node:zlib");
+    const { writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const png = (w: number, h: number, rgb: [number, number, number]) => {
+      const crcTable = Array.from({ length: 256 }, (_, n) => {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        return c >>> 0;
+      });
+      const crc = (b: Buffer) => {
+        let c = 0xffffffff;
+        for (const x of b) c = crcTable[(c ^ x) & 0xff]! ^ (c >>> 8);
+        return (c ^ 0xffffffff) >>> 0;
+      };
+      const chunk = (type: string, data: Buffer) => {
+        const len = Buffer.alloc(4);
+        len.writeUInt32BE(data.length);
+        const td = Buffer.concat([Buffer.from(type), data]);
+        const c = Buffer.alloc(4);
+        c.writeUInt32BE(crc(td));
+        return Buffer.concat([len, td, c]);
+      };
+      const ihdr = Buffer.alloc(13);
+      ihdr.writeUInt32BE(w, 0);
+      ihdr.writeUInt32BE(h, 4);
+      ihdr[8] = 8;
+      ihdr[9] = 2;
+      const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array.from({ length: w }, () => rgb).flat())]);
+      return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(Buffer.concat(Array.from({ length: h }, () => row)))), chunk("IEND", Buffer.alloc(0))]);
+    };
+    const shot = join(tmpdir(), "ultron-red-screen.png");
+    writeFileSync(shot, png(64, 64, [220, 20, 20]));
+    process.env.ULTRON_FAKE_SCREENSHOT = shot;
+    const t7 = Date.now();
+    const seen = replyText(await g.chat(await g.newConversation(), "Look at my screen. What single colour fills it? Answer in one word.")).replace(/\s+/g, " ");
+    delete process.env.ULTRON_FAKE_SCREENSHOT;
+    ciNote("Local brain looks at the screen", `correct=${/\bred\b/i.test(seen)} took=${Date.now() - t7}ms reply="${seen.slice(0, 200)}"`);
+
     // Informational: the note ULTRON writes itself about a finished conversation.
     const t5 = Date.now();
     const persona = () => loadPersona(new URL("../../../config/persona.json", import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));
