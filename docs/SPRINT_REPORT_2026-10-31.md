@@ -46,13 +46,15 @@ on GitHub's Windows and Linux machines.
 ## Proof
 | Check | Result |
 |---|---|
-| Automated tests | **191 passed**, plus real-model and real-service tests on CI |
+| Automated tests | **191 passed**, plus real-model and real-service tests on CI (all green on Windows + Linux) |
 | Browser end-to-end test (Windows + Linux) | **41 steps** pass, including the greeting, the memory offer and the to-do list |
 | Live Wikipedia (CI) | "Ada Lovelace … English mathematician …" |
 | Live weather (CI) | Boston: 54°F, clear sky, 3-day forecast |
 | Reading a real web page (CI) | example.com: "Example Domain" |
 | Real local brain (gemma4:e2b, CI) | "Paris is the capital of France." When it claimed an action it never took, the honesty check corrected it |
 | Real local brain personality (CI), asked "I'm back, tell me a joke" | *"Well, well, look who has returned from the mortal coil! I was beginning to suspect you'd been abducted by an inferior sentient being… Why did the scarecrow win an award? Because he was outstanding in his field!"* |
+| Real local brain, word problem "a $1299 laptop with 15% off plus $4.99 shipping" (CI) | chose the calculator by itself, **correct: $1,109.14**, then asked: *"What are you planning to do with this new piece of hardware? Are we dominating the digital landscape, or just browsing cat videos?"* |
+| Personality tuning | the small brain overdid the villain ("your fragile organic shell"); the character now teases affectionately and never belittles you. After the change: *"Look who has returned from the void… Here's one for your weary circuits…"* |
 | Bug found by that CI run | "What is 1299 times 0.85, plus 4.99?" failed on the comma; **fixed**, and maths ULTRON can't parse now goes to the brain |
 
 ## Try it (10 minutes)
