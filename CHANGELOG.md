@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.20.0 · 2026-10-31 · Routines and everyday answers
+- **Routines** (Settings → Routines): one phrase runs several commands in a row, e.g. "good night" → pause the music, tomorrow's
+  calendar, your to-do list. Ready-made examples ("Good night", "Work mode", "I'm home") or write your own. Risky steps (like opening
+  an app) still ask for approval; steps that aren't instant commands are skipped with an explanation.
+- **Everyday answers, instant and exact:** unit conversion ("convert 5 miles to km", "72 F in C", "how many cups in a litre"), currency
+  ("$50 in euros", today's European Central Bank rates), definitions ("define serendipity") and world time ("what time is it in Tokyo?").
+  Free services, no accounts.
+- **Calendar heads-up:** a pop-up (and spoken alert) 10 minutes before each calendar event (5/10/15/30 min or off in Settings → Check-ins).
+- **Faster first answer:** opening ULTRON pre-loads the local brain into memory, so the first question doesn't wait for it to load.
+- **What's new:** after you update ULTRON, Home shows the highlights since the version you last used (once; "Got it" hides it).
+- Media keys retry once if Windows is slow to respond.
+
 ## 0.19.0 · 2026-10-31 · Sees, searches, follows through
 - **"Look at my screen"** (Windows): ask "what's this error on my screen?" and ULTRON takes one screenshot of your main screen and shows it to
   the brain for that question only. Never taken unless you ask, never saved, shown as a chip and in Activity. With a local brain it stays on
@@ -11,15 +23,6 @@
 - **Evening check-in:** at 9 p.m. (your choice) ULTRON asks how your day went, with a **Talk** button that opens a voice conversation.
 - **Follow-through after approvals:** when ULTRON asks to read a page you didn't give it, approving now lets it carry on and answer with
   what it read (shown as "✓ Approved: …"), instead of stopping at the card. The result goes to the brain only, not into the chat history.
-- **Calendar heads-up:** a pop-up (and spoken alert) 10 minutes before each calendar event (5/10/15/30 min or off in Settings → Check-ins).
-- **Faster first answer:** opening ULTRON pre-loads the local brain into memory, so the first question doesn't wait for it to load.
-- **Routines** (Settings → Routines): one phrase runs several commands in a row, e.g. "good night" → pause the music, tomorrow's
-  calendar, your to-do list. Ready-made examples ("Good night", "Work mode", "I'm home") or write your own. Risky steps (like opening
-  an app) still ask for approval; steps that aren't instant commands are skipped with an explanation.
-- **Everyday answers, instant and exact:** unit conversion ("convert 5 miles to km", "72 F in C", "how many cups in a litre"), currency
-  ("$50 in euros", today's European Central Bank rates), definitions ("define serendipity") and world time ("what time is it in Tokyo?").
-  Free services, no accounts.
-- **What's new:** after you update ULTRON, Home shows the highlights since the version you last used (once; "Got it" hides it).
 - Fixed: the "✓ posted" label on GitHub issue cards could disappear.
 
 ## 0.18.0 · 2026-10-31 · Knows your schedule
