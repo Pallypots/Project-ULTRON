@@ -107,6 +107,10 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   // Prepare meaning-based recall in the background if there's anything to recall.
   if (stores.memories.list().length) embeddings.backfill().catch(() => {});
   actions.onMemoryChanged = () => void embeddings.backfill().catch(() => {});
+  // Meaning-based file search: embed newly indexed files in the background, and use them when searching.
+  files.onIndexed = () => void embeddings.backfillDocs().catch(() => {});
+  actions.similarFiles = (q) => embeddings.similarFiles(q);
+  if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
   const deps = { embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);

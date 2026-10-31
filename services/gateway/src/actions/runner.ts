@@ -1,7 +1,7 @@
 import type { Stores, ToolExecution } from "@ultron/memory";
 import type { ToolEvent } from "@ultron/schemas";
 import type { EventBus } from "./events.ts";
-import { toolByName, type ToolDef } from "./tools.ts";
+import { toolByName, type ToolContext, type ToolDef } from "./tools.ts";
 import type { FileService } from "../files/service.ts";
 import type { ConnectorService } from "../connectors/service.ts";
 
@@ -49,6 +49,7 @@ export const toEvent = (e: ToolExecution): ToolEvent => {
 export class ActionRunner {
   /** Hook for tools that change memories (wired to meaning-based indexing by the app). */
   onMemoryChanged?: () => void;
+  similarFiles?: ToolContext["similarFiles"];
   constructor(
     private stores: Stores,
     private bus: EventBus,
@@ -106,7 +107,7 @@ export class ActionRunner {
   private async execute(exec: ToolExecution, tool: ToolDef): Promise<ToolExecution> {
     try {
       const result = await Promise.race([
-        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files, connectors: this.connectors, onMemoryChanged: this.onMemoryChanged }),
+        tool.run(exec.input, { stores: this.stores, conversationId: exec.conversationId, dryRun: this.dryRun, now: this.now, files: this.files, connectors: this.connectors, onMemoryChanged: this.onMemoryChanged, similarFiles: this.similarFiles }),
         new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`Timed out after ${tool.timeoutMs / 1000}s.`)), tool.timeoutMs)),
       ]);
       const e = this.stores.actions.update(exec.id, { status: "succeeded", result: capResult(result) })!;

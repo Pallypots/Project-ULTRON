@@ -76,6 +76,7 @@ export class FileIndexStore {
       if (existingId) {
         this.db.prepare("UPDATE documents SET size = ?, mtime_ms = ?, content_indexed = ? WHERE id = ?").run(d.size, d.mtimeMs, d.chunks ? 1 : 0, id);
         this.db.prepare("DELETE FROM document_chunks WHERE doc_id = ?").run(id);
+        this.db.prepare("DELETE FROM doc_vectors WHERE doc_id = ?").run(id); // content changed: re-embed
       } else {
         this.db.prepare("INSERT INTO documents (id, folder_id, path, name, ext, size, mtime_ms, content_indexed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(id, d.folderId, d.path, d.name, d.ext, d.size, d.mtimeMs, d.chunks ? 1 : 0);
       }
@@ -123,5 +124,50 @@ export class FileIndexStore {
       if (out.length >= limit) break;
     }
     return out;
+  }
+
+  /** Leading chunks (first few per document) that don't have a vector for `model` yet. */
+  chunksNeedingVectors(model: string, perDoc = 3, limit = 200): { docId: string; chunk: number; name: string; content: string }[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT c.doc_id, c.chunk, d.name, c.content FROM document_chunks c JOIN documents d ON d.id = c.doc_id
+           LEFT JOIN doc_vectors v ON v.doc_id = c.doc_id AND v.chunk = c.chunk AND v.model = ?
+           WHERE v.doc_id IS NULL AND c.chunk < ? AND length(c.content) > 20 LIMIT ?`,
+        )
+        .all(model, perDoc, limit) as any[]
+    ).map((r) => ({ docId: r.doc_id, chunk: Number(r.chunk), name: r.name, content: r.content }));
+  }
+
+  setDocVector(docId: string, chunk: number, model: string, vector: Float32Array) {
+    this.db
+      .prepare("INSERT INTO doc_vectors (doc_id, chunk, model, vector) VALUES (?, ?, ?, ?) ON CONFLICT(doc_id, chunk) DO UPDATE SET model = excluded.model, vector = excluded.vector")
+      .run(docId, chunk, model, new Uint8Array(vector.buffer, vector.byteOffset, vector.byteLength));
+  }
+
+  /** Files whose content is closest in meaning to the query vector (best chunk per file). */
+  nearestDocs(query: Float32Array, model: string, limit = 8, minScore = 0.35): (FileHit & { score: number })[] {
+    const rows = this.db
+      .prepare(
+        `SELECT v.doc_id, v.chunk, v.vector, d.path, d.name, d.ext, d.size, d.mtime_ms FROM doc_vectors v JOIN documents d ON d.id = v.doc_id WHERE v.model = ?`,
+      )
+      .all(model) as any[];
+    const best = new Map<string, { r: any; score: number }>();
+    for (const r of rows) {
+      const u8 = r.vector as Uint8Array;
+      const v = new Float32Array(u8.buffer, u8.byteOffset, u8.byteLength / 4);
+      let dot = 0;
+      for (let i = 0; i < v.length && i < query.length; i++) dot += v[i]! * query[i]!;
+      if (dot < minScore) continue;
+      const cur = best.get(r.doc_id);
+      if (!cur || dot > cur.score) best.set(r.doc_id, { r, score: dot });
+    }
+    return [...best.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ r, score }) => {
+        const chunk = this.db.prepare("SELECT content FROM document_chunks WHERE doc_id = ? AND chunk = ?").get(r.doc_id, r.chunk) as { content: string } | undefined;
+        return { docId: r.doc_id, path: r.path, name: r.name, ext: r.ext, size: r.size, modified: new Date(r.mtime_ms).toISOString(), snippet: (chunk?.content ?? "").slice(0, 220).replace(/\s+/g, " "), score };
+      });
   }
 }

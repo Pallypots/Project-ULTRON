@@ -267,4 +267,19 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE conversations DROP COLUMN summary;
     `,
   },
+  {
+    version: 10,
+    name: "doc_vectors",
+    // Meaning-based file search: one vector per leading chunk of each indexed document (deleted with the document).
+    up: `
+      CREATE TABLE doc_vectors (
+        doc_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+        chunk INTEGER NOT NULL,
+        model TEXT NOT NULL,
+        vector BLOB NOT NULL,
+        PRIMARY KEY (doc_id, chunk)
+      );
+    `,
+    down: `DROP TABLE doc_vectors;`,
+  },
 ];

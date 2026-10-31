@@ -57,3 +57,42 @@ describe.skipIf(process.env.ULTRON_TEST_EMBED !== "1")("meaning-based recall (re
     expect(top2).toMatch(/birthday/);
   }, 600_000);
 });
+
+const seedFiles = (s: ReturnType<typeof openStores>) => {
+  const folder = s.files.addFolder(join(tmpdir(), "projects"));
+  const add = (name: string, text: string) =>
+    s.files.upsertDoc({ folderId: folder.id, path: join(tmpdir(), "projects", name), name, ext: "md", size: text.length, mtimeMs: Date.now(), chunks: [text] });
+  add("oogie-build-notes.md", "Level 3 still has an audio crackle whenever the boss arena loads; the sound mixer buffer is too small.");
+  add("pizza.md", "Neapolitan dough: 48 hours cold fermentation, then bake as hot as the oven goes.");
+  add("taxes-2026.md", "Receipts for home office equipment and the accountant's phone number.");
+  return folder;
+};
+
+describe("meaning-based file search (deterministic test embedder)", () => {
+  it("embeds leading chunks once, re-embeds changed files, and forgets removed folders", async () => {
+    const s = openStores(":memory:");
+    const folder = seedFiles(s);
+    const e = new EmbeddingService(s, tmpdir(), "mock");
+    expect(await e.backfillDocs()).toBe(3);
+    expect(await e.backfillDocs()).toBe(0);
+    const hits = await e.similarFiles("sound mixer buffer crackle");
+    expect(hits[0]!.name).toBe("oogie-build-notes.md");
+    s.files.removeFolder(folder.id);
+    expect((s.db.prepare("SELECT count(*) n FROM doc_vectors").get() as { n: number }).n).toBe(0);
+  });
+});
+
+describe.skipIf(process.env.ULTRON_TEST_EMBED !== "1")("meaning-based file search (real local model)", () => {
+  it("finds a file that shares no keywords with the question", async () => {
+    const s = openStores(":memory:");
+    seedFiles(s);
+    const e = new EmbeddingService(s, process.env.ULTRON_TEST_MODEL_DIR ?? join(tmpdir(), "ultron-test-models"), "local");
+    await e.backfillDocs();
+    const q = "where did I write about the sound glitch in the game?";
+    expect(s.files.search(q).map((h) => h.name)).not.toContain("oogie-build-notes.md");
+    const top = (await e.similarFiles(q))[0];
+    const { ciNote } = await import("./helpers.ts");
+    ciNote("Meaning-based file search", `"${q}" -> ${top?.name} (score ${top?.score.toFixed(2)}); keyword search alone: ${JSON.stringify(s.files.search(q).map((h) => h.name))}`);
+    expect(top?.name).toBe("oogie-build-notes.md");
+  }, 600_000);
+});

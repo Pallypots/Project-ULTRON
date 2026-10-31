@@ -16,6 +16,9 @@ export class FileService {
     private log: (msg: string) => void = () => {},
   ) {}
 
+  /** Called after a folder finishes indexing (used to prepare meaning-based search). */
+  onIndexed?: () => void;
+
   start() {
     // Re-index once at startup (catches changes made while ULTRON was off), then periodically.
     for (const f of this.store.folders()) this.reindex(f.id);
@@ -45,6 +48,7 @@ export class FileService {
       .then(({ files, contentIndexed, truncated }) => {
         if (!this.store.folder(id)) return; // removed while indexing
         this.store.setFolderStatus(id, "ready", `${files} files, ${contentIndexed} readable${truncated ? " (stopped at the 25,000-file limit)" : ""}`, files);
+        this.onIndexed?.();
       })
       .catch((err: Error) => {
         this.log(`indexing failed: ${err.message}`);

@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import { basename, extname, resolve as resolvePath } from "node:path";
 import { z } from "zod";
-import type { Stores } from "@ultron/memory";
+import type { FileHit, Stores } from "@ultron/memory";
 import { extractText } from "../files/indexer.ts";
 import { openTarget, openWithDefaultApp, type FileService } from "../files/service.ts";
 import type { ConnectorService } from "../connectors/service.ts";
@@ -25,6 +25,8 @@ export interface ToolContext {
   connectors?: ConnectorService;
   /** Called after a tool changes memories (so meaning-based recall can index them). */
   onMemoryChanged?: () => void;
+  /** Meaning-based file matches (local embeddings); absent or empty when the model isn't ready. */
+  similarFiles?: (query: string) => Promise<FileHit[]>;
 }
 
 export interface ToolDef<I = any> {
@@ -195,8 +197,21 @@ const searchFiles: ToolDef<{ query: string }> = {
   describe: (i) => `Search your files for "${i.query}"`,
   run: async (i, ctx) => {
     if (!ctx.files?.approvedRoots().length) return JSON.stringify({ results: [], note: "No folders are approved yet. The owner can add some in Settings → Files." });
-    const hits = ctx.stores.files.search(i.query, 8);
-    return JSON.stringify({ results: hits.map((h) => ({ file_id: h.docId, path: h.path, modified: h.modified.slice(0, 10), snippet: h.snippet })) });
+    // Keyword matches and meaning matches merged by rank, so "sound glitch" also finds a file about "audio crackle".
+    const keyword = ctx.stores.files.search(i.query, 8);
+    const meaning = (await ctx.similarFiles?.(i.query).catch(() => [])) ?? [];
+    const merged = new Map<string, { h: FileHit; s: number; how: Set<string> }>();
+    const add = (list: FileHit[], how: string) =>
+      list.forEach((h, rank) => {
+        const cur = merged.get(h.docId) ?? { h, s: 0, how: new Set<string>() };
+        cur.s += 1 / (60 + rank);
+        cur.how.add(how);
+        merged.set(h.docId, cur);
+      });
+    add(keyword, "words");
+    add(meaning, "meaning");
+    const hits = [...merged.values()].sort((a, b) => b.s - a.s).slice(0, 8);
+    return JSON.stringify({ results: hits.map(({ h, how }) => ({ file_id: h.docId, path: h.path, modified: h.modified.slice(0, 10), matched_by: [...how].join("+"), snippet: h.snippet })) });
   },
 };
 

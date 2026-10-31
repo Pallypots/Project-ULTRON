@@ -87,6 +87,40 @@ export class EmbeddingService {
     return todo.length;
   }
 
+  private docsRunning = false;
+
+  /**
+   * Embeds the leading chunks of indexed files that don't have vectors yet, in small batches that yield to the event
+   * loop so ULTRON stays responsive. Returns how many chunks were embedded.
+   */
+  async backfillDocs(maxChunks = 5000): Promise<number> {
+    if (this.docsRunning) return 0;
+    const e = await this.load();
+    if (!e) return 0;
+    this.docsRunning = true;
+    let done = 0;
+    try {
+      while (done < maxChunks) {
+        const todo = this.stores.files.chunksNeedingVectors(this.model, 3, 16);
+        if (!todo.length) break;
+        const vecs = await e(todo.map((c) => `${c.name}\n${c.content.slice(0, 1000)}`));
+        todo.forEach((c, j) => this.stores.files.setDocVector(c.docId, c.chunk, this.model, vecs[j]!));
+        done += todo.length;
+        await new Promise((r) => setImmediate(r));
+      }
+    } finally {
+      this.docsRunning = false;
+    }
+    return done;
+  }
+
+  /** Files whose content matches a query by meaning; empty until the model is ready. */
+  async similarFiles(text: string, limit = 8) {
+    if (this.state !== "ready" || !this.embed) return [];
+    const [q] = await this.embed([text]);
+    return this.stores.files.nearestDocs(q!, this.model, limit, this.mode === "mock" ? 0.25 : 0.35);
+  }
+
   /** Meaning-based matches for a message; empty if the model isn't ready (keyword recall still applies). */
   async similar(text: string, limit = 6) {
     if (this.state !== "ready" || !this.embed) return [];

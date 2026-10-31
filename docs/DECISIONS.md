@@ -98,6 +98,11 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-027 · 2026-10-31 · Meaning-based file search on leading chunks only
+Embedding every chunk of up to 25,000 files would take hours on a CPU. Only the first 3 chunks (~4,500 characters) of each file are embedded,
+in background batches that yield to the event loop, with brute-force cosine at query time; results are merged with BM25 by reciprocal rank.
+Vectors live in `doc_vectors` with ON DELETE CASCADE from `documents`, and are dropped when a file's content changes.
+
 ### D-026 · 2026-10-31 · Conversation notes written by the current brain, in idle time only
 Titles ("Planning the Oogie port") are a weak memory of what happened. After 30 min of quiet, conversations with ≥4 complete messages get a
 1–2 sentence third-person note from the current brain (local by default, so nothing leaves the PC unless the owner chose a cloud brain).
