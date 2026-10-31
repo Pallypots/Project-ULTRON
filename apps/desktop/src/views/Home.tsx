@@ -32,6 +32,13 @@ export function HomeView({ status, core, onAsk, onTalk, onNavigate }: { status: 
   const hour = new Date().getHours();
   const greet = hour < 5 ? "Burning the midnight oil" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const [quip] = useState(() => QUIPS[Math.floor(Math.random() * QUIPS.length)]!);
+  // After an update: what's new since the version the owner last saw (once).
+  const [updates, setUpdates] = useState<Awaited<ReturnType<typeof api.whatsNew>> | null>(null);
+  useEffect(() => {
+    api.whatsNew().then((n) => (n.firstRun ? api.whatsNewSeen() : n.sections.length ? setUpdates(n) : null)).catch(() => {});
+  }, []);
+  const plain = (s: string) => s.replace(/\*\*|`/g, "");
+
   // Spoken on request: browsers only allow sound after a click, so the greeting has a play button.
   const speaker = useRef<Speaker | null>(null);
   const voice = useRef<{ engine: TtsEngineId; speed: number }>({ engine: "local", speed: 1 });
@@ -78,6 +85,19 @@ export function HomeView({ status, core, onAsk, onTalk, onNavigate }: { status: 
           <button type="button" className="btn talk-btn" onClick={onTalk} title="Opens a conversation and listens: just speak. Say &quot;that's all&quot; when you're done.">
             🎙 Talk to ULTRON
           </button>
+          {updates && (
+            <section className="news" aria-labelledby="news-title">
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <strong id="news-title">What's new in v{updates.version}</strong>
+                <button type="button" className="btn btn--small" onClick={() => { api.whatsNewSeen().catch(() => {}); setUpdates(null); }}>Got it</button>
+              </div>
+              <ul>
+                {updates.sections.flatMap((s) => s.items).slice(0, 8).map((it, i) => (
+                  <li key={i}>{plain(it).slice(0, 220)}{plain(it).length > 220 ? "…" : ""}</li>
+                ))}
+              </ul>
+            </section>
+          )}
           <div className="chips">
             {SUGGESTIONS.map((s) => (
               <button key={s} className="chip" onClick={() => onAsk(s)}>{s}</button>

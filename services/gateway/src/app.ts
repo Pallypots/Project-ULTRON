@@ -14,7 +14,7 @@ import { MorningCheckIn } from "./checkin.ts";
 import { braveSearch, SEARCH_SECRET } from "./actions/knowledge.ts";
 import { currentCapabilities } from "./capabilities.ts";
 import { ActiveStreams, handleUserMessage } from "./chat.ts";
-import { loadConfig, type GatewayConfig } from "./config.ts";
+import { loadConfig, type GatewayConfig, REPO_ROOT } from "./config.ts";
 import { isLocalProvider, readProviderSettings, resolveProvider, saveProviderSettings, SECRET_FOR } from "./providers.ts";
 import { detectHardware } from "./local-ai/hardware.ts";
 import { EventBus } from "./actions/events.ts";
@@ -135,6 +135,30 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   };
   const summarizer = new Summarizer(deps, () => streams.size > 0);
   summarizer.start();
+  // What's new since the version the owner last saw (from CHANGELOG.md), shown once on Home after an update.
+  const whatsNew = () => {
+    try {
+      const log = readFileSync(join(REPO_ROOT, "CHANGELOG.md"), "utf8");
+      const seen = stores.preferences.get<string>("seen_version", "");
+      const sections = log.split(/^## /m).slice(1).map((s) => {
+        const [head, ...body] = s.split("\n");
+        const version = /^(\d+\.\d+\.\d+)/.exec(head ?? "")?.[1] ?? "";
+        const title = (head ?? "").split("·").slice(2).join("·").trim();
+        const items = body.join("\n").split(/\n- /).map((b) => b.replace(/^- /, "").replace(/\s+/g, " ").trim()).filter(Boolean);
+        return { version, title, items };
+      });
+      const newer = sections.filter((s) => s.version && (!seen || cmpVersion(s.version, seen) > 0));
+      return { version: VERSION, firstRun: !seen, sections: seen ? newer.slice(0, 5) : [] };
+    } catch {
+      return { version: VERSION, firstRun: false, sections: [] };
+    }
+  };
+  app.get("/api/whats-new", async () => whatsNew());
+  app.post("/api/whats-new/seen", async () => {
+    stores.preferences.set("seen_version", VERSION);
+    return { ok: true };
+  });
+
   app.get("/api/greeting", async () => {
     warmBrain();
     const g = await greeter.get().catch(() => null);
@@ -763,3 +787,11 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   return { app, stores, token, config, logLines, summarizer };
 }
+
+function cmpVersion(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) - (pb[i] ?? 0);
+  return 0;
+}
+

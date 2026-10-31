@@ -188,3 +188,22 @@ describe("capabilities", () => {
     expect(text).toMatch(/Long-term memory: enabled/);
   });
 });
+
+describe("what's new after an update", () => {
+  it("stays quiet on first run, then shows changes newer than the last version seen", async () => {
+    const { startGateway } = await import("./helpers.ts");
+    const g = await startGateway();
+    try {
+      const first = (await g.api("GET", "/api/whats-new")).body;
+      expect(first).toMatchObject({ firstRun: true, sections: [] });
+      await g.api("POST", "/api/whats-new/seen");
+      expect((await g.api("GET", "/api/whats-new")).body.sections).toEqual([]);
+      g.gw.stores.preferences.set("seen_version", "0.17.0"); // as if the owner last used v0.17
+      const news = (await g.api("GET", "/api/whats-new")).body;
+      expect(news.sections.map((s: { version: string }) => s.version).slice(-2)).toEqual(["0.19.0", "0.18.0"]);
+      expect(news.sections.at(-1).items.some((i: string) => /Calendar/.test(i))).toBe(true);
+    } finally {
+      await g.close();
+    }
+  });
+});
