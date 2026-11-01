@@ -53,7 +53,10 @@ jobs:
         run: node scripts/ci-notes.mjs
       - name: Local brain's own log of what it re-read (cache reuse)
         if: always() && runner.os == 'Linux'
-        run: grep -iE "cache|slot|prompt=|truncat|shift" "$RUNNER_TEMP/ollama.log" | tail -150 || true
+        run: |
+          grep -E "new prompt|cached n_tokens|checkpoint with|created context checkpoint|forcing full|checking sim|prompt eval time" "$RUNNER_TEMP/ollama.log" | sed -E 's/^.*(task [0-9]+)/\1/' | tail -400 || true
+          echo "--- gemma4:e2b chat template ---"
+          ollama show gemma4:e2b --template 2>/dev/null | head -120 || true
       - run: npm run build
       - run: npm run doctor
       - name: Windows launcher smoke test (Start-ULTRON.bat --background)
