@@ -72,3 +72,38 @@ describe("robust streaming from the local brain (Phase 1.13)", () => {
     expect(await say([piece("If a <"), piece(" b then"), piece(" stop.", true)])).toBe("If a < b then stop.");
   });
 });
+
+describe("tool calls a small model writes out as text", async () => {
+  const { LeakedToolCalls } = await import("../src/providers/ollama.ts");
+  const feed = (chunks: string[], names = ["calculate", "save_memory"]) => {
+    const l = new LeakedToolCalls(names);
+    let text = "";
+    const calls: unknown[] = [];
+    chunks.forEach((c, i) => {
+      const r = l.push(c, i === chunks.length - 1);
+      text += r.text;
+      calls.push(...r.calls);
+    });
+    return { text, calls };
+  };
+
+  it("turns Gemma's written-out call into a real one, even split across chunks, and never shows it", () => {
+    const r = feed(["Let me work that out. <|to", 'ol_call>call:calculate{expression:<|"|>1299*0.85+4.99<|"|>}<tool', "_call|>", ""]);
+    expect(r.calls).toEqual([{ name: "calculate", args: { expression: "1299*0.85+4.99" } }]);
+    expect(r.text).toBe("Let me work that out. ");
+  });
+
+  it("understands the JSON form too", () => {
+    expect(feed(['<tool_call>{"name":"calculate","arguments":{"expression":"2+2"}}</tool_call>', ""]).calls).toEqual([{ name: "calculate", args: { expression: "2+2" } }]);
+  });
+
+  it("negative controls: ordinary text with < passes through; unknown tools and unfinished calls are dropped, not shown", () => {
+    expect(feed(["3 < 4 and <b>bold</b>", " done<"]).text).toBe("3 < 4 and <b>bold</b> done<");
+    const unknown = feed(['<|tool_call>call:format_disk{drive:<|"|>C<|"|>}<tool_call|>Okay.', ""]);
+    expect(unknown.calls).toEqual([]);
+    expect(unknown.text).toBe("Okay.");
+    const cut = feed(["Sure <|tool_call>call:calculate{expr", ""]);
+    expect(cut.calls).toEqual([]);
+    expect(cut.text).toBe("Sure ");
+  });
+});

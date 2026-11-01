@@ -122,6 +122,7 @@ export class OllamaProvider implements ModelProvider {
     let buf = "";
     let inThinkTag = false;
     let carry = "";
+    const leaks = new LeakedToolCalls(tools?.map((t) => t.name) ?? []);
     for (;;) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -168,7 +169,10 @@ export class OllamaProvider implements ModelProvider {
           }
           text = out;
         }
-        if (text) yield { type: "text", text };
+        // A small model sometimes writes its tool call out as text instead of a real call: turn it into one, never show it.
+        const sorted = leaks.push(text, Boolean(chunk.done));
+        if (sorted.text) yield { type: "text", text: sorted.text };
+        for (const call of sorted.calls) yield { type: "tool_call", call: { id: newToolCallId(), ...call } };
         if (chunk.done)
           req.onStats?.({
             loadMs: Math.round((chunk.load_duration ?? 0) / 1e6),
@@ -197,5 +201,64 @@ function parseError(text: string): string {
     return (JSON.parse(text) as { error?: string }).error ?? text;
   } catch {
     return text.slice(0, 300);
+  }
+}
+
+/**
+ * Spots tool calls a model wrote as plain text (Gemma's "<|tool_call>call:name{a:<|"|>x<|"|>}<tool_call|>",
+ * or "<tool_call>{json}</tool_call>") in a stream of text. Text before and after passes through; the call itself never does.
+ */
+export class LeakedToolCalls {
+  private held = "";
+  constructor(private names: string[]) {}
+
+  push(text: string, done: boolean): { text: string; calls: { name: string; args: Record<string, unknown> }[] } {
+    let s = this.held + text;
+    this.held = "";
+    let out = "";
+    const calls: { name: string; args: Record<string, unknown> }[] = [];
+    for (;;) {
+      const m = /<\|tool_call>|<tool_call>/.exec(s);
+      if (!m) break;
+      out += s.slice(0, m.index);
+      const close = m[0] === "<tool_call>" ? "</tool_call>" : "<tool_call|>";
+      const end = s.indexOf(close, m.index);
+      if (end < 0) {
+        if (done) s = ""; // never finished: drop it rather than show raw tokens
+        else this.held = s.slice(m.index);
+        return { text: out, calls };
+      }
+      const call = this.parse(s.slice(m.index + m[0].length, end));
+      if (call) calls.push(call);
+      s = s.slice(end + close.length);
+    }
+    // A marker might be arriving split across chunks: hold a possible start back.
+    const partial = done ? null : /<\|?(?:t(?:o(?:o(?:l(?:_(?:c(?:a(?:l(?:l)?)?)?)?)?)?)?)?)?$/.exec(s);
+    if (partial && partial[0].length > 0) {
+      this.held = partial[0];
+      s = s.slice(0, -partial[0].length);
+    }
+    return { text: out + s, calls };
+  }
+
+  private parse(body: string): { name: string; args: Record<string, unknown> } | null {
+    body = body.trim();
+    try {
+      if (body.startsWith("{")) {
+        const j = JSON.parse(body) as { name?: string; arguments?: Record<string, unknown> };
+        return j.name && this.names.includes(j.name) ? { name: j.name, args: j.arguments ?? {} } : null;
+      }
+      const m = /^(?:call:)?([\w.-]+)\s*(\{[\s\S]*\})?$/.exec(body);
+      if (!m || !this.names.includes(m[1]!)) return null;
+      if (!m[2]) return { name: m[1]!, args: {} };
+      // Gemma's form: unquoted keys, strings wrapped in <|"|>.
+      const strings: string[] = [];
+      let j = m[2].replace(/<\|"\|>([\s\S]*?)<\|"\|>/g, (_, v: string) => `\u0000${strings.push(v) - 1}\u0000`);
+      j = j.replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g, '$1"$2":');
+      j = j.replace(/\u0000(\d+)\u0000/g, (_, i: string) => JSON.stringify(strings[Number(i)]));
+      return { name: m[1]!, args: JSON.parse(j) as Record<string, unknown> };
+    } catch {
+      return null;
+    }
   }
 }

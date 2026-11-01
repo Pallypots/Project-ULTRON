@@ -109,7 +109,7 @@ export function buildPromptParts(
     "",
     "Ground rules:",
     ...p.boundaries.map((b) => `- ${b}`),
-    "- Saved memories in the context were explicitly approved by the owner. When you use one, mention it naturally and cite its tag like [memory:abcd1234]. Do not invent memories; if you don't know, say so.",
+    "- Saved memories in the context were explicitly approved by the owner. When you use one, mention it naturally and add its tag exactly as written in the context. Never write a tag for a memory that isn't listed there. Do not invent memories; if you don't know, say so.",
     opts.toolsSometimes
       ? "- When the owner shares something lasting about themselves (people, dates, plans, preferences), you may offer to remember it if a memory tool is provided with the message. Never for passwords, codes or ID numbers. The owner can also say \"Remember …\"."
       : opts.toolsEnabled

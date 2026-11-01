@@ -405,7 +405,7 @@ export async function handleUserMessage(
   const calendarLines = await calendarP;
   const calendarInPrompt = calendarLines.length > 0;
   const roomInPrompt = opts.inputMode === "voice" && (provider.id === "ollama" || provider.id === "mock") ? deps.room?.recent() : undefined;
-  const { stable: system, context: turnContext } = buildPromptParts(deps.persona(), {
+  const { stable: system, context: baseContext } = buildPromptParts(deps.persona(), {
     capabilities,
     toolsEnabled: actionsPossible,
     toolsSometimes: provider.id === "ollama" && actionsPossible,
@@ -416,6 +416,9 @@ export async function handleUserMessage(
       // Overheard conversation goes only to a local brain (it never leaves the PC).
       room: roomInPrompt },
   });
+  let turnContext = baseContext;
+  // Small local brains refuse ("I can't see your screen") unless told the picture is right there.
+  const seeingNote = (what: string) => (turnContext = `${turnContext}\n- ${what} is attached to the owner's message below as an image. You CAN see it: look at it and answer from what you see. Never say you can't see it.`);
   const turns: ChatTurn[] = turnsSoFar;
   trace?.mark("context_ready");
 
@@ -440,6 +443,7 @@ export async function handleUserMessage(
     }
     const last = turns.at(-1);
     if (last?.role === "user") turns[turns.length - 1] = { ...last, images: [opts.image] };
+    seeingNote("A photo the owner just took with their camera");
     const local = provider.id === "ollama" || provider.id === "mock";
     const exec = stores.actions.create({
       conversationId,
@@ -470,6 +474,7 @@ export async function handleUserMessage(
       const shot = await captureScreen(deps.dataDir ?? tmpdir());
       const last = turns.at(-1);
       if (last?.role === "user") turns[turns.length - 1] = { ...last, images: [shot] };
+      seeingNote("A screenshot of the owner's PC screen, taken just now at their request,");
       const local = provider.id === "ollama" || provider.id === "mock";
       const exec = stores.actions.create({
         conversationId,
