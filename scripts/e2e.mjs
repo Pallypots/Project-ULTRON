@@ -585,6 +585,11 @@ try {
   if (await page.locator(".msg--assistant .md b").count()) throw new Error("HTML in a reply was rendered as HTML");
   await page.locator(".msg--user", { hasText: "**bold red**" }).waitFor();
   step("Replies show bold and code formatting; HTML in replies stays plain text");
+  const readOut = page.waitForRequest((r) => r.url().includes("/api/voice/speak"));
+  await page.getByLabel("Message ULTRON").fill("read that out");
+  await page.getByLabel("Message ULTRON").press("Enter");
+  await readOut;
+  step('"Read that out" speaks the last answer without asking the brain again');
 
   // ---- Camera: one photo with the next message ----
   await page.getByRole("button", { name: "Show ULTRON something with the camera" }).click();

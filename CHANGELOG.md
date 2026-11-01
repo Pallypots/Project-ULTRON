@@ -11,6 +11,7 @@
   Never saved, and needs a brain that can see images.
 - **Council** shows what ULTRON is doing ("✓ Turned off Kitchen Lights") and lets you approve actions without
   leaving. The face blinks now and then.
+- **"Read that out" / "say that again":** speaks his last answer aloud without asking the brain again.
 - **Spoken symbols:** temperatures, percentages, speeds and ranges are read as words ("7 degrees Celsius").
 - **"Get ULTRON ready" checklist** on Home for new setups: brain, your name, home city, talking, an optional connection.
   Steps tick themselves off, and you can hide it.

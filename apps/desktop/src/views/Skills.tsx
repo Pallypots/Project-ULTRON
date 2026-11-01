@@ -1,6 +1,6 @@
 /** "What can I say?": everything ULTRON can do, with phrases to click and try. */
 const SKILLS: { title: string; icon: string; say: string[]; note?: string }[] = [
-  { title: "Just talk", icon: "◉", say: ["council mode", "Tell me a joke", "What do you think about AI?", "Catch me up"], note: "Council mode is face to face, with an open microphone. Say \"that's all\" to finish." },
+  { title: "Just talk", icon: "◉", say: ["council mode", "Tell me a joke", "Read that out", "What do you think about AI?", "Catch me up"], note: "Council mode is face to face, with an open microphone. Say \"that's all\" to finish." },
   { title: "Your day", icon: "☀", say: ["Good morning, brief me", "What's the news?", "What's on my calendar today?", "What's the weather?", "Any new emails?"] },
   { title: "Reminders, to-dos and notes", icon: "⏰", say: ["Remind me in 20 minutes to check the oven", "Add milk and eggs to my list", "What's on my list?", "Take a note: the spare key is under the blue pot", "Read my notes"] },
   { title: "Smart home", icon: "💡", say: ["Lights off", "Make the lights red", "Dim the lights to 20%", "Set the heating to 21", "Which lights are on?"], note: "Needs Home Assistant (Connections → Smart home)." },

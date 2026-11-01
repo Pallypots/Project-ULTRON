@@ -49,6 +49,8 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(() => localStorage.getItem("ultron.activeConversation"));
   const [messages, setMessages] = useState<UiMessage[]>([]);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,6 +169,18 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     if (/^\s*(?:(?:hey|ok)\s+)?(?:ultron[\s,:!.-]+)?(?:enter|start|open|activate|go to|switch to)?\s*(?:the\s+)?council(?:\s+mode)?[\s.!]*$/i.test(text)) {
       window.dispatchEvent(new Event("ultron-council"));
       return;
+    }
+    // "Read that out" / "say that again": speak the last answer, without asking the brain again.
+    if (!continueFrom && /^\s*(?:ultron[\s,]+)?(?:please\s+)?(?:read (?:that|it|this) (?:out|aloud|to me)(?: please)?|read (?:that|it) out loud|say that again|repeat that|what did you say)[\s?.!]*$/i.test(text)) {
+      const last = [...messagesRef.current].reverse().find((m) => m.role === "assistant" && m.content.trim());
+      if (last) {
+        const sp0 = speaker.current!;
+        sp0.unlock();
+        sp0.stop();
+        const sentences = new SentenceSplitter();
+        sp0.enqueue([...sentences.push(last.content), ...sentences.flush()]);
+        return;
+      }
     }
     setError(null);
     setSpeakError(null);
