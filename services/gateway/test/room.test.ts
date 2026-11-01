@@ -6,6 +6,7 @@ import { startGateway } from "./helpers.ts";
 
 // A fake local brain that records the system prompt it was given.
 const prompts: string[] = [];
+const latest: string[] = [];
 let brain: Server;
 let brainUrl = "";
 beforeAll(async () => {
@@ -14,7 +15,9 @@ beforeAll(async () => {
     req.on("data", (c) => (body += c));
     req.on("end", () => {
       if (req.url === "/api/chat") {
-        prompts.push(JSON.parse(body).messages.map((m: { content: string }) => m.content).join("\n")); // instructions + the per-turn context on the latest message
+        const msgs = JSON.parse(body).messages as { content: string }[];
+        prompts.push(msgs.map((m) => m.content).join("\n")); // everything the brain was sent
+        latest.push(msgs.at(-1)!.content); // the newest message with its own fresh context
         res.writeHead(200, { "content-type": "application/x-ndjson" });
         return res.end(JSON.stringify({ message: { content: "Indoors, if the forecast holds." } }) + "\n" + JSON.stringify({ done: true }) + "\n");
       }
@@ -58,14 +61,19 @@ describe("room awareness", () => {
       g.gw.app.inject({ method: "POST", url: `/api/conversations/${id}/messages`, headers: { authorization: `Bearer ${g.gw.token}`, host: "localhost:7477" }, payload: { content, inputMode } });
     await ask("what do you think?", "voice");
     expect(prompts.at(-1)).toMatch(/Overheard in the room.*\n  > we could have a picnic tomorrow\n  > depends on the weather/s);
-    // Typed questions don't get it (the owner may not even be in the room).
+    // Typed questions don't get it fresh (the owner may not even be in the room).
     await ask("what do you think?", "text");
-    expect(prompts.at(-1)).not.toMatch(/Overheard in the room/);
+    expect(latest.at(-1)).not.toMatch(/Overheard in the room/);
+    // (The earlier spoken question is repeated exactly as sent, so the local brain doesn't have to re-read everything.)
+    expect(prompts.at(-1)).toMatch(/picnic/);
     // Never written anywhere.
     const db = JSON.stringify(g.gw.stores.db.prepare("SELECT * FROM messages").all()) + JSON.stringify(g.gw.stores.audit.list());
     expect(db).not.toContain("picnic");
     // Turning hands-free off forgets it.
     await g.api("POST", "/api/voice/handsfree", { enabled: false });
     expect(g.gw.room.recent()).toEqual([]);
+    // …including the copy repeated with the earlier spoken question in the conversation history.
+    await ask("and now?", "voice");
+    expect(prompts.at(-1)).not.toMatch(/picnic/);
   });
 });

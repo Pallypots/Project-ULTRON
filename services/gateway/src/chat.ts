@@ -7,7 +7,7 @@ import { findApps } from "./actions/system.ts";
 import { convertUnits, parseConversion, parseMoney } from "./actions/units.ts";
 import { currencyCode } from "./actions/everyday.ts";
 import { matchRoutine } from "./routines.ts";
-import type { RoomContext } from "./voice/room.ts";
+import { ROOM_MAX_AGE_MS, type RoomContext } from "./voice/room.ts";
 import { gatherSources, researchTopic, saveReport, sourcesList, synthesisPrompt } from "./research.ts";
 import type { FileService } from "./files/service.ts";
 import { captureScreen, wantsScreen } from "./system/screen.ts";
@@ -101,11 +101,17 @@ export class ActiveStreams {
  * turn: the start of the history then stays the same for several turns, so a local model keeps reusing what it already
  * read instead of re-reading everything after a one-message shift.
  */
-export function historyFor(messages: Message[], charBudget = HISTORY_CHAR_BUDGET, maxTurns = HISTORY_TURNS): ChatTurn[] {
-  const all = messages.filter((m) => m.role !== "system" && m.content.trim() && m.status !== "error").map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+export function historyFor(messages: Message[], charBudget = HISTORY_CHAR_BUDGET, maxTurns = HISTORY_TURNS, contexts?: Map<string, string>): ChatTurn[] {
+  const all = messages
+    .filter((m) => m.role !== "system" && m.content.trim() && m.status !== "error")
+    .map((m): ChatTurn => {
+      const context = m.role === "user" ? contexts?.get(m.id) : undefined;
+      return context ? { role: "user", content: m.content, context } : { role: m.role as "user" | "assistant", content: m.content };
+    });
   let drop = 0;
-  let chars = all.reduce((n, t) => n + t.content.length, 0);
-  while (drop < all.length && (all.length - drop > maxTurns || chars > charBudget)) chars -= all[drop++]!.content.length;
+  const size = (t: ChatTurn) => t.content.length + (t.role === "user" ? (t.context?.length ?? 0) : 0);
+  let chars = all.reduce((n, t) => n + size(t), 0);
+  while (drop < all.length && (all.length - drop > maxTurns || chars > charBudget)) chars -= size(all[drop++]!);
   drop = Math.min(all.length - 1, Math.ceil(drop / 8) * 8);
   let turns = all.slice(Math.max(0, drop));
   // Never drop the latest message, even if it alone is over budget.
@@ -113,6 +119,28 @@ export function historyFor(messages: Message[], charBudget = HISTORY_CHAR_BUDGET
   // Providers require the conversation to start with a user turn.
   while (turns[0]?.role === "assistant") turns.shift();
   return turns;
+}
+
+/**
+ * The context block each recent owner message was sent to a local brain with, so later requests repeat it word for word
+ * (see withTurnContext). Memory only: after a restart the brain just reads the conversation once more.
+ */
+const sentContexts = new Map<string, { context: string; room?: { epoch: number; until: number } }>();
+function rememberContext(messageId: string, context: string, room?: { epoch: number; until: number }) {
+  sentContexts.set(messageId, { context, room });
+  while (sentContexts.size > 2000) sentContexts.delete(sentContexts.keys().next().value!);
+}
+/** The remembered contexts still allowed: anything overheard in the room is forgotten on schedule (3 minutes, or room awareness off). */
+function usableContexts(room: ChatDeps["room"]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const [id, c] of sentContexts) {
+    if (c.room && (!room || c.room.epoch !== room.epoch || Date.now() > c.room.until)) {
+      sentContexts.delete(id);
+      continue;
+    }
+    out.set(id, c.context);
+  }
+  return out;
 }
 
 const brief = (m: Memory) => ({ id: m.id, content: m.content, kind: m.kind, createdAt: m.createdAt });
@@ -390,7 +418,7 @@ export async function handleUserMessage(
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
   const provider = resolution.provider;
   // A local brain's context is 8k tokens (instructions + tools take ~3k): keep about 14k characters of history for it.
-  const turnsSoFar = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id), provider.id === "ollama" ? 14_000 : HISTORY_CHAR_BUDGET);
+  const turnsSoFar = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id), provider.id === "ollama" ? 14_000 : HISTORY_CHAR_BUDGET, HISTORY_TURNS, provider.id === "ollama" || provider.id === "mock" ? usableContexts(deps.room) : undefined);
   // Local brains: ordinary conversation goes with NO tools, so the prompt stays identical and the brain reuses what it
   // already read (measured: replies 4-5x faster). A message that clearly needs a tool gets just those one or two tools
   // (a small model given many tools wrote tool calls as text instead of making them). Everyday commands (lights, notes,
@@ -553,6 +581,7 @@ export async function handleUserMessage(
       };
       if (trace) trace.rec.kind = "brain";
       if (round === 0) trace?.mark("llm_request");
+      if (round === 0 && !cloud && !opts.continueFrom) rememberContext(userMessage.id, turnContext, roomInPrompt?.length && deps.room ? { epoch: deps.room.epoch, until: Date.now() + ROOM_MAX_AGE_MS } : undefined);
       const req = { system: out(system), turnContext: out(turnContext), messages: turns.map((t) => ({ ...t, content: out(t.content) })) as ChatTurn[], memories, capabilities, signal: opts.signal, deep, onStats: (s: LlmStats) => trace?.llm(s) };
       if (round === 0 && hidden > 0) {
         const exec = stores.actions.create({ conversationId, tool: "privacy_shield", input: {}, risk: 0, requestedBy: "owner", summary: `Hid ${hidden} sensitive item${hidden > 1 ? "s" : ""} (like card numbers or passwords) before sending to the cloud brain`, status: "succeeded" });

@@ -107,3 +107,14 @@ describe("tool calls a small model writes out as text", async () => {
     expect(cut.text).toBe("Sure ");
   });
 });
+
+describe("a made-up tool answer after a written-out call", async () => {
+  const { LeakedToolCalls } = await import("../src/providers/ollama.ts");
+  it("is never shown (ULTRON runs the real tool instead)", () => {
+    const l = new LeakedToolCalls(["calculate"]);
+    const a = l.push('<|tool_call>call:calculate{expression:<|"|>2+2<|"|>}<tool_call|><|tool_resp', false);
+    const b = l.push("onse>result: 5<tool_response|>So it's 5.", true);
+    expect(a.calls).toEqual([{ name: "calculate", args: { expression: "2+2" } }]);
+    expect(a.text + b.text).toBe("");
+  });
+});

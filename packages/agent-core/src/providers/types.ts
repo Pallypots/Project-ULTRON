@@ -8,7 +8,8 @@ export interface ToolCall {
 
 export type ChatTurn =
   /** `images`: base64 JPEG/PNG the owner chose to share this turn (e.g. a screenshot); only sent to the brain, never stored. */
-  | { role: "user"; content: string; images?: string[] }
+  /** `context`: the context block this message was first sent with (kept identical so a local model can reuse its reading). */
+  | { role: "user"; content: string; images?: string[]; context?: string }
   | { role: "assistant"; content: string; toolCalls?: ToolCall[] }
   | { role: "tool"; content: string; toolCallId: string; name: string };
 
@@ -29,14 +30,18 @@ export const CONTEXT_OPEN = "[Context for this reply, from ULTRON, not the owner
 export const CONTEXT_CLOSE = "[End of context. The owner's message follows.]";
 
 export function withTurnContext(turns: ChatTurn[], context: string | undefined): ChatTurn[] {
-  if (!context) return turns;
-  let i = turns.length - 1;
-  while (i >= 0 && turns[i]!.role !== "user") i--;
-  if (i < 0) return turns;
-  const out = [...turns];
+  let last = turns.length - 1;
+  while (last >= 0 && turns[last]!.role !== "user") last--;
+  // Earlier messages keep the exact context they were first sent with: a local model can only reuse what it already
+  // read when each request just adds to the end of the last one (changing an earlier message made it re-read everything).
   // Before the owner's words (models continue whatever comes last, so a trailing block got echoed back).
-  out[i] = { ...out[i]!, content: `${CONTEXT_OPEN}\n${context}\n${CONTEXT_CLOSE}\n\n${out[i]!.content}` };
-  return out;
+  const wrap = (c: string, content: string) => `${CONTEXT_OPEN}\n${c}\n${CONTEXT_CLOSE}\n\n${content}`;
+  return turns.map((t, i) => {
+    if (t.role !== "user") return t;
+    const c = i === last ? context : t.context;
+    const { context: _drop, ...rest } = t;
+    return c ? { ...rest, content: wrap(c, t.content) } : rest;
+  });
 }
 
 export interface ModelRequest {

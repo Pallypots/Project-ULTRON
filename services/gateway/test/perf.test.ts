@@ -86,8 +86,8 @@ describe("Phase 1.1: the prompt a local brain keeps prefilled is identical from 
     expect(ctx(a)).toMatch(/Current date\/time/);
     expect(ctx(b)).not.toBe(ctx(a));
     expect(b.messages.at(-1).content).toMatch(/^\[Context for this reply[\s\S]*\[End of context\. The owner's message follows\.\]\n\nwhat's my sister called/);
-    // Earlier messages in the history carry no context (so they stay identical too).
-    expect(b.messages.slice(1, -1).some((m: { content: string }) => m.content.includes("[Context for this reply"))).toBe(false);
+    // Earlier messages are repeated exactly as they were sent (with their own old context), so turn 2 only adds to the end.
+    expect(b.messages.slice(0, a.messages.length)).toEqual(a.messages);
   });
 });
 

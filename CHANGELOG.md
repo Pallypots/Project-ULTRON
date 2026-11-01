@@ -16,6 +16,12 @@
   recognising the previous phrase, and recognises short phrases in one pass.
 - Calendar lookups run alongside memory recall instead of after it. Background jobs re-prepare the brain afterwards.
   The stream from the brain survives garbled lines and split "thinking" tags.
+- **The brain reuses its reading on every turn, not just the first:** earlier messages are now repeated exactly as they
+  were first sent, so each request only adds to the end. (A test showed the Gemma brain can only reuse its reading
+  that way: 1.7 s instead of 21 s.) Anything overheard in the room is still forgotten on schedule.
+- **Small-brain slip-ups fixed:** it no longer says it can't see a screenshot or photo you just shared. If it writes a
+  tool request out as text, ULTRON runs the real tool instead of showing the raw text, and it never shows a made-up
+  tool answer. It no longer copies a sample memory tag from its instructions.
 
 ## 0.26.0 · 2026-11-01 · Hands-free that stays up; always the newest copy; security updates
 - **Hands-free no longer knocks ULTRON offline:** speech recognition and the voice now run in their own background

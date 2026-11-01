@@ -208,8 +208,12 @@ function parseError(text: string): string {
  * Spots tool calls a model wrote as plain text (Gemma's "<|tool_call>call:name{a:<|"|>x<|"|>}<tool_call|>",
  * or "<tool_call>{json}</tool_call>") in a stream of text. Text before and after passes through; the call itself never does.
  */
+const MARKERS = ["<|tool_call>", "<tool_call>", "<|tool_response>", "<tool_response>"];
+
 export class LeakedToolCalls {
   private held = "";
+  /** After a written-out call the model often invents the tool's answer too ("<|tool_response>…"): ULTRON runs the real tool instead. */
+  private muted = false;
   constructor(private names: string[]) {}
 
   push(text: string, done: boolean): { text: string; calls: { name: string; args: Record<string, unknown> }[] } {
@@ -217,7 +221,14 @@ export class LeakedToolCalls {
     this.held = "";
     let out = "";
     const calls: { name: string; args: Record<string, unknown> }[] = [];
+    if (this.muted) return { text: "", calls };
     for (;;) {
+      const resp = /<\|tool_response>|<tool_response>/.exec(s);
+      const m0 = /<\|tool_call>|<tool_call>/.exec(s);
+      if (resp && (!m0 || resp.index < m0.index)) {
+        this.muted = true;
+        return { text: out + s.slice(0, resp.index), calls };
+      }
       const m = /<\|tool_call>|<tool_call>/.exec(s);
       if (!m) break;
       out += s.slice(0, m.index);
@@ -233,10 +244,13 @@ export class LeakedToolCalls {
       s = s.slice(end + close.length);
     }
     // A marker might be arriving split across chunks: hold a possible start back.
-    const partial = done ? null : /<\|?(?:t(?:o(?:o(?:l(?:_(?:c(?:a(?:l(?:l)?)?)?)?)?)?)?)?)?$/.exec(s);
-    if (partial && partial[0].length > 0) {
-      this.held = partial[0];
-      s = s.slice(0, -partial[0].length);
+    if (!done) {
+      const lt = s.lastIndexOf("<");
+      const tail = lt >= 0 ? s.slice(lt) : "";
+      if (tail && MARKERS.some((m) => m.startsWith(tail))) {
+        this.held = tail;
+        s = s.slice(0, lt);
+      }
     }
     return { text: out + s, calls };
   }
