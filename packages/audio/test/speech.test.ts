@@ -37,3 +37,12 @@ describe("SentenceSplitter: speaking starts at the first pause of a long opening
   });
 });
 
+
+describe("toSpeakable: symbols said as words", () => {
+  it("reads temperatures, percentages and ranges naturally", () => {
+    expect(toSpeakable("Leeds: 7°C, feels like 4°C, wind 12 km/h, 80% chance of rain — 3–5pm. Fish & chips?")).toBe(
+      "Leeds: 7 degrees Celsius, feels like 4 degrees Celsius, wind 12 kilometres an hour, 80 percent chance of rain, 3 to 5pm. Fish and chips?",
+    );
+    expect(toSpeakable("Set to 21°.")).toBe("Set to 21 degrees.");
+  });
+});

@@ -12,6 +12,16 @@ export function toSpeakable(text: string): string {
     .replace(/^\s*[-*•]\s+/gm, "")
     .replace(/\*\*|__|\*|_(?=\S)|~~/g, "")
     .replace(/[\p{Extended_Pictographic}️]/gu, "")
+    // Symbols a voice would otherwise skip or spell out.
+    .replace(/(\d)\s?°\s?C\b/g, "$1 degrees Celsius")
+    .replace(/(\d)\s?°\s?F\b/g, "$1 degrees Fahrenheit")
+    .replace(/(\d)\s?°/g, "$1 degrees")
+    .replace(/(\d)\s?%/g, "$1 percent")
+    .replace(/(\d)\s?km\/h\b/g, "$1 kilometres an hour")
+    .replace(/(\d)\s?mph\b/g, "$1 miles an hour")
+    .replace(/\s&\s/g, " and ")
+    .replace(/(\d)\s?[–-]\s?(\d)/g, "$1 to $2")
+    .replace(/\s[–—]\s/g, ", ")
     .replace(/\s+/g, " ")
     .trim();
 }
