@@ -29,13 +29,17 @@ describe("deep thinking on request", () => {
 });
 
 describe("warming up the local brain", () => {
-  it("loads the model without a prompt, keeping it in memory for an hour", async () => {
+  it("loads the model and keeps it loaded, with the same context size every request uses", async () => {
     const calls: { url: string; body: any }[] = [];
     const p = new OllamaProvider({ model: "gemma4:e2b", baseUrl: "http://ollama.test", fetchImpl: (async (url: string, init: { body: string }) => {
       calls.push({ url, body: JSON.parse(init.body) });
       return new Response("{}", { status: 200 });
     }) as unknown as typeof fetch });
     await p.warm();
-    expect(calls).toEqual([{ url: "http://ollama.test/api/generate", body: { model: "gemma4:e2b", keep_alive: "60m" } }]);
+    expect(calls).toEqual([{ url: "http://ollama.test/api/generate", body: { model: "gemma4:e2b", keep_alive: -1, options: { num_ctx: 8192 } } }]);
+    // With the real instructions and tools, the warm-up also reads them (one token of output), so they're prefilled.
+    await p.warm({ system: "You are ULTRON.", tools: [{ name: "calculate", description: "maths", parameters: {} }] });
+    expect(calls[1]).toMatchObject({ url: "http://ollama.test/api/chat", body: { keep_alive: -1, think: false, options: { num_ctx: 8192, num_predict: 1 }, messages: [{ role: "system", content: "You are ULTRON." }, { role: "user", content: "Hi" }] } });
+    expect(calls[1]!.body.tools).toHaveLength(1);
   });
 });

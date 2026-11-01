@@ -14,7 +14,7 @@ beforeAll(async () => {
     req.on("data", (c) => (body += c));
     req.on("end", () => {
       if (req.url === "/api/chat") {
-        prompts.push(JSON.parse(body).messages[0].content);
+        prompts.push(JSON.parse(body).messages.map((m: { content: string }) => m.content).join("\n")); // instructions + the per-turn context on the latest message
         res.writeHead(200, { "content-type": "application/x-ndjson" });
         return res.end(JSON.stringify({ message: { content: "Indoors, if the forecast holds." } }) + "\n" + JSON.stringify({ done: true }) + "\n");
       }

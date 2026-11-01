@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { newToolCallId, ProviderError, type ChatTurn, type ModelProvider, type ModelRequest, type ProviderEvent, type ToolSpec } from "./types.ts";
+import { newToolCallId, ProviderError, type ChatTurn, type ModelProvider, type ModelRequest, type ProviderEvent, type ToolSpec, withTurnContext } from "./types.ts";
 
 const toOpenAIMessages = (system: string, turns: ChatTurn[]): OpenAI.ChatCompletionMessageParam[] => [
   { role: "system", content: system },
@@ -53,7 +53,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         {
           model: this.model,
           stream: true,
-          messages: toOpenAIMessages(req.system, req.messages),
+          messages: toOpenAIMessages(req.system, withTurnContext(req.messages, req.turnContext)),
           ...(tools?.length ? { tools: tools.map((t) => ({ type: "function" as const, function: t })) } : {}),
         },
         { signal: req.signal },

@@ -1,4 +1,4 @@
-import { newToolCallId, ProviderError, type ChatTurn, type ModelProvider, type ModelRequest, type ProviderEvent, type ToolSpec } from "./types.ts";
+import { newToolCallId, ProviderError, type ChatTurn, type ModelProvider, type ModelRequest, type ProviderEvent, type ToolSpec, withTurnContext } from "./types.ts";
 
 export const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 
@@ -14,6 +14,9 @@ interface ChatChunk {
   eval_count?: number;
   eval_duration?: number;
 }
+
+/** One fixed context size for every request (changing it makes Ollama reload the model). */
+export const OLLAMA_NUM_CTX = Number(process.env.ULTRON_NUM_CTX ?? 8192);
 
 const toOllamaMessages = (system: string, turns: ChatTurn[]) => [
   { role: "system", content: system },
@@ -51,9 +54,23 @@ export class OllamaProvider implements ModelProvider {
     return deep ? true : false;
   }
 
-  /** Loads the model into memory ahead of time (no prompt), so the owner's first question doesn't wait for it. */
-  async warm(keepAlive = "60m"): Promise<void> {
-    await this.fetchImpl(`${this.baseUrl}/api/generate`, { method: "POST", body: JSON.stringify({ model: this.model, keep_alive: keepAlive }), signal: AbortSignal.timeout(120_000) }).catch(() => {});
+  /**
+   * Loads the model ahead of time. With `prefix` (the real system prompt and tools), it also reads them once, so they
+   * are already prefilled when the owner speaks: the first reply of the day is as quick as the tenth.
+   */
+  async warm(prefix?: { system: string; tools?: ToolSpec[] }): Promise<void> {
+    const body = prefix
+      ? {
+          model: this.model,
+          stream: false,
+          keep_alive: -1,
+          think: this.model.startsWith("gpt-oss") ? "low" : false,
+          options: { num_ctx: OLLAMA_NUM_CTX, num_predict: 1 },
+          messages: [{ role: "system", content: prefix.system }, { role: "user", content: "Hi" }],
+          ...(prefix.tools?.length ? { tools: prefix.tools.map((t) => ({ type: "function", function: t })) } : {}),
+        }
+      : { model: this.model, keep_alive: -1, options: { num_ctx: OLLAMA_NUM_CTX } };
+    await this.fetchImpl(`${this.baseUrl}${prefix ? "/api/chat" : "/api/generate"}`, { method: "POST", body: JSON.stringify(body), signal: AbortSignal.timeout(300_000) }).catch(() => {});
   }
 
   /** What this model can do according to Ollama ("vision", "tools", "thinking"…), or null if unknown. */
@@ -81,8 +98,11 @@ export class OllamaProvider implements ModelProvider {
       JSON.stringify({
         model: this.model,
         stream: true,
-        keep_alive: "30m",
-        messages: toOllamaMessages(req.system, req.messages),
+        // Stay loaded (a reload costs seconds), and always the same context size: a different size forces a reload,
+        // and Ollama's small default silently cut long conversations.
+        keep_alive: -1,
+        options: { num_ctx: OLLAMA_NUM_CTX },
+        messages: toOllamaMessages(req.system, withTurnContext(req.messages, req.turnContext)),
         ...(tools?.length ? { tools: tools.map((t) => ({ type: "function", function: t })) } : {}),
         ...(think === undefined ? {} : { think }),
       });

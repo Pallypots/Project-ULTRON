@@ -1,4 +1,4 @@
-import { buildSystemPrompt, shield, detectIntent, detectQuickCommand, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
+import { buildPromptParts, shield, detectIntent, detectQuickCommand, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
 import type { ToolEvent } from "@ultron/schemas";
 import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
 import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
@@ -94,15 +94,20 @@ export class ActiveStreams {
   }
 }
 
-function historyFor(messages: Message[]): ChatTurn[] {
-  const turns: Extract<ChatTurn, { role: "user" | "assistant" }>[] = [];
-  let chars = 0;
-  for (const m of [...messages].reverse()) {
-    if (m.role === "system" || !m.content.trim() || m.status === "error") continue;
-    chars += m.content.length;
-    if (turns.length >= HISTORY_TURNS || chars > HISTORY_CHAR_BUDGET) break;
-    turns.unshift({ role: m.role, content: m.content });
-  }
+/**
+ * The recent conversation, within a size budget. When old messages must go, they go in blocks of 8 rather than one per
+ * turn: the start of the history then stays the same for several turns, so a local model keeps reusing what it already
+ * read instead of re-reading everything after a one-message shift.
+ */
+export function historyFor(messages: Message[], charBudget = HISTORY_CHAR_BUDGET, maxTurns = HISTORY_TURNS): ChatTurn[] {
+  const all = messages.filter((m) => m.role !== "system" && m.content.trim() && m.status !== "error").map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+  let drop = 0;
+  let chars = all.reduce((n, t) => n + t.content.length, 0);
+  while (drop < all.length && (all.length - drop > maxTurns || chars > charBudget)) chars -= all[drop++]!.content.length;
+  drop = Math.min(all.length - 1, Math.ceil(drop / 8) * 8);
+  let turns = all.slice(Math.max(0, drop));
+  // Never drop the latest message, even if it alone is over budget.
+  if (!turns.length && all.length) turns = all.slice(-1);
   // Providers require the conversation to start with a user turn.
   while (turns[0]?.role === "assistant") turns.shift();
   return turns;
@@ -374,22 +379,27 @@ export async function handleUserMessage(
 
   const deep = wantsDeepThinking(content);
   if (deep) stores.audit.record("model.deep_thinking", "owner", assistant.id, { provider: providerId });
+  // The calendar lookup (can take seconds) runs at the same time as memory recall, not after it.
+  const calendarP = calendarSoon(deps.calendar);
   // Keyword recall always; meaning-based recall too once the local embedding model is ready.
   const semantic = (await deps.embeddings?.similar(content).catch(() => [])) ?? [];
   const memories = semantic.length ? stores.memories.retrieveHybrid(content, semantic) : stores.memories.retrieveForPrompt(content);
   if (memories.length) emit({ type: "memories", memories: memories.map(brief) });
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
   const provider = resolution.provider;
-  const turnsSoFar = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id));
-  // Small local models do better with only the tools this conversation plausibly needs (see focus.ts).
-  const recentUser = turnsSoFar.filter((t) => t.role === "user").slice(-2).map((t) => t.content);
-  const toolSet = provider.id === "ollama" ? focusTools(recentUser, TOOLS) : TOOLS;
+  // A local brain's context is 8k tokens (instructions + tools take ~3k): keep about 14k characters of history for it.
+  const turnsSoFar = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id), provider.id === "ollama" ? 14_000 : HISTORY_CHAR_BUDGET);
+  // Local brains get a small, FIXED core tool set in a fixed order (the tool list is part of the prompt the model keeps
+  // prefilled, so it must not change from turn to turn), plus, rarely, an extra tool this message clearly needs,
+  // appended at the end. Everyday commands (lights, notes, email, news, weather…) are answered instantly without the brain.
+  const recentUser = turnsSoFar.filter((t) => t.role === "user").slice(-1).map((t) => t.content);
+  const toolSet = provider.id === "ollama" ? localToolSet(focusTools(recentUser, TOOLS)) : TOOLS;
   const toolSpecs = specsFor(toolSet);
   const useTools = Boolean(provider.streamWithTools && deps.actions) && toolSet.length > 0;
-  const calendarLines = await calendarSoon(deps.calendar);
+  const calendarLines = await calendarP;
   const calendarInPrompt = calendarLines.length > 0;
   const roomInPrompt = opts.inputMode === "voice" && (provider.id === "ollama" || provider.id === "mock") ? deps.room?.recent() : undefined;
-  const system = buildSystemPrompt(deps.persona(), {
+  const { stable: system, context: turnContext } = buildPromptParts(deps.persona(), {
     capabilities,
     toolsEnabled: useTools,
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
@@ -531,7 +541,7 @@ export async function handleUserMessage(
       };
       if (trace) trace.rec.kind = "brain";
       if (round === 0) trace?.mark("llm_request");
-      const req = { system: out(system), messages: turns.map((t) => ({ ...t, content: out(t.content) })) as ChatTurn[], memories, capabilities, signal: opts.signal, deep, onStats: (s: LlmStats) => trace?.llm(s) };
+      const req = { system: out(system), turnContext: out(turnContext), messages: turns.map((t) => ({ ...t, content: out(t.content) })) as ChatTurn[], memories, capabilities, signal: opts.signal, deep, onStats: (s: LlmStats) => trace?.llm(s) };
       if (round === 0 && hidden > 0) {
         const exec = stores.actions.create({ conversationId, tool: "privacy_shield", input: {}, risk: 0, requestedBy: "owner", summary: `Hid ${hidden} sensitive item${hidden > 1 ? "s" : ""} (like card numbers or passwords) before sending to the cloud brain`, status: "succeeded" });
         stores.audit.record("privacy.shielded", "system", exec.id, { provider: provider.id, hidden });
@@ -649,6 +659,28 @@ const TRUSTED_RESULTS = new Set([
   // Actions: their results are confirmations of what was just done, echoing the request itself.
   "create_reminder", "cancel_reminder", "add_todo", "complete_todo", "add_note", "save_memory", "open_website", "open_app", "open_on_screen", "home_control", "home_cover_or_script", "watch_page", "stop_watching",
 ]);
+
+/**
+ * The part of a local-brain request that stays the same every turn (instructions + core tools), built exactly as a
+ * real reply builds it. The app reads it into the model at start-up, so it's already prefilled when the owner speaks.
+ */
+export function stablePrefix(deps: ChatDeps): { system: string; tools: ReturnType<typeof specsFor> } | null {
+  const settings = readProviderSettings(deps.stores.preferences);
+  const resolution = resolveProvider(settings, deps.secrets, deps.mockDelayMs);
+  if (!resolution.ok || resolution.provider.id !== "ollama") return null;
+  const toolSet = localToolSet([]);
+  const useTools = Boolean(resolution.provider.streamWithTools && deps.actions) && toolSet.length > 0;
+  const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
+  const { stable } = buildPromptParts(deps.persona(), { capabilities, toolsEnabled: useTools, memories: [], nowIso: "" });
+  return { system: stable, tools: useTools ? specsFor(toolSet) : [] };
+}
+
+/** The local brain's always-available tools, in a fixed order (keeps the prompt identical between turns). */
+export const LOCAL_CORE_TOOLS = ["get_current_time", "calculate", "create_reminder", "add_todo", "list_todos", "lookup_wikipedia", "web_search", "read_webpage", "get_weather", "save_memory", "search_conversations"];
+export function localToolSet(extra: { name: string }[]) {
+  const core = LOCAL_CORE_TOOLS.map((n) => TOOLS.find((t) => t.name === n)).filter((t): t is (typeof TOOLS)[number] => Boolean(t));
+  return [...core, ...TOOLS.filter((t) => !LOCAL_CORE_TOOLS.includes(t.name) && extra.some((e) => e.name === t.name))];
+}
 
 type QuickRun = (tool: string, args: Record<string, unknown>) => Promise<{ status: string; error: string | null; data: any }>;
 

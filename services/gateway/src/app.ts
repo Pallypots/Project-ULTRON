@@ -17,7 +17,7 @@ import { MorningCheckIn } from "./checkin.ts";
 import { loadRoutines, Routine, ROUTINE_EXAMPLES } from "./routines.ts";
 import { braveSearch, SEARCH_SECRET, SEARXNG_PREF, searxngBase, searxngSearch } from "./actions/knowledge.ts";
 import { currentCapabilities } from "./capabilities.ts";
-import { ActiveStreams, handleUserMessage } from "./chat.ts";
+import { ActiveStreams, handleUserMessage, stablePrefix } from "./chat.ts";
 import { loadConfig, type GatewayConfig, REPO_ROOT } from "./config.ts";
 import { isLocalProvider, readProviderSettings, resolveProvider, saveProviderSettings, SECRET_FOR } from "./providers.ts";
 import { detectHardware } from "./local-ai/hardware.ts";
@@ -159,7 +159,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const r = resolveProvider(settings(), secrets, 0);
     if (!r.ok || r.provider.id !== "ollama") return;
     warmedAt = Date.now();
-    void (r.provider as unknown as { warm(): Promise<void> }).warm();
+    // Load the model AND read the real instructions + tools once, so the first reply doesn't pay for either.
+    void (r.provider as unknown as { warm(p?: unknown): Promise<void> }).warm(stablePrefix(deps) ?? undefined);
   };
   const summarizer = new Summarizer(deps, () => streams.size > 0);
   summarizer.start();

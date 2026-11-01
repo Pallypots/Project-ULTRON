@@ -63,3 +63,60 @@ describe("Phase 0: where each reply's time goes", () => {
     expect((await g.api("GET", "/api/perf")).body.diagnosis.join(" ")).toMatch(/Only 33% of the brain fits/);
   });
 });
+
+describe("Phase 1.1: the prompt a local brain keeps prefilled is identical from turn to turn", () => {
+  it("sends the same instructions and tools every turn; the changing context rides on the latest message", async () => {
+    const g = await localGateway();
+    const id = await g.newConversation();
+    await g.chat(id, "Remember that my sister is called Ana");
+    await g.chat(id, "hello there");
+    await new Promise((r) => setTimeout(r, 1100)); // the clock moves on
+    await g.chat(id, "what's my sister called and what's the weather like in Leeds?");
+    const chats = fake!.requests.filter((r) => r.path === "/api/chat").map((r) => r.body);
+    expect(chats.length).toBeGreaterThanOrEqual(2);
+    const [a, b] = chats.slice(-2);
+    // Positive control: the stable part is byte-identical.
+    expect(b.messages[0]).toEqual(a.messages[0]);
+    const names = (x: { tools?: { function: { name: string } }[] }) => (x.tools ?? []).map((t) => t.function.name);
+    // The core tools come first, in the same order, every turn (an extra tool may be appended at the end).
+    expect(names(b).slice(0, names(a).length)).toEqual(names(a));
+    expect(b.messages[0].content).not.toMatch(/Current date\/time|Owner-approved memories relevant/);
+    // Negative control: the per-turn context does change, and it's attached to the latest owner message.
+    const ctx = (x: { messages: { role: string; content: string }[] }) => x.messages.at(-1)!.content.split("[Context for this reply")[1] ?? "";
+    expect(ctx(a)).toMatch(/Current date\/time/);
+    expect(ctx(b)).not.toBe(ctx(a));
+    expect(b.messages.at(-1).content).toMatch(/^what's my sister called/);
+    // Earlier messages in the history carry no context (so they stay identical too).
+    expect(b.messages.slice(1, -1).some((m: { content: string }) => m.content.includes("[Context for this reply"))).toBe(false);
+  });
+});
+
+describe("Phase 1.2/1.3: one context size, model kept loaded, history trimmed in blocks", () => {
+  it("every request to the local brain asks for the same context size and to stay loaded", async () => {
+    const g = await localGateway();
+    const id = await g.newConversation();
+    await g.chat(id, "hello");
+    await g.chat(id, "how are you?");
+    const chats = fake!.requests.filter((r) => r.path === "/api/chat").map((r) => r.body);
+    expect(chats.length).toBeGreaterThanOrEqual(2);
+    for (const c of chats) {
+      expect(c.options?.num_ctx).toBe(8192);
+      expect(c.keep_alive).toBe(-1);
+    }
+  });
+
+  it("drops old history in blocks of 8, so the start of the conversation stays put for several turns", async () => {
+    const { historyFor } = await import("../src/chat.ts");
+    const msg = (i: number) => ({ id: String(i), conversationId: "c", role: (i % 2 ? "assistant" : "user") as "user" | "assistant", content: `message ${i} ${"x".repeat(990)}`, status: "complete" as const, createdAt: "", memoryIds: [], toolEvents: [], provider: null, model: null, sourceDeviceId: null, inputMode: "text" as const });
+    const starts: string[] = [];
+    for (let n = 14; n <= 24; n++) {
+      const h = historyFor(Array.from({ length: n }, (_, i) => msg(i)), 14_000, 100);
+      // Negative control: it really is trimmed to the budget.
+      expect(h.reduce((a, t) => a + t.content.length, 0)).toBeLessThanOrEqual(14_000);
+      expect(h[0]!.role).toBe("user");
+      starts.push(h[0]!.content.slice(0, 11));
+    }
+    // Positive control: over 11 turns the start moved only in jumps (a one-message slide would change it every turn).
+    expect(new Set(starts).size).toBeLessThanOrEqual(3);
+  });
+});

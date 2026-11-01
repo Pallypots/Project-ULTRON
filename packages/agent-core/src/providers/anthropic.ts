@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ProviderError, type ChatTurn, type ModelProvider, type ModelRequest, type ProviderEvent, type ToolSpec } from "./types.ts";
+import { ProviderError, type ChatTurn, type ModelProvider, type ModelRequest, type ProviderEvent, type ToolSpec, withTurnContext } from "./types.ts";
 
 export const DEFAULT_ANTHROPIC_MODEL = "claude-opus-5-5";
 
@@ -56,7 +56,7 @@ export class AnthropicProvider implements ModelProvider {
           model: this.model,
           max_tokens: 16000,
           system: req.system,
-          messages: toAnthropicMessages(req.messages),
+          messages: toAnthropicMessages(withTurnContext(req.messages, req.turnContext)),
           output_config: { effort: req.deep ? "high" : "low" },
           betas: ["server-side-fallback-2026-07-01"],
           fallbacks: "default",

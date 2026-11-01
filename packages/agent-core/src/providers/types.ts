@@ -21,7 +21,23 @@ export interface ToolSpec {
 
 export type ProviderEvent = { type: "text"; text: string } | { type: "tool_call"; call: ToolCall };
 
+/**
+ * Attaches this turn's context (time, memories, agenda…) to the latest owner message, so the system prompt itself
+ * never changes between turns and a local model can reuse what it already read.
+ */
+export function withTurnContext(turns: ChatTurn[], context: string | undefined): ChatTurn[] {
+  if (!context) return turns;
+  let i = turns.length - 1;
+  while (i >= 0 && turns[i]!.role !== "user") i--;
+  if (i < 0) return turns;
+  const out = [...turns];
+  out[i] = { ...out[i]!, content: `${out[i]!.content}\n\n[Context for this reply, from ULTRON, not the owner]\n${context}` };
+  return out;
+}
+
 export interface ModelRequest {
+  /** This turn's changing context; providers attach it to the latest owner message (see withTurnContext). */
+  turnContext?: string;
   /** Called with the local model's own timings when a call finishes (diagnostics; local providers only). */
   onStats?: (s: { loadMs: number; promptTokens: number; promptMs: number; outputTokens: number; outputMs: number }) => void;
   system: string;
