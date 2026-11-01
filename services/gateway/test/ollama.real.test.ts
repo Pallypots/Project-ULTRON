@@ -130,4 +130,22 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     const noted = g.gw.stores.conversations.list().filter((c) => c.summary).map((c) => c.summary);
     ciNote("Local brain conversation notes", `notes=${notes} took=${Date.now() - t5}ms ${JSON.stringify(noted).slice(0, 700)}`);
   }, 1_800_000);
+
+  it("talks like a conversation when spoken to: short, no lists, quick to start", async () => {
+    const id = await g.newConversation();
+    const lines: string[] = [];
+    for (const said of ["Hey Ultron, how's it going?", "I'm thinking of learning the guitar. What do you reckon?"]) {
+      const t0 = Date.now();
+      let first = 0;
+      const res = await g.gw.app.inject({ method: "POST", url: `/api/conversations/${id}/messages`, headers: { authorization: `Bearer ${g.gw.token}`, host: "localhost:7477" }, payload: { content: said, inputMode: "voice" } });
+      const events = res.body.split("\n\n").filter((l: string) => l.startsWith("data: ")).map((l: string) => JSON.parse(l.slice(6)));
+      first = Date.now() - t0;
+      const text = events.filter((e: { type: string }) => e.type === "delta").map((e: { text: string }) => e.text).join("").trim();
+      expect(text.length).toBeGreaterThan(0);
+      expect(text).not.toMatch(/^\s*[-*•]\s|^#{1,3}\s/m); // no lists or headings read aloud
+      expect(text.length, text).toBeLessThan(600); // a spoken turn, not an essay
+      lines.push(`"${said}" → (${text.length} chars, ${Math.round(first / 1000)}s) ${text.replace(/\s+/g, " ").slice(0, 220)}`);
+    }
+    ciNote("Spoken conversation style (real local brain)", lines.join(" || "));
+  }, 900_000);
 });
