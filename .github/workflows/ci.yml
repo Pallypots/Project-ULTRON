@@ -39,8 +39,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
-          # The installer starts a systemd service where available; otherwise run the server ourselves.
-          curl -sf http://127.0.0.1:11434/api/version || (nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &)
+          # Run the server ourselves with debug logging, so its "cache reuse" lines can be reported after the tests.
+          sudo systemctl stop ollama 2>/dev/null || true
+          (OLLAMA_DEBUG=1 nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &)
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:11434/api/version && break; sleep 1; done
           curl -sf http://127.0.0.1:11434/api/version || { echo "Ollama did not start"; cat "$RUNNER_TEMP/ollama.log" || true; exit 1; }
           echo "ULTRON_TEST_OLLAMA=1" >> "$GITHUB_ENV"
@@ -50,6 +51,9 @@ jobs:
       - name: Report real-world results recorded by the tests
         if: always()
         run: node scripts/ci-notes.mjs
+      - name: Local brain's own log of what it re-read (cache reuse)
+        if: always() && runner.os == 'Linux'
+        run: grep -iE "cache|slot|prompt=|truncat|shift" "$RUNNER_TEMP/ollama.log" | tail -150 || true
       - run: npm run build
       - run: npm run doctor
       - name: Windows launcher smoke test (Start-ULTRON.bat --background)

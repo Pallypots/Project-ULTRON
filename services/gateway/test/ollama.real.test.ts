@@ -132,6 +132,23 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
   }, 1_800_000);
 
   it("talks like a conversation when spoken to: short, no lists, quick to start", async () => {
+    // A recorder between ULTRON and Ollama: exactly what was sent, so it can be replayed to find what breaks reuse.
+    const { createServer } = await import("node:http");
+    const sent: { at: number; path: string; body: string }[] = [];
+    const proxy = createServer((req, res) => {
+      let b = "";
+      req.on("data", (c) => (b += c));
+      req.on("end", async () => {
+        sent.push({ at: Date.now(), path: req.url ?? "", body: b });
+        const r = await fetch(`http://127.0.0.1:11434${req.url}`, { method: req.method, body: req.method === "GET" ? undefined : b });
+        res.writeHead(r.status, { "content-type": r.headers.get("content-type") ?? "application/json" });
+        if (r.body) for await (const c of r.body as unknown as AsyncIterable<Uint8Array>) res.write(c);
+        res.end();
+      });
+    });
+    await new Promise<void>((r) => proxy.listen(0, "127.0.0.1", r));
+    const before = g.gw.stores.preferences.get<Record<string, unknown>>("provider", {});
+    g.gw.stores.preferences.set("provider", { ...before, baseUrl: `http://127.0.0.1:${(proxy.address() as { port: number }).port}` });
     const id = await g.newConversation();
     const lines: string[] = [];
     for (const said of ["Hey Ultron, how's it going?", "I'm thinking of learning the guitar. What do you reckon?"]) {
@@ -152,6 +169,30 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
     const [second, first] = recent;
     const fmt = (t: (typeof recent)[number]) => `read ${t.llm[0]?.promptTokens} tokens in ${t.llm[0]?.promptMs} ms, load ${t.llm[0]?.loadMs} ms, first word ${t.marks.first_token} ms, ${t.llm[0]?.outputTokens} tokens in ${t.llm[0]?.outputMs} ms`;
     ciNote("Prompt reuse (real local brain)", `turn 1: ${fmt(first!)} || turn 2: ${fmt(second!)}`);
+    g.gw.stores.preferences.set("provider", before);
+    proxy.close();
+    // Replay what ULTRON sent, straight to Ollama, to see which part breaks reuse.
+    const chats = sent.filter((s) => s.path === "/api/chat").map((s) => JSON.parse(s.body));
+    ciNote("Requests ULTRON sent during the conversation", sent.map((s) => `${s.path} ${s.body.length}B`).join(", "));
+    if (chats.length >= 2) {
+      const [b1, b2] = chats.slice(-2);
+      const prefixSame = JSON.stringify(b2.messages.slice(0, b1.messages.length)) === JSON.stringify(b1.messages);
+      const play = async (b: any) => {
+        const r = (await (await fetch("http://127.0.0.1:11434/api/chat", { method: "POST", body: JSON.stringify({ ...b, stream: false }) })).json()) as any;
+        return { ms: Math.round((r.prompt_eval_duration ?? 0) / 1e6), tok: r.prompt_eval_count, reply: r.message?.content ?? "" };
+      };
+      const p1 = await play(b1);
+      const p2 = await play(b2);
+      const p2again = await play(b2);
+      const p1b = await play(b1);
+      const swapped = { ...b2, messages: b2.messages.map((m: any, i: number) => (i === b1.messages.length ? { ...m, content: p1b.reply } : m)) };
+      const p2swapped = await play(swapped);
+      const keys = (b: any) => Object.keys(b).sort().join(",");
+      ciNote(
+        "Replay of ULTRON's own requests",
+        `earlier messages identical=${prefixSame} keys1=${keys(b1)} keys2=${keys(b2)} think=${JSON.stringify(b2.think)} | turn1 ${p1.tok} tok/${p1.ms} ms | turn2 ${p2.tok} tok/${p2.ms} ms | turn2 again ${p2again.tok} tok/${p2again.ms} ms | turn2 after turn1, with turn1's exact new reply ${p2swapped.tok} tok/${p2swapped.ms} ms | stored reply="${b2.messages[b1.messages.length]?.content?.slice(0, 120)}" generated="${p1b.reply.slice(0, 120)}"`,
+      );
+    }
     expect(second!.llm[0]!.promptMs).toBeLessThan(first!.llm[0]!.promptMs * 0.7);
   }, 900_000);
 });
