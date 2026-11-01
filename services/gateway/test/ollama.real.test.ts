@@ -147,5 +147,11 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
       lines.push(`"${said}" → (${text.length} chars, ${Math.round(first / 1000)}s) ${text.replace(/\s+/g, " ").slice(0, 220)}`);
     }
     ciNote("Spoken conversation style (real local brain)", lines.join(" || "));
+    // Phase 1.1: the second reply should reuse what the brain already read (stable prompt prefix).
+    const { recent } = (await g.api("GET", "/api/perf")).body as { recent: { marks: Record<string, number>; llm: { loadMs: number; promptTokens: number; promptMs: number; outputTokens: number; outputMs: number }[] }[] };
+    const [second, first] = recent;
+    const fmt = (t: (typeof recent)[number]) => `read ${t.llm[0]?.promptTokens} tokens in ${t.llm[0]?.promptMs} ms, load ${t.llm[0]?.loadMs} ms, first word ${t.marks.first_token} ms, ${t.llm[0]?.outputTokens} tokens in ${t.llm[0]?.outputMs} ms`;
+    ciNote("Prompt reuse (real local brain)", `turn 1: ${fmt(first!)} || turn 2: ${fmt(second!)}`);
+    expect(second!.llm[0]!.promptMs).toBeLessThan(first!.llm[0]!.promptMs * 0.7);
   }, 900_000);
 });
