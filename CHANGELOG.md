@@ -6,6 +6,8 @@
   Locks and alarms are never touched. The Home screen gets a Home Systems panel.
 - **Natural turn-taking:** if you trail off mid-thought ("and, um…", "remind me about the…"), ULTRON waits a moment
   for the rest instead of answering half a sentence.
+- **"Get ULTRON ready" checklist** on Home for new setups: brain, your name, home city, talking, an optional connection.
+  Steps tick themselves off, and you can hide it.
 - **News headlines, no setup:** "what's the news?", "tech news", "world news", "read me the headlines" (free BBC News
   feeds). Your morning briefing includes the top three.
 - **Skills page:** everything ULTRON can do, grouped, with example phrases you can click to try.

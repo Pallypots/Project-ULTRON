@@ -7,6 +7,7 @@ import type { CoreState } from "../Core.tsx";
 import type { View } from "../App.tsx";
 import { Reactor, type ReactorCommand } from "../hud/Reactor.tsx";
 import { Gauge } from "../hud/Gauge.tsx";
+import { SetupCard } from "../hud/SetupCard.tsx";
 
 const QUICK = ["Good morning, brief me", "Catch me up", "What's the weather?", "What's on my calendar today?", "Tell me a joke", "What can you do right now?"];
 
@@ -136,6 +137,7 @@ export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }:
         </div>
       </header>
 
+      <SetupCard status={status} hud={hud} onNavigate={onNavigate} onTalk={onTalk} />
       {status?.secretsProblem && <div className="banner banner--warn" role="alert">{status.secretsProblem}</div>}
       {status && !status.providerReady && (
         <div className="banner banner--warn" role="status">
