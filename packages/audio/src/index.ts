@@ -2,7 +2,7 @@
 // No DOM or Node APIs, so both sides can use them and tests can run them directly.
 
 export { toSpeakable, SentenceSplitter } from "./speech.ts";
-export { ENDS_CONVERSATION, isNoise } from "./conversation.ts";
+export { ENDS_CONVERSATION, isNoise, seemsUnfinished } from "./conversation.ts";
 
 export const TARGET_SAMPLE_RATE = 16_000;
 

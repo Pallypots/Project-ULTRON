@@ -11,3 +11,13 @@ describe("conversation mode text rules", () => {
     for (const t of ["that's all I needed to know about the oven, what about the dough?", "say goodbye to my sister for me tomorrow when she calls"]) expect(ENDS_CONVERSATION.test(t), t).toBe(false);
   });
 });
+
+import { seemsUnfinished } from "../src/index.ts";
+describe("seemsUnfinished: waits when you trail off", () => {
+  it("spots trailing-off phrases", () => {
+    for (const t of ["So I was thinking we could, um.", "I need to buy milk and", "Remind me about the", "Well...", "Tell me about…", "Can you check if"]) expect(seemsUnfinished(t), t).toBe(true);
+  });
+  it("lets complete sentences through", () => {
+    for (const t of ["What's the weather?", "Turn the music up.", "Tell me a joke", "I'm home!", "That's all."]) expect(seemsUnfinished(t), t).toBe(false);
+  });
+});

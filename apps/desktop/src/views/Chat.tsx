@@ -279,8 +279,16 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     },
   });
   // Council mode: a fresh conversation with the microphone open (no wake word) until you leave.
+  const [councilLine, setCouncilLine] = useState("");
   useEffect(() => {
     if (!council) return;
+    api.greeting().catch(() => {}); // also wakes the local brain so the first answer is quick
+    const sir = status?.persona.salutation ? `, ${status.persona.salutation}` : "";
+    const lines = [`The council is in session. What's on your mind${sir}?`, `Ah, face to face at last${sir}. Go on, I'm listening.`, `I'm all yours${sir}. No strings, no wake word. Talk to me.`, `Here I am${sir}. What shall we discuss?`];
+    const line = lines[Math.floor(Math.random() * lines.length)]!;
+    setCouncilLine(line);
+    speaker.current?.unlock();
+    speaker.current?.enqueue([line]);
     newConversation().then(() => hands.start({ conversation: true, openMic: true }));
     const exit = () => onExitCouncil?.();
     window.addEventListener("ultron-council-exit", exit);
@@ -374,7 +382,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
       <Council
         mood={councilMood}
         level={levelRef}
-        said={lastOf("assistant")}
+        said={lastOf("assistant") || councilLine}
         heard={lastOf("user").startsWith("✓ Approved") ? "" : lastOf("user")}
         brain={status ? (status.where === "test" ? "Test brain" : `${status.where === "local" ? "Local" : "Cloud"} brain · ${status.model}`) : ""}
         problem={hands.error ?? speakError ?? error}

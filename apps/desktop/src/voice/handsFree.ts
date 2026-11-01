@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { concatFloat32, encodeWav, ENDS_CONVERSATION, isNoise, resample } from "@ultron/audio";
+import { concatFloat32, encodeWav, ENDS_CONVERSATION, isNoise, resample, seemsUnfinished } from "@ultron/audio";
 import { api, transcribeWake } from "../api.ts";
 import { explainMicError } from "./recorder.ts";
 import { loadVoicePrefs } from "./prefs.ts";
@@ -21,6 +21,7 @@ const MAX_SEC = 10;
 const MIN_SEC = 0.4;
 const AWAKE_MS = 8000; // after just "Ultron", the next phrase is the command
 const FOLLOW_MS = 15_000;
+const HOLD_MS = 2200; // you trailed off ("and, um…"): wait this long for the rest before answering
 const BARGE_FRAMES = 15; // 300 ms of clearly loud speech while ULTRON talks counts as interrupting
 const BARGE_GRACE_MS = 2000; // after an interruption, keep listening while the reply is being cancelled // conversation mode: how long ULTRON waits for your reply after answering
 
@@ -51,6 +52,9 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     conversing: false,
     /** Council mode: a continuous conversation; every phrase is for ULTRON, no wake word, no time-out. */
     openMic: false,
+    /** The first part of something you were still saying, waiting for the rest. */
+    pending: "",
+    holdTimer: 0 as ReturnType<typeof setTimeout> | 0,
     followTimer: 0 as ReturnType<typeof setTimeout> | 0,
     speaking: false,
     bargeIn: false,
@@ -90,6 +94,30 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       // In a follow-up there's no wake word, so filter Whisper's noise "words" before treating it as a reply.
       if (following && res.text && isNoise(res.text)) return;
       if (res.addressed) {
+        if (res.text && (seemsUnfinished(res.text) || st.pending) && !ENDS_CONVERSATION.test(res.text)) {
+          // Natural turn-taking: if you paused mid-thought, wait a moment for the rest instead of answering half a sentence.
+          const soFar = st.pending ? `${st.pending} ${res.text}` : res.text;
+          if (st.holdTimer) clearTimeout(st.holdTimer);
+          if (seemsUnfinished(soFar) && soFar.length < 600) {
+            st.pending = soFar;
+            st.awakeUntil = Math.max(st.awakeUntil, Date.now() + HOLD_MS + 1500); // the rest needs no wake word
+            const deliver = () => {
+              if (!st.on || !st.pending) return;
+              if (st.inPhrase || st.busy) return void (st.holdTimer = setTimeout(deliver, 400)); // still talking
+              const text = st.pending;
+              st.pending = "";
+              st.holdTimer = 0;
+              st.awakeUntil = 0;
+              if (st.followTimer) clearTimeout(st.followTimer);
+              st.conversing = st.openMic || loadVoicePrefs().conversation;
+              onCommand(text);
+            };
+            st.holdTimer = setTimeout(deliver, HOLD_MS);
+            return;
+          }
+          st.pending = "";
+          res.text = soFar;
+        }
         if (res.text) {
           st.awakeUntil = 0;
           if (st.followTimer) clearTimeout(st.followTimer);
@@ -184,6 +212,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     st.on = false;
     st.conversing = false;
     st.openMic = false;
+    st.pending = "";
+    if (st.holdTimer) clearTimeout(st.holdTimer);
     if (st.followTimer) clearTimeout(st.followTimer);
     st.stream?.getTracks().forEach((t) => t.stop());
     st.node?.disconnect();
