@@ -314,6 +314,9 @@ export const api = {
   notes: () => call<{ notes: Note[] }>("GET", "/api/notes"),
   addNote: (text: string) => call<{ note: Note }>("POST", "/api/notes", { text }),
   deleteNote: (id: string) => call("DELETE", `/api/notes/${id}`),
+  email: () => call<{ email: EmailStatus }>("GET", "/api/email"),
+  connectEmail: (address: string, password: string, host?: string) => call<{ email: EmailStatus; unread: number }>("PUT", "/api/email", { address, password, ...(host ? { host } : {}) }),
+  disconnectEmail: () => call<{ email: EmailStatus }>("DELETE", "/api/email"),
   hud: () => call<Hud>("GET", "/api/hud"),
   quit: () => call<{ ok: boolean }>("POST", "/api/system/quit", {}),
   removeSearchKey: () => call<SearchStatus>("DELETE", "/api/settings/search"),
@@ -481,4 +484,11 @@ export interface Note {
   id: string;
   text: string;
   createdAt: string;
+}
+
+export interface EmailStatus {
+  connected: boolean;
+  address: string | null;
+  host: string | null;
+  error: string | null;
 }

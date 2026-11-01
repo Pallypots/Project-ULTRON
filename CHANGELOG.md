@@ -6,6 +6,12 @@
   Locks and alarms are never touched. The Home screen gets a Home Systems panel.
 - **Natural turn-taking:** if you trail off mid-thought ("and, um…", "remind me about the…"), ULTRON waits a moment
   for the rest instead of answering half a sentence.
+- **Email (read-only):** connect Gmail, iCloud, Yahoo or Fastmail with an app password (Connections → Email). Ask
+  "any new emails?" or "read the one from Mum". ULTRON never sends, deletes or marks anything as read, and treats email
+  content as untrusted.
+- **Prompt-injection guard:** once ULTRON has read text from outside in a reply (an email, a web page, a file, your
+  clipboard or screen), even everyday actions in that reply wait for your approval. A planted "turn off the lights"
+  can't act on its own.
 - **Notes:** "take a note: the boiler manual is in the blue folder", "jot down …", "read my notes", "what did I note
   about the boiler?". These are instant. Notes appear on the Reminders page, where you can add, filter and delete them,
   and they're included in the Memory Vault export.

@@ -106,3 +106,13 @@ Delete the folder to erase everything. If a cloud model is selected, each messag
 
 ## Reporting
 This is a private project. Note issues in the tracker or tell the developer directly.
+
+
+## Untrusted text and actions (2026-11-01)
+Email (read-only IMAP), the clipboard and Home Assistant joined the places outside text can come from. Defences:
+- Email is opened with EXAMINE (read-only) and bodies are fetched with PEEK. No command that changes a mailbox is ever
+  sent, and a test asserts this against a fake server.
+- The clipboard is shared only on the owner's own words. There is no tool for it, so a model can't request it.
+- After a turn has read untrusted text (email, web, files, calendar, connected feeds, clipboard, screen), any L1 action
+  the model proposes in that turn is raised to L2 (approval). L0 reads stay allowed.
+- Smart home: covers and scripts are always L2. Locks and alarms can't be controlled at all.

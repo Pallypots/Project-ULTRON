@@ -16,6 +16,7 @@ export type QuickCommand =
   | { type: "world_time"; place: string }
   | { type: "lock_pc" }
   | { type: "watch"; url: string; lookFor: string | null }
+  | { type: "check_email" }
   | { type: "add_note"; text: string }
   | { type: "list_notes"; query: string | null }
   | { type: "home"; action: "on" | "off" | "brightness" | "set_temperature"; target: string; value?: number };
@@ -70,6 +71,8 @@ export function detectQuickCommand(message: string): QuickCommand | null {
     const steps = vol[5]?.toLowerCase() === "lot" ? 12 : vol[5] ? 3 : 5;
     return { type: "media", action: up ? "volume_up" : "volume_down", steps };
   }
+
+  if (/^(?:(?:do i have |have i got |are there |got )?any (?:new |unread )?e-?mails?|check (?:my )?(?:e-?mails?|inbox|mail)|what(?:'s| is) (?:new )?in my inbox|(?:any|anything) new in my inbox|read (?:me )?my (?:new )?e-?mails?)$/i.test(m)) return { type: "check_email" };
 
   // Notes: "take a note: …", "jot down …", "note that …"; "read my notes", "what notes do I have about the boiler?"
   const note = /^(?:(?:take|make|add|write|save) (?:a |this )?note(?: of| that| saying)?|note (?:that|down|this)|jot (?:this |that |it )?down(?: that)?)[\s:,-]+(.{2,2000})$/is.exec(m);

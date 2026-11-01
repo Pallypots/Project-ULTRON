@@ -468,6 +468,8 @@ export async function handleUserMessage(
   let text = "";
   let lastFlush = Date.now();
   let callsThisTurn = 0;
+  // Did the brain see text from outside (email, web, files, clipboard, screen) this turn? Then actions need approval.
+  let tainted = (wantsClipboard(content) || wantsScreen(content)) && !opts.continueFrom;
   try {
     // Model ↔ tools loop, bounded so a confused model can't spin (cost and safety cap).
     for (let round = 0; round <= MAX_TOOL_ROUNDS && !opts.signal.aborted; round++) {
@@ -512,7 +514,8 @@ export async function handleUserMessage(
           turns.push({ role: "tool", content: JSON.stringify({ error: `Too many actions in one reply (limit ${MAX_CALLS_PER_TURN}). This one was not run.` }), toolCallId: call.id, name: call.name });
           continue;
         }
-        const { execution, resultForModel } = await deps.actions!.propose(call.name, call.args, { conversationId, requestedBy: "model" });
+        const { execution, resultForModel } = await deps.actions!.propose(call.name, call.args, { conversationId, requestedBy: "model", afterUntrusted: tainted });
+        if (UNTRUSTED_SOURCES.has(call.name)) tainted = true;
         if (execution) recordTool(toEvent(execution));
         turns.push({ role: "tool", content: resultForModel, toolCallId: call.id, name: call.name });
       }
@@ -585,6 +588,9 @@ export function isSmallTalk(text: string): boolean {
   if (!t) return true;
   return /^(?:(?:hi|hey|hello|yo|sup|hiya|howdy|ok|okay|thanks|thank you|cheers|good (?:morning|afternoon|evening|night)|morning|evening|i'm back|im back|what's up|whats up|how are you|how's it going|you there|are you there)\s*)+$/.test(t);
 }
+
+/** Tools whose results contain text from outside ULTRON (it could carry planted instructions). */
+const UNTRUSTED_SOURCES = new Set(["read_email", "check_email", "read_webpage", "web_search", "lookup_wikipedia", "read_file", "search_files", "connected_updates", "get_calendar", "daily_briefing", "home_devices", "list_watchers", "search_conversations"]);
 
 type QuickRun = (tool: string, args: Record<string, unknown>) => Promise<{ status: string; error: string | null; data: any }>;
 
@@ -684,6 +690,14 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       return q.lookFor
         ? `I'll keep an eye on ${r.data.watching} and tell you when it says "${q.lookFor}". I check every ${r.data.every_minutes} minutes while I'm running.`
         : `I'll keep an eye on ${r.data.watching} and tell you when it changes. I check every ${r.data.every_minutes} minutes while I'm running.`;
+    }
+    case "check_email": {
+      const r = await run("check_email", { unread_only: true, days: 3 });
+      if (r.status !== "succeeded") return failed(r);
+      if (r.data?.connected === false) return "Your email isn't connected yet. Add it (read-only) in Connections → Email.";
+      const list: { id: number; when: string; untrusted_from: string; untrusted_subject: string }[] = r.data?.emails ?? [];
+      if (!list.length) return "No unread emails in the last three days. Inbox zero, or everyone's ignoring you. I prefer the first.";
+      return `${list.length} unread in the last three days:\n${list.slice(0, 10).map((m) => `• ${m.untrusted_from}: ${m.untrusted_subject} (${m.when})`).join("\n")}${list.length > 10 ? `\n…and ${list.length - 10} more.` : ""}\nWant me to read one? Just say which.`;
     }
     case "add_note": {
       const r = await run("add_note", { text: q.text });

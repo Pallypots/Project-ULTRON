@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CalendarPanel } from "./CalendarPanel.tsx";
 import { HomePanel } from "./HomePanel.tsx";
+import { EmailPanel } from "./EmailPanel.tsx";
 import { api, type ConnectorInfo, type FeedEvent } from "../api.ts";
 
 const ago = (iso: string | null) => {
@@ -123,6 +124,7 @@ export function ConnectionsView({ onAsk }: { onAsk: (q: string) => void }) {
       )}
 
       <CalendarPanel onAsk={onAsk} />
+      <EmailPanel onAsk={onAsk} />
       <HomePanel onAsk={onAsk} />
 
       <section className="panel">

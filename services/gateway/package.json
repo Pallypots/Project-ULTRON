@@ -14,6 +14,7 @@
     "@ultron/memory": "*",
     "@ultron/schemas": "*",
     "fastify": "^5.12.7",
+    "imapflow": "^1.7.8",
     "kokoro-js": "^1.2.1",
     "openai": "^7.45.1",
     "undici": "^6.23.0",

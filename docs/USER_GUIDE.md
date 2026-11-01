@@ -13,6 +13,15 @@ the microphone stays open: no wake word, no time limit, just talk. His mouth mov
 when he's listening, and what he says appears as subtitles. You can talk over him to interrupt. **Type instead** gives
 you a text box. Leave with **Esc**, the **×** button, or by saying "that's all".
 
+## Email (read-only)
+Connections → **Email**: enter your address and an **app password**, a separate password just for ULTRON that you can
+cancel any time. For Gmail: turn on 2-Step Verification, then create one at myaccount.google.com/apppasswords.
+iCloud, Yahoo and Fastmail work too; Outlook/Hotmail don't (Microsoft no longer allows it).
+
+Ask "any new emails?", "check my email", "read the one from Mum", "did Amazon email me this week?". ULTRON opens your
+inbox read-only: it never sends, deletes, moves or marks anything as read. Emails are treated as untrusted, so
+instructions inside an email are ignored.
+
 ## Notes
 "Take a note: the spare key is under the blue pot", "jot down buy a new kettle", "note that the meeting moved to Friday".
 These are saved instantly. "Read my notes" or "what did I note about the key?" finds them. All notes are on the

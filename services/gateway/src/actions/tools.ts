@@ -14,6 +14,8 @@ import { SYSTEM_TOOLS } from "./system.ts";
 import type { HomeService } from "../home/assistant.ts";
 import { HOME_TOOLS } from "./home.ts";
 import { NOTE_TOOLS } from "./notes.ts";
+import { MAIL_TOOLS } from "./mail.ts";
+import type { MailService } from "../mail/imap.ts";
 import { dayRange, eventLine, type CalendarService } from "../calendar/service.ts";
 
 /**
@@ -35,6 +37,7 @@ export interface ToolContext {
   similarFiles?: (query: string) => Promise<FileHit[]>;
   calendar?: CalendarService;
   home?: HomeService;
+  mail?: MailService;
   /** Read-only access to stored secrets (for tools that call a keyed service, e.g. web search). */
   secrets?: { get(name: string): string | undefined };
 }
@@ -397,5 +400,5 @@ const githubCreateIssue: ToolDef<z.infer<typeof GithubIssue>> = {
   },
 };
 
-export const TOOLS: ToolDef[] = [...KNOWLEDGE_TOOLS, ...HOME_TOOLS, ...NOTE_TOOLS, ...TODO_TOOLS, ...SYSTEM_TOOLS, ...CALENDAR_TOOLS, ...EVERYDAY_TOOLS, githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
+export const TOOLS: ToolDef[] = [...KNOWLEDGE_TOOLS, ...HOME_TOOLS, ...NOTE_TOOLS, ...MAIL_TOOLS, ...TODO_TOOLS, ...SYSTEM_TOOLS, ...CALENDAR_TOOLS, ...EVERYDAY_TOOLS, githubCreateIssue, dailyBriefing, connectedUpdates, getTime, createReminder, listReminders, cancelReminder, openWebsite, searchFiles, readFileTool, openPath];
 export const toolByName = (name: string) => TOOLS.find((t) => t.name === name);

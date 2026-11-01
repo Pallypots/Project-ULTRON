@@ -28,7 +28,8 @@ import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
 import { HudService } from "./hud.ts";
-import { setHomeStatus } from "./capabilities.ts";
+import { setHomeStatus, setMailStatus } from "./capabilities.ts";
+import { MailError, MailService } from "./mail/imap.ts";
 import { describeEntity, EVERYDAY, HomeError, HomeService, SENSITIVE } from "./home/assistant.ts";
 import { EmbeddingService } from "./embeddings/index.ts";
 import { Greeter } from "./greeting.ts";
@@ -130,6 +131,9 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const home = new HomeService(stores, secrets);
   actions.home = home;
   home.start();
+  const mail = new MailService(stores, secrets);
+  actions.mail = mail;
+  setMailStatus(() => mail.status());
   const hud = new HudService(stores, config.dataDir, calendar, home);
   setHomeStatus(() => home.status());
   actions.secrets = secrets;
@@ -265,6 +269,25 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     stores.preferences.set("checkin", body);
     stores.audit.record("settings.checkin_changed", "owner", null, body);
     return { checkin: checkIn.settings() };
+  });
+
+  // ---- email (read-only, IMAP app password) ----
+  app.get("/api/email", async () => ({ email: mail.status() }));
+  app.put("/api/email", async (req, reply) => {
+    const { address, password, host } = z.object({ address: z.string().trim().min(5).max(200), password: z.string().min(8).max(200), host: z.string().trim().max(200).optional() }).strict().parse(req.body);
+    try {
+      const r = await mail.connect(address, password, host);
+      stores.audit.record("email.connected", "owner", mail.status().host);
+      return { email: mail.status(), unread: r.unread };
+    } catch (err) {
+      if (err instanceof MailError) return reply.code(400).send({ error: "email", message: err.message });
+      throw err;
+    }
+  });
+  app.delete("/api/email", async () => {
+    mail.disconnect();
+    stores.audit.record("email.disconnected", "owner");
+    return { email: mail.status() };
   });
 
   // ---- smart home (Home Assistant) ----

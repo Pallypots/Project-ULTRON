@@ -124,7 +124,7 @@ export function SpeechSettings() {
       {s.engine !== "browser" && (
         <label className="toggle">
           <input type="checkbox" checked={prefs.councilEffect} onChange={(e) => updatePrefs({ councilEffect: e.target.checked })} />
-          <span>Use the Ultron voice effect in Council mode</span>
+          <span>In Council mode, always use his deeper, metallic Council voice</span>
         </label>
       )}
 
