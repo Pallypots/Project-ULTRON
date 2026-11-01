@@ -65,7 +65,7 @@ export async function startFakeOllama(): Promise<FakeOllama> {
       if (state.firstTokenDelayMs) await new Promise((r) => setTimeout(r, state.firstTokenDelayMs));
       // "format test …" is echoed back, so the browser test can check how replies are formatted.
       // (The per-turn context ULTRON attaches to the latest message isn't part of what was said.)
-      const lastUser = String([...(body.messages ?? [])].reverse().find((m: { role: string }) => m.role === "user")?.content ?? "").split("\n\n[Context for this reply")[0]!;
+      const lastUser = String([...(body.messages ?? [])].reverse().find((m: { role: string }) => m.role === "user")?.content ?? "").split("[End of context. The owner's message follows.]\n\n").at(-1)!;
       if (/^format test /.test(lastUser)) line({ model: body.model, message: { role: "assistant", content: `Echo: ${lastUser.slice(12)}` }, done: false });
       else for (const m of state.chatScript) line({ model: body.model, message: { role: "assistant", ...m }, done: false });
       // Real Ollama reports its own timings (nanoseconds) on the final line.

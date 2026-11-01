@@ -391,19 +391,24 @@ export async function handleUserMessage(
   const provider = resolution.provider;
   // A local brain's context is 8k tokens (instructions + tools take ~3k): keep about 14k characters of history for it.
   const turnsSoFar = historyFor(stores.conversations.messages(conversationId).filter((m) => m.id !== assistant.id), provider.id === "ollama" ? 14_000 : HISTORY_CHAR_BUDGET);
-  // Local brains get a small, FIXED core tool set in a fixed order (the tool list is part of the prompt the model keeps
-  // prefilled, so it must not change from turn to turn), plus, rarely, an extra tool this message clearly needs,
-  // appended at the end. Everyday commands (lights, notes, email, news, weather…) are answered instantly without the brain.
+  // Local brains: ordinary conversation goes with NO tools, so the prompt stays identical and the brain reuses what it
+  // already read (measured: replies 4-5x faster). A message that clearly needs a tool gets just those one or two tools
+  // (a small model given many tools wrote tool calls as text instead of making them). Everyday commands (lights, notes,
+  // email, news, weather…) are answered instantly without the brain.
   const recentUser = turnsSoFar.filter((t) => t.role === "user").slice(-1).map((t) => t.content);
-  const toolSet = provider.id === "ollama" ? localToolSet(focusTools(recentUser, TOOLS)) : TOOLS;
+  const toolSet = provider.id === "ollama" ? focusTools(recentUser, TOOLS) : TOOLS;
   const toolSpecs = specsFor(toolSet);
-  const useTools = Boolean(provider.streamWithTools && deps.actions) && toolSet.length > 0;
+  // Whether actions exist at all for this brain (fixed, so the instructions' wording never changes turn to turn)…
+  const actionsPossible = Boolean(provider.streamWithTools && deps.actions);
+  // …and whether this particular message gets any tools.
+  const useTools = actionsPossible && toolSet.length > 0;
   const calendarLines = await calendarP;
   const calendarInPrompt = calendarLines.length > 0;
   const roomInPrompt = opts.inputMode === "voice" && (provider.id === "ollama" || provider.id === "mock") ? deps.room?.recent() : undefined;
   const { stable: system, context: turnContext } = buildPromptParts(deps.persona(), {
     capabilities,
-    toolsEnabled: useTools,
+    toolsEnabled: actionsPossible,
+    toolsSometimes: provider.id === "ollama" && actionsPossible,
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
@@ -552,23 +557,30 @@ export async function handleUserMessage(
       const events = useTools && round < MAX_TOOL_ROUNDS ? provider.streamWithTools!({ ...req, tools: toolSpecs }) : textOnly(provider.stream(req));
       const calls: ToolCall[] = [];
       let roundText = "";
+      const guard = contextEchoGuard();
+      const take = (piece: string) => {
+        if (!piece) return;
+        text += piece;
+        roundText += piece;
+        if (piece.trim()) trace?.mark("first_token");
+        if (/[.!?…](\s|$)/.test(text) && text.trim().length >= 12) trace?.mark("first_sentence");
+        emit({ type: "delta", text: piece });
+      };
       for await (const ev of events) {
         if (opts.signal.aborted) break;
         if (ev.type === "tool_call") {
           calls.push(ev.call);
           continue;
         }
-        text += ev.text;
-        roundText += ev.text;
-        if (ev.text.trim()) trace?.mark("first_token");
-        if (/[.!?…](\s|$)/.test(text) && text.trim().length >= 12) trace?.mark("first_sentence");
-        emit({ type: "delta", text: ev.text });
+        take(guard.push(ev.text));
+
         // Persist partial text periodically so a crash keeps what was already said.
         if (Date.now() - lastFlush > 1000) {
           stores.conversations.updateMessage(assistant.id, { content: text });
           lastFlush = Date.now();
         }
       }
+      take(guard.flush());
       if (!calls.length || opts.signal.aborted) break;
       turns.push({ role: "assistant", content: roundText, toolCalls: calls });
       for (const call of calls) {
@@ -670,18 +682,45 @@ export function stablePrefix(deps: ChatDeps): { system: string; tools: ReturnTyp
   const settings = readProviderSettings(deps.stores.preferences);
   const resolution = resolveProvider(settings, deps.secrets, deps.mockDelayMs);
   if (!resolution.ok || resolution.provider.id !== "ollama") return null;
-  const toolSet = localToolSet([]);
-  const useTools = Boolean(resolution.provider.streamWithTools && deps.actions) && toolSet.length > 0;
+  const actionsPossible = Boolean(resolution.provider.streamWithTools && deps.actions);
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
-  const { stable } = buildPromptParts(deps.persona(), { capabilities, toolsEnabled: useTools, memories: [], nowIso: "" });
-  return { system: stable, tools: useTools ? specsFor(toolSet) : [] };
+  const { stable } = buildPromptParts(deps.persona(), { capabilities, toolsEnabled: actionsPossible, toolsSometimes: actionsPossible, memories: [], nowIso: "" });
+  // Ordinary conversation has no tools, so that's the prefix worth preparing.
+  return { system: stable, tools: [] };
 }
 
-/** The local brain's always-available tools, in a fixed order (keeps the prompt identical between turns). */
-export const LOCAL_CORE_TOOLS = ["get_current_time", "calculate", "create_reminder", "add_todo", "list_todos", "lookup_wikipedia", "web_search", "read_webpage", "get_weather", "save_memory", "search_conversations"];
-export function localToolSet(extra: { name: string }[]) {
-  const core = LOCAL_CORE_TOOLS.map((n) => TOOLS.find((t) => t.name === n)).filter((t): t is (typeof TOOLS)[number] => Boolean(t));
-  return [...core, ...TOOLS.filter((t) => !LOCAL_CORE_TOOLS.includes(t.name) && extra.some((e) => e.name === t.name))];
+
+/**
+ * Small models sometimes copy the [Context …] block into their answer. This cuts the answer where such a block starts,
+ * working on a stream (a marker split across chunks is held back until it's clear), so it's never shown or spoken.
+ */
+export function contextEchoGuard() {
+  const MARKERS = ["[Context", "[End of context"];
+  let held = "";
+  let stopped = false;
+  return {
+    push(chunk: string): string {
+      if (stopped) return "";
+      held += chunk;
+      const hit = Math.min(...MARKERS.map((m) => held.indexOf(m)).filter((i) => i >= 0));
+      if (Number.isFinite(hit)) {
+        stopped = true;
+        const out = held.slice(0, hit).replace(/\s+$/, "");
+        held = "";
+        return out;
+      }
+      let keep = 0;
+      for (const m of MARKERS) for (let k = Math.min(m.length - 1, held.length); k > keep; k--) if (m.startsWith(held.slice(-k))) keep = k;
+      const out = held.slice(0, held.length - keep);
+      held = held.slice(held.length - keep);
+      return out;
+    },
+    flush(): string {
+      const out = stopped ? "" : held;
+      held = "";
+      return out;
+    },
+  };
 }
 
 type QuickRun = (tool: string, args: Record<string, unknown>) => Promise<{ status: string; error: string | null; data: any }>;

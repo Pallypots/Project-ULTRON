@@ -85,7 +85,7 @@ describe("Phase 1.1: the prompt a local brain keeps prefilled is identical from 
     const ctx = (x: { messages: { role: string; content: string }[] }) => x.messages.at(-1)!.content.split("[Context for this reply")[1] ?? "";
     expect(ctx(a)).toMatch(/Current date\/time/);
     expect(ctx(b)).not.toBe(ctx(a));
-    expect(b.messages.at(-1).content).toMatch(/^what's my sister called/);
+    expect(b.messages.at(-1).content).toMatch(/^\[Context for this reply[\s\S]*\[End of context\. The owner's message follows\.\]\n\nwhat's my sister called/);
     // Earlier messages in the history carry no context (so they stay identical too).
     expect(b.messages.slice(1, -1).some((m: { content: string }) => m.content.includes("[Context for this reply"))).toBe(false);
   });
@@ -118,5 +118,43 @@ describe("Phase 1.2/1.3: one context size, model kept loaded, history trimmed in
     }
     // Positive control: over 11 turns the start moved only in jumps (a one-message slide would change it every turn).
     expect(new Set(starts).size).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("Phase 1.1 safety net: a copied [Context …] block is never shown or spoken", () => {
+  it("cuts the answer where a copied context block starts, even when the marker arrives in pieces", async () => {
+    const { contextEchoGuard } = await import("../src/chat.ts");
+    const run = (pieces: string[]) => {
+      const g = contextEchoGuard();
+      return pieces.map((p) => g.push(p)).join("") + g.flush();
+    };
+    // Positive controls: echoed blocks are cut.
+    expect(run(["The screen is red. ", "[Con", "text Sunday 9:56 PM]"]).trimEnd()).toBe("The screen is red.");
+    expect(run(["I am 100% confident. [End of context. The owner…"])).toBe("I am 100% confident.");
+    // Negative controls: ordinary brackets and words pass through untouched.
+    expect(run(["See [1] and [note]: the ", "context matters."])).toBe("See [1] and [note]: the context matters.");
+    expect(run(["Done", " [", "C"])).toBe("Done [C");
+  });
+});
+
+describe("Phase 1.1 (revised): tools only when a message needs them", () => {
+  it("ordinary conversation goes with no tools and identical instructions; maths and personal facts still get theirs", async () => {
+    const g = await localGateway();
+    const id = await g.newConversation();
+    const last = () => fake!.requests.filter((r) => r.path === "/api/chat").at(-1)!.body;
+    await g.chat(id, "Hey Ultron, how's it going?");
+    const a = last();
+    await g.chat(id, "I'm thinking of learning the guitar. What do you reckon?");
+    const b = last();
+    // Positive control: plain chat, no tools, same instructions → the brain reuses what it read.
+    expect(a.tools).toBeUndefined();
+    expect(b.tools).toBeUndefined();
+    expect(b.messages[0]).toEqual(a.messages[0]);
+    expect(b.messages[0].content).not.toMatch(/calculate|lookup_wikipedia|save_memory/);
+    // Negative controls: messages that need a tool still get exactly that.
+    await g.chat(id, "What is 1299 times 0.85 plus 4.99 with a 15% discount on top?");
+    expect(last().tools.map((t: { function: { name: string } }) => t.function.name)).toContain("calculate");
+    await g.chat(id, "My sister's birthday is March 3rd");
+    expect(last().tools.map((t: { function: { name: string } }) => t.function.name)).toContain("save_memory");
   });
 });

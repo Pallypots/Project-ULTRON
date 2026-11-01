@@ -25,13 +25,17 @@ export type ProviderEvent = { type: "text"; text: string } | { type: "tool_call"
  * Attaches this turn's context (time, memories, agenda…) to the latest owner message, so the system prompt itself
  * never changes between turns and a local model can reuse what it already read.
  */
+export const CONTEXT_OPEN = "[Context for this reply, from ULTRON, not the owner. Use it; never repeat it.]";
+export const CONTEXT_CLOSE = "[End of context. The owner's message follows.]";
+
 export function withTurnContext(turns: ChatTurn[], context: string | undefined): ChatTurn[] {
   if (!context) return turns;
   let i = turns.length - 1;
   while (i >= 0 && turns[i]!.role !== "user") i--;
   if (i < 0) return turns;
   const out = [...turns];
-  out[i] = { ...out[i]!, content: `${out[i]!.content}\n\n[Context for this reply, from ULTRON, not the owner]\n${context}` };
+  // Before the owner's words (models continue whatever comes last, so a trailing block got echoed back).
+  out[i] = { ...out[i]!, content: `${CONTEXT_OPEN}\n${context}\n${CONTEXT_CLOSE}\n\n${out[i]!.content}` };
   return out;
 }
 

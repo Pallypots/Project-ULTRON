@@ -24,15 +24,16 @@ const GROUPS: { when: RegExp; tools: string[] }[] = [
   { when: /\b(github|repo|repository|issues?|commits?|pull requests?|prs?|ci|builds?)\b|what'?s new|any updates/i, tools: ["connected_updates", "github_create_issue"] },
   { when: /\b(morning|brief|briefing|my day|catch me up|agenda|today)\b/i, tools: ["daily_briefing"] },
   { when: /\b(calendar|schedule|meetings?|appointments?|events?|busy|free|plans?|tomorrow|this week|next week|today)\b/i, tools: ["get_calendar"] },
-  { when: /\b(time|date|day is it|what day)\b/i, tools: ["get_current_time"] },
+  // (No time tool: the local brain gets the current time with every message.)
   { when: /\b(we (?:talked|discussed|spoke|chatted|said)|did i (?:say|tell|mention)|i (?:told|mentioned|said)|last (?:time|week|month)|yesterday|remember when|earlier|before|conversations?)\b/i, tools: ["search_conversations"] },
   { when: /\b(about me|know me|learned about|remember about|my (?:life|profile|details|preferences))\b/i, tools: ["recall_everything_about_owner"] },
   { when: /\b(music|song|track|play|pause|resume|skip|volume|louder|quieter|mute|unmute|spotify)\b/i, tools: ["media_control"] },
   { when: /\b(open|launch|start|run|apps?|programs?|installed)\b/i, tools: ["open_app", "find_apps"] },
   { when: /\b(lights?|lamps?|bulbs?|dim|brighter|plugs?|sockets?|fan|heating|thermostat|temperature|blinds?|curtains?|garage|gate|vacuum|hoover|tv|scene|home|house|turn (?:on|off)|switch (?:on|off))\b/i, tools: ["home_devices", "home_control", "home_cover_or_script"] },
   { when: /\b(pc|computer|laptop|battery|disk|storage|space|memory|ram|cpu|uptime|running slow)\b/i, tools: ["pc_status"] },
-  // Personal statements are where "want me to remember that?" comes from.
-  { when: /\b(my|i'm|i am|i've|i have|i'll|i will|we're)\b/i, tools: ["save_memory"] },
+  // Lasting personal facts are where "want me to remember that?" comes from. Kept narrow on purpose: offering tools on
+  // every "I'm"/"my" changed the local brain's prompt on most turns and made it re-read the whole conversation.
+  { when: /\b(birthday|anniversary|allergic|allergy|my (?:wife|husband|partner|girlfriend|boyfriend|sister|brother|mum|mom|dad|father|mother|son|daughter|kids?|dog|cat)\b|i (?:always|never|prefer|hate|love) )/i, tools: ["save_memory"] },
 ];
 
 export function focusTools(recentUserTexts: string[], all: ToolDef[]): ToolDef[] {
