@@ -17,7 +17,7 @@ const STATUS: Record<FaceMood, string> = {
  * Council mode: full screen, just ULTRON's face and a conversation. The microphone stays open (no wake word) until
  * you leave with Esc, the × button, or by saying "that's all".
  */
-export function Council({ mood, level, said, heard, brain, problem, activity, pending, onSend, onExit }: {
+export function Council({ mood, level, said, heard, brain, problem, activity, pending, photoReady, onCamera, onSend, onExit }: {
   mood: FaceMood;
   level: { current: number };
   /** What ULTRON is saying / last said. */
@@ -30,6 +30,9 @@ export function Council({ mood, level, said, heard, brain, problem, activity, pe
   activity?: string | null;
   /** Actions waiting for approval, with Approve / Deny right here. */
   pending?: ToolEvent[];
+  /** A camera photo is waiting to go with the next thing you say. */
+  photoReady?: boolean;
+  onCamera?: () => void;
   onSend: (text: string) => void;
   onExit: () => void;
 }) {
@@ -45,7 +48,7 @@ export function Council({ mood, level, said, heard, brain, problem, activity, pe
   exitNow.current = onExit;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !typing) exitNow.current();
+      if (e.key === "Escape" && !typing && !document.querySelector(".camera")) exitNow.current(); // Esc in the camera only closes the camera
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -69,6 +72,7 @@ export function Council({ mood, level, said, heard, brain, problem, activity, pe
         {tail && <p className="council__said">{tail}</p>}
         {activity && <p className="council__activity">{activity}</p>}
         {pending && pending.length > 0 && <div className="council__pending"><ToolChips events={pending} /></div>}
+        {photoReady && <p className="council__activity">📸 Photo ready: ask me about it</p>}
         <p className="council__status">{problem ?? STATUS[mood]}</p>
       </div>
       <footer className="council__bottom">
@@ -87,7 +91,10 @@ export function Council({ mood, level, said, heard, brain, problem, activity, pe
             <button type="submit" className="btn btn--primary">Send</button>
           </form>
         ) : (
-          <button type="button" className="link council__typelink" onClick={() => setTyping(true)}>Type instead</button>
+          <>
+            <button type="button" className="link council__typelink" onClick={() => setTyping(true)}>Type instead</button>
+            {onCamera && <button type="button" className="link council__typelink" onClick={onCamera}>📷 Show him something</button>}
+          </>
         )}
         <span className="council__hint">Esc or say “that's all” to leave</span>
       </footer>

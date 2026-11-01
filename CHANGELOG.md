@@ -6,6 +6,12 @@
   Locks and alarms are never touched. The Home screen gets a Home Systems panel.
 - **Natural turn-taking:** if you trail off mid-thought ("and, um…", "remind me about the…"), ULTRON waits a moment
   for the rest instead of answering half a sentence.
+- **Show him something:** the 📷 button (Chat, or "Show him something" in Council) takes one photo for your next
+  message: "what's this?", "what plant is this?", "does this shirt go with these trousers?". Works on your phone too.
+  Never saved, and needs a brain that can see images.
+- **Council** shows what ULTRON is doing ("✓ Turned off Kitchen Lights") and lets you approve actions without
+  leaving. The face blinks now and then.
+- **Spoken symbols:** temperatures, percentages, speeds and ranges are read as words ("7 degrees Celsius").
 - **"Get ULTRON ready" checklist** on Home for new setups: brain, your name, home city, talking, an optional connection.
   Steps tick themselves off, and you can hide it.
 - **News headlines, no setup:** "what's the news?", "tech news", "world news", "read me the headlines" (free BBC News

@@ -7,6 +7,7 @@ import { Speaker, voiceMode, type TtsEngineId } from "../voice/speaker.ts";
 import { SentenceSplitter } from "@ultron/audio";
 import { Markdown } from "../Markdown.tsx";
 import { Council } from "../council/Council.tsx";
+import { CameraModal } from "../voice/Camera.tsx";
 import type { FaceMood } from "../council/face.ts";
 import { ENDS_CONVERSATION } from "@ultron/audio";
 import { ToolChips } from "../ToolChips.tsx";
@@ -57,6 +58,9 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   if (!speaker.current) speaker.current = new Speaker(() => tts.current.engine, () => loadVoicePrefs().browserVoice, () => tts.current.speed);
   const [speaking, setSpeaking] = useState(false);
   const [speakLevel, setSpeakLevel] = useState(0);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const photoRef = useRef<string | null>(null);
+  const [camera, setCamera] = useState(false);
   const [speakError, setSpeakError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -157,6 +161,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   };
 
   const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text", continueFrom?: string, speakReply = false) => {
+    if (!text.trim() && photoRef.current && !continueFrom) text = "What do you see?";
     if (!text.trim() || busy) return;
     // "Council mode" / "Ultron, council" opens the full-screen face (handled by the app, not the brain).
     if (/^\s*(?:(?:hey|ok)\s+)?(?:ultron[\s,:!.-]+)?(?:enter|start|open|activate|go to|switch to)?\s*(?:the\s+)?council(?:\s+mode)?[\s.!]*$/i.test(text)) {
@@ -170,6 +175,10 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     sp.unlock();
     const mode = loadVoicePrefs().speakMode;
     const splitter = mode === "always" || (mode === "voice" && (inputMode === "voice" || speakReply)) ? new SentenceSplitter() : null;
+    // A camera photo the owner just took goes with this one message (never with an approval follow-up).
+    const image = continueFrom ? undefined : (photoRef.current ?? undefined);
+    photoRef.current = null;
+    setPhoto(null);
     setBusy(true);
     onCoreState("thinking");
     // wanted.current updates synchronously on "New conversation"/selection, so a fast Enter can't go to the old chat.
@@ -225,7 +234,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
             onCoreState("error");
             break;
         }
-      }, ctl.signal, inputMode, continueFrom);
+      }, ctl.signal, inputMode, continueFrom, image);
     } catch (err) {
       if ((err as Error).name !== "AbortError") setError((err as Error).message);
       else patch((m) => ({ ...m, status: "cancelled" }));
@@ -381,14 +390,18 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
 
   if (council)
     return (
+      <>
+      {camera && <CameraModal onClose={() => setCamera(false)} onPhoto={(p) => { photoRef.current = p; setPhoto(p); setCamera(false); }} />}
       <Council
+        photoReady={Boolean(photo)}
+        onCamera={() => setCamera(true)}
         mood={councilMood}
         level={levelRef}
         said={lastOf("assistant") || councilLine}
         heard={lastOf("user").startsWith("✓ Approved") ? "" : lastOf("user")}
         brain={status ? (status.where === "test" ? "Test brain" : `${status.where === "local" ? "Local" : "Cloud"} brain · ${status.model}`) : ""}
         problem={hands.error ?? speakError ?? error}
-        pending={[...messages].reverse().find((m) => m.role === "assistant")?.toolEvents?.filter((t) => t.status === "awaiting_approval") ?? []}
+        pending={messages.flatMap((m) => m.toolEvents ?? []).filter((t) => t.status === "awaiting_approval")}
         activity={(() => {
           const last = [...messages].reverse().find((m) => m.role === "assistant");
           const t = last?.toolEvents?.at(-1);
@@ -398,6 +411,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
         onSend={(t) => send(t, "text", undefined, true)}
         onExit={() => onExitCouncil?.()}
       />
+      </>
     );
 
   return (
@@ -501,6 +515,13 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
           </div>
         )}
 
+        {camera && <CameraModal onClose={() => setCamera(false)} onPhoto={(p) => { photoRef.current = p; setPhoto(p); setCamera(false); inputRef.current?.focus(); }} />}
+        {photo && (
+          <div className="row" style={{ margin: "0 12px" }}>
+            <span className="photo-chip">📸 Photo ready: it goes with your next message (typed or spoken)</span>
+            <button type="button" className="link" onClick={() => { photoRef.current = null; setPhoto(null); }}>Remove</button>
+          </div>
+        )}
         <form className="composer" onSubmit={(e) => { e.preventDefault(); const t = draft; setDraft(""); send(t); }}>
           <label htmlFor="composer" className="sr-only">Message ULTRON</label>
           <textarea
@@ -523,7 +544,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
           {busy ? (
             <button type="button" className="btn btn--danger" onClick={stop}>■ Stop</button>
           ) : (
-            <button type="submit" className="btn btn--primary" disabled={!draft.trim()}>Send</button>
+            <button type="submit" className="btn btn--primary" disabled={!draft.trim() && !photo}>Send</button>
           )}
           <button
             type="button"
@@ -548,6 +569,9 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
             onClick={() => (hands.on ? hands.stop() : hands.start())}
           >
             🎧 {hands.on ? "Hands-free on" : "Hands-free"}
+          </button>
+          <button type="button" className="btn" onClick={() => setCamera(true)} disabled={busy} aria-label="Show ULTRON something with the camera" title="Show ULTRON something: take one photo for your next message">
+            📷
           </button>
         </form>
       </section>

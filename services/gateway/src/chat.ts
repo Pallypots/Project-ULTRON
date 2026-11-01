@@ -112,7 +112,7 @@ export async function handleUserMessage(
   deps: ChatDeps,
   conversationId: string,
   content: string,
-  opts: { deviceId?: string; inputMode?: Message["inputMode"]; continueFrom?: string; /** Typed or spoken at the PC itself (not a paired phone). */ fromPc?: boolean; signal: AbortSignal; emit: (e: ChatEvent) => void },
+  opts: { deviceId?: string; inputMode?: Message["inputMode"]; continueFrom?: string; /** Typed or spoken at the PC itself (not a paired phone). */ fromPc?: boolean; /** A camera photo for this message (base64 JPEG). */ image?: string; signal: AbortSignal; emit: (e: ChatEvent) => void },
 ): Promise<void> {
   const { stores, emit } = { ...deps, emit: opts.emit };
   const settings = readProviderSettings(stores.preferences);
@@ -407,6 +407,29 @@ export async function handleUserMessage(
     }
   }
 
+  // A camera photo the owner just took ("what's this?"): attached to this message for the brain only, never stored.
+  if (opts.image && !opts.continueFrom) {
+    const seeing = await canSee(provider as Parameters<typeof canSee>[0]);
+    if (!seeing.ok) {
+      emit({ type: "delta", text: seeing.why });
+      return finish(seeing.why, "complete");
+    }
+    const last = turns.at(-1);
+    if (last?.role === "user") turns[turns.length - 1] = { ...last, images: [opts.image] };
+    const local = provider.id === "ollama" || provider.id === "mock";
+    const exec = stores.actions.create({
+      conversationId,
+      tool: "look_through_camera",
+      input: {},
+      risk: 0,
+      requestedBy: "owner",
+      summary: local ? "Showed your camera photo to the local brain (stays on this PC, not saved)" : `Showed your camera photo to the cloud brain (${provider.id}); not saved by ULTRON`,
+      status: "succeeded",
+    });
+    stores.audit.record("camera.shared", "owner", exec.id, { provider: provider.id, kb: Math.round((opts.image.length * 3) / 4 / 1024) });
+    recordTool(toEvent(exec));
+  }
+
   // "Look at my screen": one screenshot, attached to this message for the brain only. Never stored, never taken unasked.
   if (wantsScreen(content) && !opts.continueFrom && opts.fromPc === false) {
     const t = "For privacy, I only look at the PC's screen when you ask on the PC itself.";
@@ -486,7 +509,7 @@ export async function handleUserMessage(
   // Did the brain see text from outside (email, web, files, clipboard, screen) this turn? Then actions need approval.
   // Approval continuations carry an action's result (often outside text); calendar titles and overheard speech are in the
   // system prompt; the clipboard and screen are outside text too.
-  let tainted = Boolean(opts.continueFrom) || wantsClipboard(content) || wantsScreen(content) || calendarInPrompt || Boolean(roomInPrompt?.length);
+  let tainted = Boolean(opts.continueFrom) || Boolean(opts.image) || wantsClipboard(content) || wantsScreen(content) || calendarInPrompt || Boolean(roomInPrompt?.length);
   try {
     // Model ↔ tools loop, bounded so a confused model can't spin (cost and safety cap).
     for (let round = 0; round <= MAX_TOOL_ROUNDS && !opts.signal.aborted; round++) {

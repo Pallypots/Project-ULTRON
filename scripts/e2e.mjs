@@ -586,6 +586,17 @@ try {
   await page.locator(".msg--user", { hasText: "**bold red**" }).waitFor();
   step("Replies show bold and code formatting; HTML in replies stays plain text");
 
+  // ---- Camera: one photo with the next message ----
+  await page.getByRole("button", { name: "Show ULTRON something with the camera" }).click();
+  await page.locator("video.camera__video").waitFor();
+  await page.waitForFunction(() => (document.querySelector("video.camera__video")?.videoWidth ?? 0) > 0);
+  await page.getByRole("button", { name: "📸 Take photo" }).click();
+  await page.getByText("Photo ready: it goes with your next message").waitFor();
+  await page.getByLabel("Message ULTRON").fill("format test what is this");
+  await page.getByLabel("Message ULTRON").press("Enter");
+  await page.locator(".tool", { hasText: "Showed your camera photo" }).waitFor();
+  step("Camera: one photo taken on request goes with the next message (not saved)");
+
   // ---- Web search: the free SearXNG option checks the address before saving ----
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByLabel("SearXNG address").fill("http://127.0.0.1:9");
@@ -619,7 +630,7 @@ try {
   await page.getByLabel("Type to ULTRON").fill("open notepad");
   await page.getByLabel("Type to ULTRON").press("Enter");
   await council.locator(".council__pending").getByRole("button", { name: "Approve" }).click();
-  await council.locator(".council__activity", { hasText: "✓" }).waitFor();
+  await council.locator(".council__pending").waitFor({ state: "detached" }); // approved: the card goes away
   await page.getByLabel("Type to ULTRON").press("Escape"); // closes the typing box
   await page.keyboard.press("Escape"); // leaves Council
   await council.waitFor({ state: "detached" });

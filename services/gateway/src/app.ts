@@ -501,7 +501,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     return { content: last.content, inputMode: last.inputMode };
   });
 
-  app.post<{ Params: { id: string } }>("/api/conversations/:id/messages", async (req, reply) => {
+  app.post<{ Params: { id: string } }>("/api/conversations/:id/messages", { bodyLimit: 3_000_000 }, async (req, reply) => {
     const body = SendMessage.parse(req.body);
     if (!stores.conversations.get(req.params.id)) return reply.code(404).send({ error: "not_found", message: "Conversation not found." });
     const ctl = streams.start(req.params.id);
@@ -519,7 +519,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     try {
       greeter.cancel();
       summarizer.cancel();
-      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, continueFrom: body.continueFrom, fromPc: !remote.isRemote(req), signal: ctl.signal, emit });
+      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, continueFrom: body.continueFrom, image: body.image, fromPc: !remote.isRemote(req), signal: ctl.signal, emit });
     } catch (err) {
       app.log.error(err);
       emit({ type: "error", code: "internal", message: "ULTRON hit an internal error. Details are in the log." });

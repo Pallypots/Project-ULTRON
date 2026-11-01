@@ -7,6 +7,12 @@ memory use live. Around it: the AI core status, a system monitor (CPU, RAM, disk
 (set it in Settings → Personality), a live feed of anything that needs you (approvals, reminders, connected accounts), and
 today's calendar and to-dos.
 
+## Show ULTRON something (camera)
+In Chat, press **📷**, point the camera and press **Take photo**. The photo goes with your next message, typed or
+spoken: "what's this?", "what plant is this?", "is this ripe?". In Council mode, press **📷 Show him something**,
+then just ask. The camera turns off straight after, and the photo isn't saved anywhere. Your brain needs to be able to
+see images (cloud brains can; for Local AI pick a vision model such as gemma3:4b).
+
 ## Not sure what to say?
 Open **Skills** in the left menu. It lists everything ULTRON can do, grouped (your day, smart home, your PC, research,
 notes…), with example phrases. Click one to try it.

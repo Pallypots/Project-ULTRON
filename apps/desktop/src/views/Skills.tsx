@@ -7,7 +7,7 @@ const SKILLS: { title: string; icon: string; say: string[]; note?: string }[] = 
   { title: "Your PC", icon: "🖥", say: ["Pause the music", "Turn it up a bit", "Open notepad", "How's my PC doing?", "Look at my screen and tell me what you see", "Lock my PC"] },
   { title: "Knowledge and research", icon: "🔎", say: ["Research how solid-state batteries work", "Search the web for today's tech news", "Who was Ada Lovelace?", "Define serendipity", "What time is it in Tokyo?"] },
   { title: "Quick maths and conversions", icon: "🧮", say: ["What's 15% of 84.50?", "Convert 5 miles to km", "$50 in euros", "How many cups in a litre?"] },
-  { title: "Your stuff", icon: "📁", say: ["Summarise what I copied", "Pull up my CV", "What did we talk about yesterday?", "What do you know about me?"], note: "Files only from folders you approved (Files page)." },
+  { title: "Your stuff", icon: "📁", say: ["What's this? (press 📷 first)", "Summarise what I copied", "Pull up my CV", "What did we talk about yesterday?", "What do you know about me?"], note: "Files only from folders you approved (Files page)." },
   { title: "Keep an eye on things", icon: "👁", say: ["Tell me when example.com/deal says in stock", "What pages are you watching?"] },
   { title: "Routines", icon: "⚡", say: ["Good night"], note: "Make your own in Settings → Routines: one phrase, several steps." },
   { title: "Memory", icon: "▣", say: ["Remember that my sister's birthday is March 3rd", "Forget my sister's birthday"], note: "Everything ULTRON remembers is in the Memory Vault, where you can edit or delete it." },
