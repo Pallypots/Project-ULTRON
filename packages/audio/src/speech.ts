@@ -47,16 +47,18 @@ export class SentenceSplitter {
       const candidate = this.buf.slice(start, end).trim();
       const lastWord = candidate.split(/\s+/).pop() ?? "";
       if (/^(e\.g|i\.e|etc|mr|mrs|ms|dr|vs|st|no)\.$/i.test(lastWord)) continue;
-      if (candidate.length < this.minChars && m[1] !== "\n") continue;
+      // The very first sentence may be short ("Sure thing."): get it out at once; later ones are merged for rhythm.
+      if (candidate.length < (this.spoken === 0 && !out.length ? 8 : this.minChars) && m[1] !== "\n") continue;
       if (candidate) out.push(candidate);
       start = end + m[2]!.length;
     }
     this.buf = this.buf.slice(start);
     // Talk sooner: if the very first sentence is long, start speaking at its first natural pause (a comma, colon or
     // dash after a few words) instead of waiting for the full stop. Later sentences keep their natural rhythm.
-    if (!out.length && this.spoken === 0 && this.buf.length >= 70) {
-      const pause = /^(.{35,}?[,;:—–])\s+/s.exec(this.buf);
-      if (pause && !/\d[,.]$/.test(pause[1]!)) {
+    if (!out.length && this.spoken === 0) {
+      // First natural pause after at least three words and 15 characters (the moment it's known to be a pause).
+      const pause = /^((?:\S+\s+){2,}?\S*[,;:—–])\s+/s.exec(this.buf);
+      if (pause && pause[1]!.length >= 15 && !/\d[,.]$/.test(pause[1]!)) {
         out.push(pause[1]!.trim());
         this.buf = this.buf.slice(pause[0].length);
       }

@@ -38,3 +38,30 @@ describe("model host process (speech models run outside the service)", () => {
     }
   }, 30_000);
 });
+
+describe("cancelling work nobody wants any more (interrupting ULTRON)", () => {
+  it("drops queued requests whose caller gave up, so they never reach the model", async () => {
+    const p = new ModelProcess("voice");
+    try {
+      // Positive control: nothing cancelled, so all four run, one after another.
+      const t0 = Date.now();
+      const all = await Promise.all([1, 2, 3, 4].map(() => p.request<{ waited: number }>({ kind: "test.wait", ms: 150 }, 30_000)));
+      expect(all.map((r) => r.waited)).toEqual([150, 150, 150, 150]);
+      expect(Date.now() - t0).toBeGreaterThanOrEqual(550);
+      // Cancel: the first is already running; the three waiting behind it belong to an interrupted reply.
+      const stop = new AbortController();
+      const t1 = Date.now();
+      const first = p.request({ kind: "test.wait", ms: 300 }, 30_000);
+      const rest = [1, 2, 3].map(() => p.request({ kind: "test.wait", ms: 300 }, 30_000, stop.signal).then(() => "ran", (e: Error) => e.name));
+      expect(p.waiting).toBe(3);
+      stop.abort();
+      await first;
+      expect(await Promise.all(rest)).toEqual(["AbortError", "AbortError", "AbortError"]);
+      expect(Date.now() - t1).toBeLessThan(900); // only the one already running took time
+      // And the model is free straight away for the next reply.
+      await expect(p.request({ kind: "test.wait", ms: 10 }, 30_000)).resolves.toEqual({ waited: 10 });
+    } finally {
+      p.stop();
+    }
+  }, 60_000);
+});

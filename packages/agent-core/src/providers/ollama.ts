@@ -121,6 +121,7 @@ export class OllamaProvider implements ModelProvider {
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let buf = "";
     let inThinkTag = false;
+    let carry = "";
     for (;;) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -130,7 +131,12 @@ export class OllamaProvider implements ModelProvider {
         const line = buf.slice(0, nl).trim();
         buf = buf.slice(nl + 1);
         if (!line) continue;
-        const chunk = JSON.parse(line) as ChatChunk;
+        let chunk: ChatChunk;
+        try {
+          chunk = JSON.parse(line) as ChatChunk;
+        } catch {
+          continue; // one garbled line shouldn't end the whole reply
+        }
         if (chunk.error) throw new ProviderError(`Local AI error: ${chunk.error}`, "unavailable");
         for (const tc of chunk.message?.tool_calls ?? []) {
           const name = tc.function?.name;
@@ -144,9 +150,16 @@ export class OllamaProvider implements ModelProvider {
           }
           yield { type: "tool_call", call: { id: newToolCallId(), name, args } };
         }
-        let text = chunk.message?.content ?? "";
-        // Some model templates inline their reasoning as <think>…</think>; never speak it.
+        // Some model templates inline their reasoning as <think>…</think>; never speak it. A tag can arrive split
+        // across chunks ("<thi" + "nk>"), so a possible partial tag at the end is held back until the next chunk.
+        let text = carry + (chunk.message?.content ?? "");
+        carry = "";
         if (text) {
+          const partial = /<\/?t?h?i?n?k?$/.exec(text);
+          if (partial && partial[0].length > 0 && !chunk.done) {
+            carry = partial[0];
+            text = text.slice(0, -carry.length);
+          }
           let out = "";
           for (const part of text.split(/(<\/?think>)/)) {
             if (part === "<think>") inThinkTag = true;

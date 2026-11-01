@@ -20,7 +20,7 @@ interface UiMessage extends Message {
   notice?: string;
 }
 
-const FILLER_AFTER_MS = 2500;
+const FILLER_AFTER_MS = 1200;
 const FILLERS = ["Hmm, let me think.", "Give me a second.", "Thinking.", "Good question. One moment.", "Let me see.", "Mm, working on it."];
 let lastFiller = -1;
 /** A short spoken "thinking" sound, never the same one twice in a row. */

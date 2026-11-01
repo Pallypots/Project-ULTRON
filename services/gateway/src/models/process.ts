@@ -55,20 +55,59 @@ export class ModelProcess {
   }
 
   private stopping = false;
+  /** Requests wait here and go to the model one at a time, so a request nobody wants any more can be dropped unsent. */
+  private queue: { msg: Record<string, unknown>; timeoutMs: number; signal?: AbortSignal; resolve: (v: any) => void; reject: (e: Error) => void }[] = [];
+  private inFlight = false;
 
-  request<T>(msg: Record<string, unknown>, timeoutMs: number): Promise<T> {
+  request<T>(msg: Record<string, unknown>, timeoutMs: number, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted) return Promise.reject(Object.assign(new Error(`${this.name}: cancelled`), { name: "AbortError" }));
+    return new Promise<T>((resolve, reject) => {
+      this.queue.push({ msg, timeoutMs, signal, resolve, reject });
+      this.pump();
+    });
+  }
+
+  /** How many requests are waiting (not yet sent to the model). */
+  get waiting() {
+    return this.queue.length;
+  }
+
+  private pump() {
+    if (this.inFlight) return;
+    let next = this.queue.shift();
+    // Drop anything cancelled while it waited (e.g. speech for a reply the owner interrupted).
+    while (next?.signal?.aborted) {
+      next.reject(Object.assign(new Error(`${this.name}: cancelled`), { name: "AbortError" }));
+      next = this.queue.shift();
+    }
+    if (!next) return;
+    const job = next;
+    this.inFlight = true;
     const child = this.start();
     const id = ++this.seq;
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error(`${this.name} took too long`));
-        // A stuck model is restarted rather than left blocking everything behind it.
-        this.kill();
-      }, timeoutMs);
-      this.pending.set(id, { resolve, reject, timer });
-      child.send({ ...msg, id });
+    const done = () => {
+      this.inFlight = false;
+      queueMicrotask(() => this.pump());
+    };
+    const timer = setTimeout(() => {
+      this.pending.delete(id);
+      job.reject(new Error(`${this.name} took too long`));
+      done();
+      // A stuck model is restarted rather than left blocking everything behind it.
+      this.kill();
+    }, job.timeoutMs);
+    this.pending.set(id, {
+      resolve: (v) => {
+        job.resolve(v);
+        done();
+      },
+      reject: (e) => {
+        job.reject(e);
+        done();
+      },
+      timer,
     });
+    child.send({ ...job.msg, id });
   }
 
   kill() {
@@ -80,12 +119,15 @@ export class ModelProcess {
       p.reject(new Error(`${this.name} was restarted`));
     }
     this.pending.clear();
+    this.inFlight = false;
     this.onCrash?.(`${this.name} was restarted`);
     c.kill();
+    queueMicrotask(() => this.pump());
   }
 
   stop() {
     this.stopping = true;
+    for (const q of this.queue.splice(0)) q.reject(new Error(`${this.name} stopped`));
     this.child?.kill();
     this.child = null;
   }

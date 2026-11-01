@@ -93,6 +93,8 @@ export class Summarizer {
       }
     } catch {
       return null;
+    } finally {
+      this.deps.afterBackgroundModelUse?.();
     }
     if (signal.aborted) return null;
     text = text.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/[*_#`]/g, "").replace(/\s+/g, " ").trim();

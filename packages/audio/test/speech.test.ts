@@ -46,3 +46,18 @@ describe("toSpeakable: symbols said as words", () => {
     expect(toSpeakable("Set to 21°.")).toBe("Set to 21 degrees.");
   });
 });
+
+describe("SentenceSplitter: starts speaking as early as is natural (Phase 1.6)", () => {
+  it("speaks a short opening sentence or the first natural pause straight away", () => {
+    expect(new SentenceSplitter().push("Sure thing. Let me")).toEqual(["Sure thing."]);
+    expect(new SentenceSplitter().push("Right, so the forecast for tomorrow, as far")).toEqual(["Right, so the forecast for tomorrow,"]);
+  });
+  it("doesn't cut after just one or two words, or inside a number", () => {
+    expect(new SentenceSplitter().push("Well, ok then let")).toEqual([]);
+    expect(new SentenceSplitter().push("It costs 1,299 pounds and")).toEqual([]);
+    // After the first chunk, short sentences are merged again (natural rhythm).
+    const s = new SentenceSplitter();
+    s.push("Sure thing. ");
+    expect(s.push("Okay. And then we")).toEqual([]);
+  });
+});

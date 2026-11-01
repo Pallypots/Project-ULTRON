@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.27.0 · 2026-11-02 · Faster replies (Phase 0 and Phase 1 of the speed roadmap)
+- **Settings → Performance** shows where each reply's time goes on your PC: understanding your speech, the brain
+  reading the conversation, first word, first sound. It also says plainly whether the brain is using your graphics
+  card.
+- **The local brain no longer re-reads everything every turn.** Its instructions and tools stay identical from turn
+  to turn, so Ollama reuses what it already read. The changing bits (time, memories, agenda) ride on your latest
+  message. It stays loaded, and it pre-reads its instructions at start-up, so the first reply is quick too.
+- **Long conversations aren't silently cut** any more: one fixed context size, and history trimmed in a cache-friendly
+  way.
+- **Speaking starts sooner:** at the first natural pause, or straight away for a short opener like "Sure thing." A
+  filler ("Let me see…") plays after 1.2 s of silence instead of 2.5 s.
+- **Interrupting really stops the work:** speech for a reply you cut off is dropped instead of generated.
+- **Hands-free:** waits less after you trail off (0.9 s instead of 2.2 s), keeps what you say while it's still
+  recognising the previous phrase, and recognises short phrases in one pass.
+- Calendar lookups run alongside memory recall instead of after it. Background jobs re-prepare the brain afterwards.
+  The stream from the brain survives garbled lines and split "thinking" tags.
+
 ## 0.26.0 · 2026-11-01 · Hands-free that stays up; always the newest copy; security updates
 - **Hands-free no longer knocks ULTRON offline:** speech recognition and the voice now run in their own background
   processes. The service that answers the app stays responsive while they work, and if a speech model crashes or runs

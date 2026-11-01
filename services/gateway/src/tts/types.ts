@@ -20,13 +20,14 @@ export interface TtsEngine {
   status(): TtsStatus;
   prepare(): Promise<void>;
   /** Returns mono float samples and their sample rate. */
-  synthesize(text: string, voice: string, speed: number): Promise<{ samples: Float32Array; sampleRate: number }>;
+  /** `signal`: the request was abandoned (the owner interrupted); drop it if it hasn't started. */
+  synthesize(text: string, voice: string, speed: number, signal?: AbortSignal): Promise<{ samples: Float32Array; sampleRate: number }>;
 }
 
 export class TtsError extends Error {
   constructor(
     message: string,
-    readonly code: "unavailable" | "failed" | "bad_request",
+    readonly code: "unavailable" | "failed" | "bad_request" | "cancelled",
   ) {
     super(message);
   }

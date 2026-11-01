@@ -21,7 +21,7 @@ const MAX_SEC = 10;
 const MIN_SEC = 0.4;
 const AWAKE_MS = 8000; // after just "Ultron", the next phrase is the command
 const FOLLOW_MS = 15_000;
-const HOLD_MS = 2200; // you trailed off ("and, um…"): wait this long for the rest before answering
+const HOLD_MS = 900; // you trailed off ("and, um…"): wait this long for the rest before answering
 const BARGE_FRAMES = 15; // 300 ms of clearly loud speech while ULTRON talks counts as interrupting
 const BARGE_GRACE_MS = 2000; // after an interruption, keep listening while the reply is being cancelled // conversation mode: how long ULTRON waits for your reply after answering
 
@@ -55,6 +55,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     openMic: false,
     /** The first part of something you were still saying, waiting for the rest. */
     pending: "",
+    /** A phrase you finished while the previous one was still being recognised. */
+    backlog: null as Float32Array[] | null,
     holdTimer: 0 as ReturnType<typeof setTimeout> | 0,
     followTimer: 0 as ReturnType<typeof setTimeout> | 0,
     speaking: false,
@@ -136,6 +138,12 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       setError((err as Error).message);
     } finally {
       st.busy = false;
+      if (sent) st.backlog = null; // a command just went to ULTRON; the reply comes next
+      if (st.backlog && st.on) {
+        st.phrase = st.backlog;
+        st.backlog = null;
+        queueMicrotask(() => void finishPhraseRef.current?.());
+      }
       if (sent || !st.on) {
         // The reply is coming; the pause/unpause cycle around it opens the follow-up window.
       } else {
@@ -145,6 +153,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     }
   }, [onCommand]);
 
+  const finishPhraseRef = useRef<(() => Promise<void>) | null>(null);
+  finishPhraseRef.current = finishPhrase;
   const onFrame = useCallback(
     (f: Float32Array) => {
       const st = r.current;
@@ -174,9 +184,10 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
         } else st.bargeAbove = 0;
         return;
       }
-      // Ignore everything while ULTRON is talking/thinking or a phrase is being checked (no self-triggering).
+      // Ignore everything while ULTRON is talking/thinking (no self-triggering). While a phrase is still being
+      // recognised, keep listening: what you say meanwhile is kept and checked next, not thrown away.
       // (A phrase starting in the follow-up window counts even if the window ends while you're still talking.)
-      if ((st.paused && !barging) || st.busy) {
+      if (st.paused && !barging) {
         st.inPhrase = false;
         st.phrase = [];
         st.above = 0;
@@ -202,7 +213,14 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       }
       st.phrase.push(f);
       st.below = rms > threshold ? 0 : st.below + 1;
-      if (st.below >= END_FRAMES || st.phrase.length * FRAME_SEC >= MAX_SEC) finishPhrase();
+      if (st.below >= END_FRAMES || st.phrase.length * FRAME_SEC >= MAX_SEC) {
+        if (st.busy) {
+          // The previous phrase is still being recognised: queue this one (the newest wins).
+          st.backlog = st.phrase;
+          st.phrase = [];
+          st.inPhrase = false;
+        } else finishPhrase();
+      }
     },
     [finishPhrase],
   );
@@ -214,6 +232,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     st.conversing = false;
     st.openMic = false;
     st.pending = "";
+    st.backlog = null;
     if (st.holdTimer) clearTimeout(st.holdTimer);
     if (st.followTimer) clearTimeout(st.followTimer);
     st.stream?.getTracks().forEach((t) => t.stop());

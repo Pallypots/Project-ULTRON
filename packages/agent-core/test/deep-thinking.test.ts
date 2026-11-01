@@ -43,3 +43,32 @@ describe("warming up the local brain", () => {
     expect(calls[1]!.body.tools).toHaveLength(1);
   });
 });
+
+describe("robust streaming from the local brain (Phase 1.13)", () => {
+  const streamOf = (lines: string[]) =>
+    (async () =>
+      new Response(
+        new ReadableStream({
+          start(c) {
+            for (const l of lines) c.enqueue(new TextEncoder().encode(l + "\n"));
+            c.close();
+          },
+        }),
+        { status: 200 },
+      )) as unknown as typeof fetch;
+  const say = async (lines: string[]) => {
+    const p = new OllamaProvider({ model: "gemma4:e2b", baseUrl: "http://ollama.test", fetchImpl: streamOf(lines) });
+    let out = "";
+    for await (const t of p.stream({ system: "s", messages: [{ role: "user", content: "hi" }], memories: [] })) out += t;
+    return out;
+  };
+  const piece = (content: string, done = false) => JSON.stringify({ message: { content }, done });
+  it("survives a garbled line and hides thinking even when its tag arrives split in two", async () => {
+    const out = await say([piece("Hello <thi"), "{not json", piece("nk>secret plan</th"), piece("ink> world."), piece("", true)]);
+    expect(out).toBe("Hello  world.");
+    expect(out).not.toContain("secret");
+  });
+  it("leaves ordinary text with a '<' alone", async () => {
+    expect(await say([piece("If a <"), piece(" b then"), piece(" stop.", true)])).toBe("If a < b then stop.");
+  });
+});

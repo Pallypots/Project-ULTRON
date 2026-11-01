@@ -17,7 +17,7 @@ import { MorningCheckIn } from "./checkin.ts";
 import { loadRoutines, Routine, ROUTINE_EXAMPLES } from "./routines.ts";
 import { braveSearch, SEARCH_SECRET, SEARXNG_PREF, searxngBase, searxngSearch } from "./actions/knowledge.ts";
 import { currentCapabilities } from "./capabilities.ts";
-import { ActiveStreams, handleUserMessage, stablePrefix } from "./chat.ts";
+import { ActiveStreams, handleUserMessage, stablePrefix, type ChatDeps } from "./chat.ts";
 import { loadConfig, type GatewayConfig, REPO_ROOT } from "./config.ts";
 import { isLocalProvider, readProviderSettings, resolveProvider, saveProviderSettings, SECRET_FOR } from "./providers.ts";
 import { detectHardware } from "./local-ai/hardware.ts";
@@ -47,7 +47,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.26.0";
+export const VERSION = "0.27.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -149,19 +149,21 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   watchers.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
   const perf = new PerfLog(config.dataDir);
-  const deps = { files, similarFiles: (q: string) => embeddings.similarFiles(q), room, calendar, home, perf, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+  const deps: ChatDeps = { files, similarFiles: (q: string) => embeddings.similarFiles(q), room, calendar, home, perf, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
   // Pre-load the local brain when the owner opens ULTRON (at most every 5 minutes), so the first answer is quick.
   let warmedAt = 0;
-  const warmBrain = () => {
-    if (Date.now() - warmedAt < 5 * 60_000) return;
+  const warmBrain = (force = false) => {
+    if (!force && Date.now() - warmedAt < 5 * 60_000) return;
     const r = resolveProvider(settings(), secrets, 0);
     if (!r.ok || r.provider.id !== "ollama") return;
     warmedAt = Date.now();
     // Load the model AND read the real instructions + tools once, so the first reply doesn't pay for either.
     void (r.provider as unknown as { warm(p?: unknown): Promise<void> }).warm(stablePrefix(deps) ?? undefined);
   };
+  // After a background job used the brain with other instructions, read the real ones again (not while replying).
+  deps.afterBackgroundModelUse = () => setTimeout(() => streams.size === 0 && warmBrain(true), 200).unref?.();
   const summarizer = new Summarizer(deps, () => streams.size > 0);
   summarizer.start();
   // What's new since the version the owner last saw (from CHANGELOG.md), shown once on Home after an update.
@@ -658,8 +660,13 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const text = toSpeakable(body.text);
     if (!text) return reply.code(204).send();
     const s = tts.settings();
+    // If the app stops waiting (the owner interrupted), speech that hasn't started yet is dropped instead of generated.
+    const gone = new AbortController();
+    reply.raw.on("close", () => {
+      if (!reply.raw.writableFinished) gone.abort();
+    });
     try {
-      const { samples, sampleRate } = await engine.synthesize(text, body.voice ?? s.voice, body.speed ?? s.speed);
+      const { samples, sampleRate } = await engine.synthesize(text, body.voice ?? s.voice, body.speed ?? s.speed, gone.signal);
       reply.header("content-type", "audio/wav").header("cache-control", "no-store");
       return reply.send(Buffer.from(encodeWav(samples, sampleRate)));
     } catch (err) {

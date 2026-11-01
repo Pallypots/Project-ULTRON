@@ -72,15 +72,16 @@ export class KokoroEngine implements TtsEngine {
     return this.loading;
   }
 
-  async synthesize(text: string, voice: string, speed: number) {
+  async synthesize(text: string, voice: string, speed: number, signal?: AbortSignal) {
     await this.load();
     const v = KOKORO_VOICES.some((x) => x.id === voice) ? voice : "bm_george";
     for (let attempt = 0; ; attempt++) {
       if (attempt) await this.load();
       try {
-        const out = await this.host.request<{ audio: Float32Array; rate: number }>({ kind: "tts.run", text, voice: v, speed }, 120_000);
+        const out = await this.host.request<{ audio: Float32Array; rate: number }>({ kind: "tts.run", text, voice: v, speed }, 120_000, signal);
         return { samples: out.audio, sampleRate: out.rate };
       } catch (err) {
+        if ((err as Error).name === "AbortError") throw new TtsError("cancelled", "cancelled");
         if (attempt === 0 && isRestart(err)) continue; // the voice process died: restart it and say it once more
         throw new TtsError(`Speech generation failed: ${(err as Error).message}`, "failed");
       }

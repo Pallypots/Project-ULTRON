@@ -69,9 +69,13 @@ export class Greeter {
       });
       this.abort = new AbortController();
       const signal = AbortSignal.any([this.abort.signal, AbortSignal.timeout(180_000)]);
-      for await (const t of resolution.provider.stream({ system, messages: [{ role: "user", content: INSTRUCTION }], memories: [], capabilities: [], signal })) {
-        text += t;
-        if (text.length > 600) break;
+      try {
+        for await (const t of resolution.provider.stream({ system, messages: [{ role: "user", content: INSTRUCTION }], memories: [], capabilities: [], signal })) {
+          text += t;
+          if (text.length > 600) break;
+        }
+      } finally {
+        this.deps.afterBackgroundModelUse?.();
       }
       if (signal.aborted) return null;
       text = text.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/[*_#`]/g, "").trim();

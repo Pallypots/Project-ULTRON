@@ -43,6 +43,8 @@ export interface ChatDeps {
   calendar?: CalendarService;
   home?: HomeService;
   perf?: PerfLog;
+  /** Background jobs (greeting, notes) used the brain with other instructions: re-read the real ones so the next reply is quick. */
+  afterBackgroundModelUse?: () => void;
   dataDir?: string;
   files?: FileService;
   similarFiles?: (q: string) => Promise<FileHit[]>;

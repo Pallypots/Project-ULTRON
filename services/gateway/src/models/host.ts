@@ -9,7 +9,8 @@ type Req =
   | { id: number; kind: "stt.load"; model: string; cacheDir: string }
   | { id: number; kind: "stt.run"; samples: Float32Array }
   | { id: number; kind: "tts.load"; dtype: string; model: string; cacheDir: string }
-  | { id: number; kind: "tts.run"; text: string; voice: string; speed: number };
+  | { id: number; kind: "tts.run"; text: string; voice: string; speed: number }
+  | { id: number; kind: "test.wait"; ms: number }; // stands in for slow model work in tests
 
 let stt: ((a: Float32Array, o: Record<string, unknown>) => Promise<{ text: string } | { text: string }[]>) | null = null;
 let tts: { generate(text: string, o: { voice: string; speed: number }): Promise<{ audio: Float32Array; sampling_rate: number }> } | null = null;
@@ -36,7 +37,8 @@ async function handle(m: Req): Promise<unknown> {
     }
     case "stt.run": {
       if (!stt) throw new Error("speech model not loaded");
-      const out = await stt(m.samples, { chunk_length_s: 30, stride_length_s: 5 });
+      // Long-audio chunking only for long recordings; a short phrase is recognised in one pass.
+      const out = await stt(m.samples, m.samples.length > 16000 * 28 ? { chunk_length_s: 30, stride_length_s: 5 } : {});
       return { text: (Array.isArray(out) ? out.map((o) => o.text).join(" ") : out.text).trim() };
     }
     case "tts.load": {
@@ -47,6 +49,9 @@ async function handle(m: Req): Promise<unknown> {
       tts = (await KokoroTTS.from_pretrained(m.model, { dtype: m.dtype as "fp16", device: "cpu", progress_callback: progress("tts") as never })) as never;
       return { ok: true };
     }
+    case "test.wait":
+      await new Promise((r) => setTimeout(r, m.ms));
+      return { waited: m.ms };
     case "tts.run": {
       if (!tts) throw new Error("voice not loaded");
       const out = await tts.generate(m.text, { voice: m.voice, speed: m.speed });
