@@ -26,6 +26,11 @@ Ask "any new emails?", "check my email", "read the one from Mum", "did Amazon em
 inbox read-only: it never sends, deletes, moves or marks anything as read. Emails are treated as untrusted, so
 instructions inside an email are ignored.
 
+## News
+"What's the news?", "tech news", "world news", "business news", "sport news", "read me the headlines". The headlines
+come from BBC News's free public feeds, with no account needed. The morning briefing includes the top three. Ask about
+any story for more (with web search set up, ULTRON can look into it).
+
 ## Notes
 "Take a note: the spare key is under the blue pot", "jot down buy a new kettle", "note that the meeting moved to Friday".
 These are saved instantly. "Read my notes" or "what did I note about the key?" finds them. All notes are on the

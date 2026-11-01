@@ -715,6 +715,13 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
         ? `I'll keep an eye on ${r.data.watching} and tell you when it says "${q.lookFor}". I check every ${r.data.every_minutes} minutes while I'm running.`
         : `I'll keep an eye on ${r.data.watching} and tell you when it changes. I check every ${r.data.every_minutes} minutes while I'm running.`;
     }
+    case "news": {
+      const r = await run("get_news", { topic: q.topic });
+      if (r.status !== "succeeded") return failed(r);
+      const items: { untrusted_title: string }[] = r.data?.headlines ?? [];
+      if (!items.length) return "The news feed came back empty. Either nothing happened, or something very big did.";
+      return `${q.topic === "top" ? "Top stories" : `${q.topic[0]!.toUpperCase()}${q.topic.slice(1)} news`} (BBC News):\n${items.slice(0, 6).map((h) => `• ${h.untrusted_title}`).join("\n")}\nWant more on any of them?`;
+    }
     case "check_email": {
       const r = await run("check_email", { unread_only: true, days: 3 });
       if (r.status !== "succeeded") return failed(r);

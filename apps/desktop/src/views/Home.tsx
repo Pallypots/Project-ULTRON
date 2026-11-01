@@ -104,7 +104,7 @@ export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }:
     { label: "WEATHER", title: "Weather", run: () => onAsk("What's the weather?") },
     { label: "AGENDA", title: "Today's calendar", run: () => onAsk("What's on my calendar today?") },
     { label: "TO-DO", title: "My to-do list", run: () => onAsk("What's on my list?") },
-    { label: "NEWS", title: "Catch me up", run: () => onAsk("Catch me up") },
+    { label: "NEWS", title: "News headlines", run: () => onAsk("What's the news?") },
     { label: "MEDIA", title: "Play or pause music", run: () => onAsk("pause") },
     { label: "SCREEN", title: "Look at my screen", run: () => onAsk("Look at my screen and tell me what you see") },
     { label: "SYSTEM", title: "How is my PC doing?", run: () => onAsk("How's my PC doing?") },

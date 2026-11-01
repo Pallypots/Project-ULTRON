@@ -17,6 +17,7 @@ export type QuickCommand =
   | { type: "lock_pc" }
   | { type: "watch"; url: string; lookFor: string | null }
   | { type: "check_email" }
+  | { type: "news"; topic: "top" | "world" | "uk" | "technology" | "business" | "science" | "health" | "entertainment" | "sport" }
   | { type: "add_note"; text: string }
   | { type: "list_notes"; query: string | null }
   | { type: "home"; action: "on" | "off" | "brightness" | "set_temperature"; target: string; value?: number };
@@ -72,6 +73,11 @@ export function detectQuickCommand(message: string): QuickCommand | null {
     return { type: "media", action: up ? "volume_up" : "volume_down", steps };
   }
 
+  const news = /^(?:what(?:'s| is) (?:the |in the )?(?:latest )?(?:(world|uk|tech(?:nology)?|business|science|health|entertainment|sports?) )?news(?: today)?|(?:the |today's |latest )?(?:(world|uk|tech(?:nology)?|business|science|health|entertainment|sports?) )?(?:news|headlines)(?: today)?|(?:any|anything) (?:in the )?news|read me the (?:news|headlines)|what(?:'s| is) happening in the world(?: today)?)$/i.exec(m);
+  if (news) {
+    const t = (news[1] ?? news[2] ?? "top").toLowerCase().replace(/^tech$/, "technology").replace(/^sports$/, "sport");
+    return { type: "news", topic: t as "top" };
+  }
   if (/^(?:(?:do i have |have i got |are there |got )?any (?:new |unread )?e-?mails?|check (?:my )?(?:e-?mails?|inbox|mail)|what(?:'s| is) (?:new )?in my inbox|(?:any|anything) new in my inbox|read (?:me )?my (?:new )?e-?mails?)$/i.test(m)) return { type: "check_email" };
 
   // Notes: "take a note: …", "jot down …", "note that …"; "read my notes", "what notes do I have about the boiler?"

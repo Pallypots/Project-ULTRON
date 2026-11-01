@@ -33,6 +33,13 @@ describe.skipIf(!enabled)("knowledge tools against the real services", () => {
     ciNote("Rain heads-up", `London: ${r!.rainingNow ? "raining now; " : ""}${r!.hours.map((h) => `${h.at.slice(11)} ${h.chance}%`).join(", ")}`);
   });
 
+  it("reads the BBC headlines", async () => {
+    const { headlines } = await import("../src/actions/news.ts");
+    const h = await headlines("top", 3);
+    expect(h.length).toBeGreaterThan(0);
+    ciNote("News", h.map((x) => x.title).join(" | "));
+  });
+
   it("reads a public web page", async () => {
     const page = await fetchPage("https://example.com/");
     note("Real web page", `${page.title}: ${page.text.slice(0, 100)}`);
