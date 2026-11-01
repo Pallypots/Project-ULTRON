@@ -91,6 +91,8 @@ export interface Status {
   providerProblem: string | null;
   activeReplies: number;
   counts: { conversations: number; memories: number };
+  /** Set when the installed Node.js has known security flaws. */
+  nodeSecurity?: string | null;
   persona: { name: string; wakeNames: string[]; salutation: string };
 }
 

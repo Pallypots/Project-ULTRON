@@ -1,7 +1,7 @@
 {
   "name": "ultron",
   "private": true,
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "ULTRON - private, persistent, voice-first personal AI assistant",
   "type": "module",
   "workspaces": [
@@ -10,7 +10,7 @@
     "apps/*"
   ],
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.23.4"
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
@@ -32,6 +32,8 @@
   "overrides": {
     "kokoro-js": {
       "@huggingface/transformers": "^4.3.2"
-    }
+    },
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
   }
 }

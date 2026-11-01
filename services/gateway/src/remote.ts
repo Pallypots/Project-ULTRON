@@ -24,7 +24,7 @@ export const hashToken = (t: string) => createHash("sha256").update(t).digest("h
 
 /** Changing keys, folders, connections, other devices or exporting everything stays on the PC itself. */
 export function isPcOnly(method: string, path: string): boolean {
-  if (/^\/api\/(remote|logs\/export|memories\/export)(\/|$)/.test(path)) return true;
+  if (/^\/api\/(remote|logs\/export|memories\/export|system\/identity)(\/|$)/.test(path)) return true;
   if (method === "GET" || method === "HEAD") return false;
   // Anything that adds credentials, widens access, sends audio to the cloud, or acts on the PC's screen stays on the PC.
   return /^\/api\/(settings\/(provider|search|checkin)|connectors\/github|files\/(folders|open)|system\/|local-ai\/(pull|use)|persona|calendar|home|email|voice\/(settings|tts\/settings|room)|routines)(\/|$)/.test(path);

@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -28,6 +29,7 @@ import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
 import { HudService } from "./hud.ts";
+import { nodeSecurity } from "./system/node-version.ts";
 import { setHomeStatus, setMailStatus } from "./capabilities.ts";
 import { setHomeForPreview } from "./actions/home.ts";
 import { MailError, MailService } from "./mail/imap.ts";
@@ -43,7 +45,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.25.0";
+export const VERSION = "0.26.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -189,7 +191,14 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   });
 
   // ---- public ----
+  // The install folder and a fingerprint of the code it started with let the launcher tell an older copy of ULTRON
+  // (another folder, or files updated since it started) from this one.
+  const codeStamp: string = await import(pathToFileURL(join(REPO_ROOT, "scripts/code-stamp.mjs")).href)
+    .then((m: { codeStamp: (w: string) => string }) => m.codeStamp("service"))
+    .catch(() => "unknown");
   app.get("/api/health", async () => ({ ok: true, name: "ULTRON", version: VERSION }));
+  // Needs the session key (only this PC can get it), so the install folder isn't public.
+  app.get("/api/system/identity", async () => ({ version: VERSION, root: REPO_ROOT, code: codeStamp }));
   app.get("/api/bootstrap", async (req, reply) => {
     // Phones never receive the PC's session key; they pair for a key of their own.
     if (!isLoopbackRequest(req) && remote.isRemote(req)) return reply.code(403).send({ error: "pair_required", message: "Pair this device with the code shown on your PC." });
@@ -391,6 +400,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       secretsProblem: secrets.problem,
       secretsProtection: secrets.protection,
       upcomingReminders: stores.reminders.upcoming().length,
+      nodeSecurity: nodeSecurity().message,
       counts: { conversations: stores.conversations.list().length, memories: stores.memories.list().length },
       persona: { name: persona.name, wakeNames: persona.wakeNames, salutation: persona.ownerSalutation },
     };
@@ -796,6 +806,13 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   // ---- Windows conveniences ----
   const shortcuts = new Shortcuts();
+  // Old shortcuts (from a previous download in another folder) would start the old ULTRON: point them here.
+  setTimeout(() => {
+    shortcuts
+      .repoint()
+      .then((fixed) => fixed.length && stores.audit.record("system.shortcuts_repointed", "system", null, { fixed }))
+      .catch(() => {});
+  }, 10_000).unref?.();
   app.get("/api/system/shortcuts", async () => shortcuts.state());
   app.post("/api/system/start-at-login", async (req, reply) => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);

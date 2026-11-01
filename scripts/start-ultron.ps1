@@ -37,7 +37,42 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-if (Healthy) { Say "ULTRON is already running. Opening it..."; OpenWindow; exit 0 }
+# Is a copy of ULTRON already running? Only reuse it if it's THIS folder's code, as it is now. An older copy (another
+# folder, e.g. the start-at-sign-in shortcut of a previous download, or files updated since it started) is stopped, so
+# you never end up looking at an old version.
+function StopRunning {
+  try {
+    $boot = Invoke-RestMethod "$url/api/bootstrap" -TimeoutSec 3
+    Invoke-RestMethod -Method Post "$url/api/system/quit" -Headers @{ Authorization = "Bearer $($boot.token)" } -ContentType "application/json" -Body "{}" -TimeoutSec 5 | Out-Null
+  } catch {}
+  for ($i = 0; $i -lt 20 -and (Healthy); $i++) { Start-Sleep -Milliseconds 500 }
+  if (Healthy) {
+    # Older versions have no Quit: stop whatever is listening on ULTRON's port.
+    try { Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } } catch {}
+    Start-Sleep -Seconds 1
+  }
+}
+# Security: Node.js versions before the October 2026 fixes have a remote-code-execution flaw. Warn (ULTRON still runs).
+$nodeCheck = (& node -e "const [a,b,c]=process.versions.node.split('.').map(Number);const m={22:[23,4],24:[22,1],26:[12,1]}[a];process.stdout.write(m&&(b>m[0]||(b===m[0]&&c>=m[1]))?'ok':process.versions.node)")
+if ($nodeCheck -ne "ok") {
+  Write-Host "  SECURITY: Node.js $nodeCheck has known security flaws. Please install the latest Node.js 22 LTS from https://nodejs.org" -ForegroundColor Yellow
+  if (-not $Background) { Start-Process "https://nodejs.org/en/download" }
+}
+
+if (Healthy) {
+  $running = $null
+  try {
+    $boot = Invoke-RestMethod "$url/api/bootstrap" -TimeoutSec 3
+    $running = Invoke-RestMethod "$url/api/system/identity" -Headers @{ Authorization = "Bearer $($boot.token)" } -TimeoutSec 3
+  } catch {}
+  $here = (Resolve-Path ".").Path.TrimEnd('\').ToLower()
+  $there = if ($running.root) { ([string]$running.root).TrimEnd('\').ToLower() } else { "" }
+  $codeNow = (& node scripts/code-stamp.mjs service)
+  if ($there -eq $here -and $running.code -eq $codeNow) { Say "ULTRON is already running. Opening it..."; OpenWindow; exit 0 }
+  if ($there -and $there -ne $here) { Say "An older copy of ULTRON is running (from $($running.root)). Switching to this one..." }
+  else { Say "ULTRON was updated since it started. Restarting it..." }
+  StopRunning
+}
 
 # Reinstall components when the component list changed (a new version was unpacked over an old one), rebuild the interface
 # when the version changed. Stale leftovers were a common cause of "ULTRON stopped".
@@ -49,12 +84,13 @@ if (-not (Test-Path $stamp) -or (Get-Content $stamp -Raw).Trim() -ne $lockHash) 
   Set-Content $stamp $lockHash
   Remove-Item "apps\desktop\dist" -Recurse -Force -ErrorAction SilentlyContinue
 }
-$version = (& node -p "require('./package.json').version")
-$built = "apps\desktop\dist\.ultron-version"
-if (-not (Test-Path "apps\desktop\dist\index.html") -or -not (Test-Path $built) -or (Get-Content $built -Raw).Trim() -ne $version) {
+# Rebuild the interface whenever its code changed (not just the version number).
+$uiStamp = (& node scripts/code-stamp.mjs ui)
+$built = "apps\desktop\dist\.ultron-build"
+if (-not (Test-Path "apps\desktop\dist\index.html") -or -not (Test-Path $built) -or (Get-Content $built -Raw).Trim() -ne $uiStamp) {
   Say "Building the interface..."
   if (Npm @("run", "build")) { Write-Host "  Building the interface failed (see above)." -ForegroundColor Yellow; exit 1 }
-  Set-Content $built $version
+  Set-Content $built $uiStamp
 }
 
 Say "Starting ULTRON..."

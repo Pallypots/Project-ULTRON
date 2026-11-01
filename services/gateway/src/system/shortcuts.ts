@@ -14,6 +14,7 @@ $s.WindowStyle = [int]$env:ULTRON_WINDOW
 $s.Description = 'ULTRON personal assistant'
 $s.Save()
 `;
+const TARGET = `[Console]::Out.Write((New-Object -ComObject WScript.Shell).CreateShortcut($env:ULTRON_LNK).TargetPath)`;
 const FOLDER = `[Console]::Out.Write([Environment]::GetFolderPath($env:ULTRON_FOLDER))`;
 
 export interface ShortcutState {
@@ -63,6 +64,26 @@ export class Shortcuts {
       ULTRON_ICON: join(REPO_ROOT, "apps/desktop/public/ultron.ico"),
       ULTRON_WINDOW: kind === "startup" ? "7" : "1",
     });
+  }
+
+  /**
+   * Shortcuts made by an older download point at that old folder, so signing in to Windows would start the OLD ULTRON.
+   * If an existing shortcut points somewhere else, point it at this copy.
+   */
+  async repoint(): Promise<string[]> {
+    if (!this.supported) return [];
+    const fixed: string[] = [];
+    const want = join(REPO_ROOT, "Start-ULTRON.bat").toLowerCase();
+    for (const kind of ["startup", "desktop"] as const) {
+      const lnk = await this.lnk(kind);
+      if (!existsSync(lnk)) continue;
+      const target = (await this.ps(TARGET, { ULTRON_LNK: lnk }).catch(() => "")).trim().toLowerCase();
+      if (target && target !== want) {
+        await this.create(kind);
+        fixed.push(kind);
+      }
+    }
+    return fixed;
   }
 
   async setStartAtLogin(enabled: boolean): Promise<ShortcutState> {

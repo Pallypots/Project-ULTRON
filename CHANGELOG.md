@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.26.0 · 2026-11-01 · Hands-free that stays up; always the newest copy; security updates
+- **Hands-free no longer knocks ULTRON offline:** speech recognition and the voice now run in their own background
+  processes. The service that answers the app stays responsive while they work, and if a speech model crashes or runs
+  out of memory, it restarts by itself while ULTRON stays online.
+- **Always the newest ULTRON:** if an older copy is already running (for example started at sign-in from a previous
+  download's folder) or the files changed since it started, the launcher replaces it instead of opening the old one.
+  Shortcuts pointing at an old folder are fixed automatically. The interface is rebuilt whenever its code changes. The
+  version is shown under "Online", and the app warns if the window is older than the service.
+- **Security:** dependencies updated (0 known vulnerabilities: undici 6.29.1, plus fixed glob and minimatch). Node.js
+  older than the October 2026 security release (22.23.4 / 24.22.1 / 26.12.1) is flagged by the launcher, by
+  `npm run doctor` and in the app.
+- **Tests:** a full hands-free conversation traced end to end with the real speech models, with positive and negative
+  controls; a parallelism/concurrency benchmark; launcher update-detection controls on real Windows.
+
 ## 0.25.0 · 2026-11-01 · Smart home and natural turn-taking
 - **Smart home:** connect Home Assistant (Connections → Smart home) and say "lights off", "dim the lights to 20%",
   "make the lights red", "set the heating to 21". Everyday devices respond instantly. Garage doors, blinds and scripts ask for approval.

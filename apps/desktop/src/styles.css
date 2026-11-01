@@ -81,7 +81,8 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
 .nav__item.is-active { color: var(--accent-strong); border-color: var(--line-strong); background: rgba(239, 43, 43, 0.1); box-shadow: inset 3px 0 0 var(--accent); }
 .nav__icon { width: 18px; text-align: center; }
 .nav__footer { margin-top: auto; display: grid; gap: 10px; }
-.main { overflow: auto; padding: 28px clamp(16px, 3vw, 40px); position: relative; outline: none; }
+.main { overflow: auto; padding: 28px clamp(16px, 3vw, 40px); position: relative; outline: none; display: flex; flex-direction: column; }
+.main > * { flex: 0 0 auto; }
 
 /* ---------- primitives ---------- */
 .btn {
@@ -203,7 +204,8 @@ textarea { resize: vertical; }
 .stats .stats__small { font-size: 0.95rem; font-weight: 500; word-break: break-all; }
 
 /* ---------- chat ---------- */
-.chat { display: grid; grid-template-columns: 260px 1fr; gap: 18px; height: calc(100vh - 56px); }
+/* Chat fills whatever height is left (banners above it never push the message box off screen). */
+.main > .chat { display: grid; grid-template-columns: 260px 1fr; gap: 18px; flex: 1 1 0; min-height: 420px; }
 .chat__list { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .chat__list ul { list-style: none; margin: 0; padding: 0; overflow: auto; display: grid; gap: 4px; align-content: start; }
 .chat__list li { display: flex; align-items: center; border-radius: 10px; border: 1px solid transparent; }
@@ -279,7 +281,7 @@ textarea { resize: vertical; }
   .nav__footer { margin: 0 0 0 auto; display: flex; }
   .nav__footer .btn { width: auto; }
   .grid, .chat { grid-template-columns: 1fr; }
-  .chat { height: auto; }
+  .main > .chat { flex: 0 0 auto; height: auto; grid-template-columns: 1fr; }
   .chat__list ul { max-height: 160px; }
   .chat__main { min-height: 70vh; }
   .home__hero { justify-content: center; text-align: center; }

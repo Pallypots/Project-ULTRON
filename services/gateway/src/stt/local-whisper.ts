@@ -1,9 +1,7 @@
-import { mkdirSync } from "node:fs";
+import { ModelProcess } from "../models/process.ts";
 import { SttError, type SttEngine, type SttStatus } from "./types.ts";
 
 export const DEFAULT_LOCAL_MODEL = "Xenova/whisper-base.en";
-
-type Transcriber = (audio: Float32Array, opts: Record<string, unknown>) => Promise<{ text: string } | { text: string }[]>;
 
 /**
  * Whisper running on this computer via transformers.js (ONNX Runtime). Audio never leaves the PC.
@@ -12,15 +10,23 @@ type Transcriber = (audio: Float32Array, opts: Record<string, unknown>) => Promi
 export class LocalWhisperEngine implements SttEngine {
   readonly id = "local";
   readonly privacy = "Speech is recognized on this computer. Audio never leaves it (the model downloads once from Hugging Face).";
-  private loading: Promise<Transcriber> | null = null;
-  private transcriber: Transcriber | null = null;
+  private loading: Promise<void> | null = null;
+  private loaded = false;
   private state: SttStatus = { state: "not_loaded", detail: "The speech model loads the first time you use voice (one-time download)." };
-  private queue: Promise<unknown> = Promise.resolve();
+  /** The model runs in its own process: the service stays responsive, and a crash there can't take ULTRON down. */
+  readonly host = new ModelProcess("speech recognition");
 
   constructor(
     private cacheDir: string,
     readonly model = DEFAULT_LOCAL_MODEL,
-  ) {}
+  ) {
+    this.host.onProgress = (pct) => (this.state = { state: "loading", detail: "Downloading the speech model (one time only)…", progress: pct });
+    this.host.onCrash = () => {
+      this.loaded = false;
+      this.loading = null;
+      this.state = { state: "not_loaded", detail: "The speech model restarted; it reloads on next use." };
+    };
+  }
 
   status(): SttStatus {
     return this.state;
@@ -30,61 +36,38 @@ export class LocalWhisperEngine implements SttEngine {
     await this.load();
   }
 
-  private load(): Promise<Transcriber> {
-    if (this.transcriber) return Promise.resolve(this.transcriber);
+  private load(): Promise<void> {
+    if (this.loaded) return Promise.resolve();
     if (this.loading) return this.loading;
     this.state = { state: "loading", detail: "Loading the speech model…", progress: 0 };
-    const files = new Map<string, { loaded: number; total: number }>();
-    this.loading = (async () => {
-      mkdirSync(this.cacheDir, { recursive: true });
-      let lib: typeof import("@huggingface/transformers");
-      try {
-        lib = await import("@huggingface/transformers");
-      } catch {
-        throw new SttError("The local speech engine isn't installed. Run `npm install` in the ULTRON folder.", "unavailable");
-      }
-      lib.env.cacheDir = this.cacheDir;
-      const pipe = await lib.pipeline("automatic-speech-recognition", this.model, {
-        cache_dir: this.cacheDir,
-        progress_callback: (p: any) => {
-          if (p.status === "progress" && p.total) {
-            files.set(p.file, { loaded: p.loaded, total: p.total });
-            const all = [...files.values()];
-            const pct = (100 * all.reduce((a, f) => a + f.loaded, 0)) / all.reduce((a, f) => a + f.total, 0);
-            this.state = { state: "loading", detail: "Downloading the speech model (one time only)…", progress: Math.round(pct) };
-          }
-        },
-      });
-      return pipe as unknown as Transcriber;
-    })();
-    return this.loading.then(
-      (t) => {
-        this.transcriber = t;
+    this.loading = this.host.request<{ ok: boolean }>({ kind: "stt.load", model: this.model, cacheDir: this.cacheDir }, 30 * 60_000).then(
+      () => {
+        this.loaded = true;
         this.state = { state: "ready", detail: `Speech model ${this.model} is loaded.` };
-        return t;
       },
       (err: Error) => {
         this.loading = null;
         const offline = /fetch|network|ENOTFOUND|ECONN|403|404/i.test(err.message);
+        const missing = /Cannot find (?:module|package)/i.test(err.message);
         this.state = {
           state: "error",
-          detail: offline
-            ? "Couldn't download the speech model. Check your internet connection (only needed once), then try again."
-            : `The speech model failed to load: ${err.message}`,
+          detail: missing
+            ? "The local speech engine isn't installed. Run `npm install` in the ULTRON folder."
+            : offline
+              ? "Couldn't download the speech model. Check your internet connection (only needed once), then try again."
+              : `The speech model failed to load: ${err.message}`,
         };
-        throw err instanceof SttError ? err : new SttError(this.state.detail, "unavailable");
+        throw new SttError(this.state.detail, "unavailable");
       },
     );
+    return this.loading;
   }
 
   async transcribe(samples: Float32Array): Promise<string> {
-    const t = await this.load();
-    // One transcription at a time keeps memory use predictable.
-    const run = this.queue.then(() => t(samples, { chunk_length_s: 30, stride_length_s: 5 }));
-    this.queue = run.catch(() => {});
+    await this.load();
     try {
-      const out = await run;
-      return (Array.isArray(out) ? out.map((o) => o.text).join(" ") : out.text).trim();
+      const out = await this.host.request<{ text: string }>({ kind: "stt.run", samples }, 120_000);
+      return out.text;
     } catch (err) {
       throw new SttError(`Speech recognition failed: ${(err as Error).message}`, "failed");
     }

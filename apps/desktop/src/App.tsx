@@ -179,12 +179,23 @@ export function App() {
         </button>
         <div className="nav__footer">
           <ConnectionPill online={online} status={status} />
+          <div className="small muted" style={{ textAlign: "center" }} title={`Interface built ${typeof __ULTRON_BUILT__ !== "undefined" ? __ULTRON_BUILT__ : "?"}`}>ULTRON v{status?.version ?? (typeof __ULTRON_VERSION__ !== "undefined" ? __ULTRON_VERSION__ : "?")}</div>
           <button className="btn btn--danger btn--block" onClick={() => { speaker.current?.stop(); api.stopAll().then(refreshStatus).catch(() => {}); }} title="Stop every reply, voice and pending action immediately">
             ■ Stop all
           </button>
         </div>
       </nav>
       <main id="main" className="main" tabIndex={-1}>
+        {status && typeof __ULTRON_VERSION__ !== "undefined" && status.version !== __ULTRON_VERSION__ && (
+          <div className="banner banner--warn" role="alert">
+            This window shows ULTRON v{__ULTRON_VERSION__} but the service is v{status.version}. <button className="link" onClick={() => location.reload()}>Reload to update</button>
+          </div>
+        )}
+        {status?.nodeSecurity && (
+          <div className="banner banner--warn" role="alert">
+            🔒 {status.nodeSecurity} <a href="https://nodejs.org/en/download" target="_blank" rel="noreferrer">Download Node.js</a>
+          </div>
+        )}
         {online === false && (
           <div className="banner banner--error" role="alert">
             Reconnecting to ULTRON… If this doesn't clear in a minute, double-click the ULTRON icon (Start-ULTRON) to start it again.

@@ -66,6 +66,18 @@ jobs:
           if (-not $ok) { Write-Output "--- launcher output ---"; Get-Content "$env:RUNNER_TEMP\launcher.out", "$env:RUNNER_TEMP\launcher.err" -Tail 60 -ErrorAction SilentlyContinue; Write-Output "--- service log ---"; Get-Content "$env:ULTRON_DATA_DIR\logs\service.log" -Tail 40 -ErrorAction SilentlyContinue; Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::Start-ULTRON.bat did not bring ULTRON online within 300 s"; exit 1 }
           if ($html -notmatch "<title>ULTRON</title>") { Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::ULTRON started but the interface wasn't served"; exit 1 }
           $startedAfter = $i
+          $gwPid = { @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like '*gateway/src/main.ts*' })[0].ProcessId }
+          $pid1 = & $gwPid
+          # Negative control: launching again with nothing changed must reuse the running ULTRON (same process).
+          Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "Start-ULTRON.bat", "--background" -Wait -WindowStyle Hidden
+          $pid2 = & $gwPid
+          if ($pid1 -ne $pid2) { Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::Relaunching with no changes restarted ULTRON ($pid1 -> $pid2)"; exit 1 }
+          # Positive control: after the code changes (as when a new download is unpacked), launching must restart it.
+          (Get-Item "services/gateway/src/main.ts").LastWriteTime = Get-Date
+          Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "Start-ULTRON.bat", "--background" -Wait -WindowStyle Hidden
+          for ($k = 0; $k -lt 60; $k++) { Start-Sleep -Seconds 1; try { if ((Invoke-WebRequest "http://localhost:7480/api/health" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { break } } catch {} }
+          $pid3 = & $gwPid
+          if (-not $pid3 -or $pid3 -eq $pid2) { Get-Content "$env:ULTRON_DATA_DIR\logs\service.log" -Tail 30 -ErrorAction SilentlyContinue; Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::Updated code did not replace the running ULTRON ($pid2 -> $pid3)"; exit 1 }
           # Crash recovery: kill the service itself; the supervisor must bring it back.
           Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like '*gateway/src/main.ts*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
           Start-Sleep -Seconds 2
@@ -82,7 +94,7 @@ jobs:
           $left = @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like '*supervise.mjs*' -or $_.CommandLine -like '*gateway/src/main.ts*' })
           Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
           if ($left.Count) { Write-Output "::error title=Windows launcher::Quit left $($left.Count) ULTRON process(es) running"; exit 1 }
-          Write-Output "::notice title=Windows launcher::Start-ULTRON.bat --background brought ULTRON online after $startedAfter s, served the interface, came back by itself after its service was killed ($j s), and Quit stopped it"
+          Write-Output "::notice title=Windows launcher::Start-ULTRON.bat --background brought ULTRON online after $startedAfter s, served the interface, came back by itself after its service was killed ($j s), relaunch kept it when nothing changed and replaced it after a code change, and Quit stopped it"
       - name: Browser end-to-end test (fake microphone)
         run: |
           npm install --no-save --no-audit --no-fund playwright

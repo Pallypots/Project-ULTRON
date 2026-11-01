@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { ModelProcess } from "../models/process.ts";
 import { TtsError, type TtsEngine, type TtsStatus, type TtsVoice } from "./types.ts";
 
 export const KOKORO_MODEL = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -15,27 +15,30 @@ export const KOKORO_VOICES: TtsVoice[] = [
   { id: "am_puck", name: "Puck", accent: "American", gender: "Male", quality: "C+" },
 ];
 
-interface Kokoro {
-  generate(text: string, opts: { voice: string; speed: number }): Promise<{ audio: Float32Array; sampling_rate: number }>;
-}
-
 /**
- * Kokoro-82M (Apache-2.0) running on this computer via kokoro-js + ONNX Runtime.
+ * Kokoro-82M (Apache-2.0) running on this computer via kokoro-js + ONNX Runtime, in its own process (see models/host.ts).
  * The ~90 MB model downloads once from Hugging Face into <data>/models; voices ship with the package.
  */
 export class KokoroEngine implements TtsEngine {
   readonly id = "local";
   readonly voices = KOKORO_VOICES;
-  private tts: Kokoro | null = null;
-  private loading: Promise<Kokoro> | null = null;
+  private loaded = false;
+  private loading: Promise<void> | null = null;
   private state: TtsStatus = { state: "not_loaded", detail: "The voice downloads the first time ULTRON speaks (about 165 MB, one time)." };
-  private queue: Promise<unknown> = Promise.resolve();
+  readonly host = new ModelProcess("voice");
 
   constructor(
     private cacheDir: string,
     // fp16 benchmarked fastest-for-size on CPU in CI (RTF ~0.8 on Windows and Linux vs ~1.4–2.0 for q8); see docs/VOICE.md.
     readonly dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16" = (process.env.ULTRON_KOKORO_DTYPE as "fp16") ?? "fp16",
-  ) {}
+  ) {
+    this.host.onProgress = (pct) => (this.state = { state: "loading", detail: "Downloading the voice (one time only)…", progress: pct });
+    this.host.onCrash = () => {
+      this.loaded = false;
+      this.loading = null;
+      this.state = { state: "not_loaded", detail: "The voice restarted; it reloads on next use." };
+    };
+  }
 
   status(): TtsStatus {
     return this.state;
@@ -45,33 +48,14 @@ export class KokoroEngine implements TtsEngine {
     await this.load();
   }
 
-  private load(): Promise<Kokoro> {
-    if (this.tts) return Promise.resolve(this.tts);
+  private load(): Promise<void> {
+    if (this.loaded) return Promise.resolve();
     if (this.loading) return this.loading;
     this.state = { state: "loading", detail: "Loading the voice…", progress: 0 };
-    const files = new Map<string, { loaded: number; total: number }>();
-    this.loading = (async () => {
-      mkdirSync(this.cacheDir, { recursive: true });
-      const [{ KokoroTTS }, transformers] = await Promise.all([import("kokoro-js"), import("@huggingface/transformers")]);
-      transformers.env.cacheDir = this.cacheDir;
-      return (await KokoroTTS.from_pretrained(KOKORO_MODEL, {
-        dtype: this.dtype,
-        device: "cpu",
-        progress_callback: (p: any) => {
-          if (p.status === "progress" && p.total) {
-            files.set(p.file, { loaded: p.loaded, total: p.total });
-            const all = [...files.values()];
-            const pct = (100 * all.reduce((a, f) => a + f.loaded, 0)) / all.reduce((a, f) => a + f.total, 0);
-            this.state = { state: "loading", detail: "Downloading the voice (one time only)…", progress: Math.round(pct) };
-          }
-        },
-      })) as unknown as Kokoro;
-    })();
-    return this.loading.then(
-      (t) => {
-        this.tts = t;
+    this.loading = this.host.request({ kind: "tts.load", dtype: this.dtype, model: KOKORO_MODEL, cacheDir: this.cacheDir }, 30 * 60_000).then(
+      () => {
+        this.loaded = true;
         this.state = { state: "ready", detail: "Local voice loaded." };
-        return t;
       },
       (err: Error) => {
         this.loading = null;
@@ -84,16 +68,15 @@ export class KokoroEngine implements TtsEngine {
         throw new TtsError(this.state.detail, "unavailable");
       },
     );
+    return this.loading;
   }
 
   async synthesize(text: string, voice: string, speed: number) {
-    const tts = await this.load();
+    await this.load();
     const v = KOKORO_VOICES.some((x) => x.id === voice) ? voice : "bm_george";
-    const run = this.queue.then(() => tts.generate(text, { voice: v, speed }));
-    this.queue = run.catch(() => {});
     try {
-      const out = await run;
-      return { samples: out.audio, sampleRate: out.sampling_rate };
+      const out = await this.host.request<{ audio: Float32Array; rate: number }>({ kind: "tts.run", text, voice: v, speed }, 120_000);
+      return { samples: out.audio, sampleRate: out.rate };
     } catch (err) {
       throw new TtsError(`Speech generation failed: ${(err as Error).message}`, "failed");
     }

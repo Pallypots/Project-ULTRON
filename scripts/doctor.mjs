@@ -16,8 +16,12 @@ const run = (cmd) => {
   }
 };
 
-const [major, minor] = process.versions.node.split(".").map(Number);
-check("Node.js", major > 22 || (major === 22 && minor >= 13), `v${process.versions.node}`, "Install Node.js 22 LTS or newer from https://nodejs.org");
+const [major, minor, patch] = process.versions.node.split(".").map(Number);
+// Minimum versions with the October 2026 security fixes (keep in sync with services/gateway/src/system/node-version.ts).
+const PATCHED = { 22: [23, 4], 24: [22, 1], 26: [12, 1] };
+const min = PATCHED[major];
+const nodeOk = Boolean(min) && (minor > min[0] || (minor === min[0] && patch >= min[1]));
+check("Node.js (security)", nodeOk, `v${process.versions.node}${nodeOk ? " (patched)" : min ? ` (security fixes need ${major}.${min[0]}.${min[1]}+)` : " (unsupported release line)"}`, "Install the latest Node.js 22 LTS from https://nodejs.org, then restart ULTRON");
 try {
   const { DatabaseSync } = await import("node:sqlite");
   new DatabaseSync(":memory:").exec("CREATE VIRTUAL TABLE t USING fts5(x)");
