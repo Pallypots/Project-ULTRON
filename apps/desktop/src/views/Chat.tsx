@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatEvent, Conversation, Message } from "@ultron/schemas";
 import { api, sendMessage, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
@@ -8,6 +8,7 @@ import { SentenceSplitter } from "@ultron/audio";
 import { Markdown } from "../Markdown.tsx";
 import { Council } from "../council/Council.tsx";
 import { CameraModal } from "../voice/Camera.tsx";
+import { LiveMeter } from "../voice/live.tsx";
 import type { FaceMood } from "../council/face.ts";
 import { ENDS_CONVERSATION } from "@ultron/audio";
 import { ToolChips } from "../ToolChips.tsx";
@@ -46,6 +47,8 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   council?: boolean;
   onExitCouncil?: () => void;
 }) {
+  // Counts redraws of the chat screen (read by the responsiveness test; nearly free).
+  (window as unknown as { __ultronChatRenders?: number }).__ultronChatRenders = ((window as unknown as { __ultronChatRenders?: number }).__ultronChatRenders ?? 0) + 1;
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(() => localStorage.getItem("ultron.activeConversation"));
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -59,7 +62,6 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   const speaker = useRef<Speaker | null>(null);
   if (!speaker.current) speaker.current = new Speaker(() => tts.current.engine, () => loadVoicePrefs().browserVoice, () => tts.current.speed);
   const [speaking, setSpeaking] = useState(false);
-  const [speakLevel, setSpeakLevel] = useState(0);
   const [photo, setPhoto] = useState<string | null>(null);
   const photoRef = useRef<string | null>(null);
   const [camera, setCamera] = useState(false);
@@ -73,16 +75,10 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     return () => sp.stop();
   }, []);
 
-  useEffect(() => {
-    if (!speaking) return void setSpeakLevel(0);
-    let raf = 0;
-    const tick = () => {
-      setSpeakLevel(speaker.current!.level());
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [speaking]);
+  // Voice level, read live by the meters and the face (never stored in React state: that re-rendered the chat 60×/s).
+  const speakingRef = useRef(false);
+  speakingRef.current = speaking;
+  const getSpeakLevel = useCallback(() => (speakingRef.current ? speaker.current!.level() : 0), []);
 
   const stopSpeaking = useCallback(() => speaker.current?.stop(), []);
 
@@ -323,8 +319,12 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [council]);
-  const levelRef = useRef(0);
-  levelRef.current = speaking ? speakLevel : hands.level * 0.35;
+  // The face reads this every frame.
+  const handsHearing = hands.state === "hearing" || hands.state === "awake";
+  const handsHearingRef = useRef(handsHearing);
+  handsHearingRef.current = handsHearing;
+  const coreLevel = useCallback(() => ptt.getLevel() || getSpeakLevel() || (handsHearingRef.current ? hands.getLevel() : 0), [ptt.getLevel, getSpeakLevel, hands.getLevel]);
+  const faceLevel = useMemo(() => ({ get current() { return speakingRef.current ? getSpeakLevel() : hands.getLevel() * 0.35; } }), [getSpeakLevel, hands.getLevel]);
   const councilMood: FaceMood = speaking ? "speaking" : busy || hands.state === "checking" || ptt.state === "transcribing" ? "thinking" : hands.state === "hearing" || ptt.state === "listening" ? "listening" : core === "offline" ? "offline" : "idle";
   const lastOf = (role: string) => [...messages].reverse().find((m) => m.role === role)?.content ?? "";
 
@@ -410,7 +410,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
         photoReady={Boolean(photo)}
         onCamera={() => setCamera(true)}
         mood={councilMood}
-        level={levelRef}
+        level={faceLevel}
         said={lastOf("assistant") || councilLine}
         heard={lastOf("user").startsWith("✓ Approved") ? "" : lastOf("user")}
         brain={status ? (status.where === "test" ? "Test brain" : `${status.where === "local" ? "Local" : "Cloud"} brain · ${status.model}`) : ""}
@@ -447,7 +447,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
 
       <section className="chat__main">
         <header className="chat__header">
-          <Core state={core} size={56} level={ptt.level || speakLevel || (hands.state === "hearing" || hands.state === "awake" ? hands.level : 0)} />
+          <Core state={core} size={56} levelSource={coreLevel} />
           <div>
             <h1 className="chat__heading">{conversations.find((c) => c.id === activeId)?.title ?? "New conversation"}</h1>
             <p className="muted small">{status ? (status.where === "test" ? "Built-in test brain (canned replies)" : status.where === "local" ? `Local brain · ${status.model} · on this PC` : `Cloud brain · ${status.provider} · ${status.model}`) : ""}</p>
@@ -500,7 +500,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
           <div className={`listening listening--hands listening--${hands.state}`} role="status" aria-live="polite">
             <span className="listening__dot" aria-hidden="true" />
             {HF_LABEL[hands.state] ?? ""}
-            <span className="listening__meter" aria-hidden="true"><i style={{ transform: `scaleX(${Math.max(0.02, hands.level)})` }} /></span>
+            <LiveMeter source={hands.getLevel} />
             <button type="button" className="btn btn--small" onClick={hands.stop}>Turn off</button>
           </div>
         )}
@@ -513,7 +513,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
           <div className="listening listening--speaking" role="status" aria-live="polite">
             <span className="listening__dot" aria-hidden="true" />
             ULTRON is speaking · press Talk to interrupt, or Esc
-            <span className="listening__meter" aria-hidden="true"><i style={{ transform: `scaleX(${Math.max(0.02, speakLevel)})` }} /></span>
+            <LiveMeter source={getSpeakLevel} />
             <button type="button" className="btn btn--small" onClick={stopSpeaking}>Stop speaking</button>
           </div>
         )}
@@ -525,7 +525,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
               : ptt.state === "starting"
                 ? "Opening microphone…"
                 : `Listening · ${Math.floor(ptt.seconds / 60)}:${String(Math.floor(ptt.seconds % 60)).padStart(2, "0")} · release to send, Esc to cancel`}
-            <span className="listening__meter" aria-hidden="true"><i style={{ transform: `scaleX(${Math.max(0.02, ptt.level)})` }} /></span>
+            <LiveMeter source={ptt.getLevel} />
           </div>
         )}
 

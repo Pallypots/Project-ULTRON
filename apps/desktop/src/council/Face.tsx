@@ -8,7 +8,8 @@ export function Face({ mood, level }: { mood: FaceMood; level: { current: number
   moodRef.current = mood;
   useEffect(() => {
     const canvas = ref.current!;
-    const ctx = canvas.getContext("2d");
+    // "desynchronized" lets the browser show frames with less latency; the face is drawn fresh every frame anyway.
+    const ctx = canvas.getContext("2d", { desynchronized: true });
     if (!ctx) return;
     const mesh = buildFace();
     const look = { x: 0, y: 0 };
@@ -22,10 +23,17 @@ export function Face({ mood, level }: { mood: FaceMood; level: { current: number
     let smooth = 0;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const t0 = performance.now();
-    const frame = () => {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+    let lastDraw = 0;
+    const frame = (now: number) => {
+      raf = requestAnimationFrame(frame);
+      // 30 frames a second is smooth for a slow-moving face and halves the work, leaving the rest of each frame free
+      // for clicks and typing. Nothing is drawn while the window is hidden.
+      if (document.hidden || now - lastDraw < 32) return;
+      lastDraw = now;
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
+      // Keep the drawing surface to about 1.6 million pixels whatever the screen; it's scaled up smoothly.
+      const dpr = Math.min(window.devicePixelRatio || 1, Math.sqrt(1_600_000 / Math.max(1, w * h)), 2);
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
         canvas.width = Math.round(w * dpr);
         canvas.height = Math.round(h * dpr);
@@ -37,7 +45,6 @@ export function Face({ mood, level }: { mood: FaceMood; level: { current: number
       look.y += (target.y - look.y) * 0.03;
       const t = reduced ? 0 : (performance.now() - t0) / 1000;
       drawFace(ctx, w, h, mesh, t, moodRef.current, smooth, look);
-      raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => {

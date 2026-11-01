@@ -31,7 +31,8 @@ const BARGE_GRACE_MS = 2000; // after an interruption, keep listening while the 
  */
 export function useHandsFree(onCommand: (text: string) => void, paused: boolean, opts: { speaking?: boolean; onBargeIn?: () => void } = {}) {
   const [state, setState] = useState<HandsFreeState>("off");
-  const [level, setLevel] = useState(0);
+  // The microphone level changes 50 times a second: kept out of React state so it never re-renders the chat.
+  const levelRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const r = useRef({
     ctx: null as AudioContext | null,
@@ -150,7 +151,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       let sum = 0;
       for (const s of f) sum += s * s;
       const rms = Math.sqrt(sum / f.length);
-      setLevel(Math.min(1, rms * 4));
+      levelRef.current = Math.min(1, rms * 4);
       const barging = Date.now() < st.bargedUntil;
       // Interrupt by voice (opt-in): while ULTRON speaks, only clearly loud, sustained speech counts, well above its own
       // echo (which the browser's echo cancellation mostly removes). Then it stops talking and listens.
@@ -219,7 +220,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     st.node?.disconnect();
     st.ctx?.close().catch(() => {});
     Object.assign(st, { ctx: null, stream: null, node: null, phrase: [], preroll: [], inPhrase: false, busy: false, awakeUntil: 0 });
-    setLevel(0);
+    levelRef.current = 0;
     set("off");
   }, []);
 
@@ -309,5 +310,6 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     r.current.openMic = false;
   }, []);
 
-  return { state, level, error, clearError: () => setError(null), start, stop, closeMic, on: state !== "off" };
+  const getLevel = useCallback(() => levelRef.current, []);
+  return { state, getLevel, error, clearError: () => setError(null), start, stop, closeMic, on: state !== "off" };
 }

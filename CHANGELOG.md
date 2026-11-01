@@ -11,6 +11,9 @@
 - **Security:** dependencies updated (0 known vulnerabilities: undici 6.29.1, plus fixed glob and minimatch). Node.js
   older than the October 2026 security release (22.23.4 / 24.22.1 / 26.12.1) is flagged by the launcher, by
   `npm run doctor` and in the app.
+- **No more input lag:** Council mode no longer blocks clicks (88 slow frames every 5 seconds before, 0 now, at about
+  60 fps). The microphone and voice level meters no longer redraw the whole chat 50 times a second (171 redraws in
+  4 s before, about 6–12 now). A responsiveness budget in the browser tests keeps it that way.
 - **Tests:** a full hands-free conversation traced end to end with the real speech models, with positive and negative
   controls; a parallelism/concurrency benchmark; launcher update-detection controls on real Windows.
 

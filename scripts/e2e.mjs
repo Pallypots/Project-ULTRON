@@ -585,6 +585,34 @@ try {
   if (await page.locator(".msg--assistant .md b").count()) throw new Error("HTML in a reply was rendered as HTML");
   await page.locator(".msg--user", { hasText: "**bold red**" }).waitFor();
   step("Replies show bold and code formatting; HTML in replies stays plain text");
+
+  // ---- Responsiveness budget (input lag), with controls ----
+  // Long tasks block clicks and typing. Total blocking time (TBT) = sum of each long task beyond 50 ms.
+  const watchLag = async (ms) => {
+    await page.evaluate(() => {
+      window.__lt = [];
+      window.__po?.disconnect();
+      window.__po = new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lt.push(e.duration); });
+      window.__po.observe({ type: "longtask" });
+    });
+    await page.waitForTimeout(ms);
+    return page.evaluate(() => ({ tbt: Math.round(window.__lt.reduce((a, d) => a + Math.max(0, d - 50), 0)), worst: Math.round(Math.max(0, ...window.__lt)) }));
+  };
+  // Positive control: a deliberate 200 ms freeze must be caught, or the measurements below would mean nothing.
+  await page.evaluate(() => setTimeout(() => { const t = performance.now(); while (performance.now() - t < 200) {} }, 200));
+  const ctl = await watchLag(1500);
+  if (ctl.worst < 150) throw new Error(`lag monitor missed a deliberate 200 ms freeze (${JSON.stringify(ctl)})`);
+  const lagReport = [`control caught ${ctl.worst} ms`];
+  await page.getByRole("button", { name: "Hands-free" }).click();
+  await page.waitForTimeout(1000);
+  const r0 = await page.evaluate(() => window.__ultronChatRenders || 0);
+  const chatLag = await watchLag(4000);
+  const redraws = (await page.evaluate(() => window.__ultronChatRenders || 0)) - r0;
+  await page.getByRole("button", { name: /Hands-free on/ }).click();
+  lagReport.push(`chat+hands-free: blocking ${chatLag.tbt} ms, worst ${chatLag.worst} ms, ${redraws} redraws/4 s`);
+  if (redraws > 40) throw new Error(`the chat redraws too often with hands-free on: ${redraws} in 4 s (the microphone level must not re-render it)`);
+  if (chatLag.tbt > 400) throw new Error(`chat with hands-free blocks input too long: ${JSON.stringify(chatLag)}`);
+  step(`Responsiveness: ${lagReport.join("; ")}`);
   const readOut = page.waitForRequest((r) => r.url().includes("/api/voice/speak"));
   await page.getByLabel("Message ULTRON").fill("read that out");
   await page.getByLabel("Message ULTRON").press("Enter");
@@ -627,6 +655,8 @@ try {
   const council = page.getByRole("dialog", { name: /Council mode/ });
   await council.waitFor();
   await council.locator("canvas.council__face").waitFor();
+  const councilLag = await watchLag(4000);
+  if (councilLag.tbt > 600) throw new Error(`Council mode blocks input too long: ${JSON.stringify(councilLag)}`);
   await page.getByRole("button", { name: "Type instead" }).click();
   await page.getByLabel("Type to ULTRON").fill("format test hello from the council");
   await page.getByLabel("Type to ULTRON").press("Enter");
@@ -639,7 +669,7 @@ try {
   await page.getByLabel("Type to ULTRON").press("Escape"); // closes the typing box
   await page.keyboard.press("Escape"); // leaves Council
   await council.waitFor({ state: "detached" });
-  step("Council mode: full-screen face, reply shown as subtitles, approvals right there, Esc leaves");
+  step(`Council mode: full-screen face (input blocking ${councilLag.tbt} ms/4 s), reply shown as subtitles, approvals right there, Esc leaves`);
 
   // ---- Phone access over Tailscale (simulated: the "phone" reaches ULTRON through a pretend tailnet address) ----
   const TAILNET = "e2e-pc.tail0000.ts.net";

@@ -1,3 +1,4 @@
+import { useLiveStyle, type LevelSource } from "./voice/live.tsx";
 export type CoreState = "idle" | "listening" | "thinking" | "speaking" | "offline" | "error";
 
 const LABEL: Record<CoreState, string> = {
@@ -10,10 +11,12 @@ const LABEL: Record<CoreState, string> = {
 };
 
 /** ULTRON's original HUD core: segmented rings that react to the assistant's real state. */
-export function Core({ state, size = 220, level = 0 }: { state: CoreState; size?: number; level?: number }) {
+export function Core({ state, size = 220, level = 0, levelSource }: { state: CoreState; size?: number; level?: number; levelSource?: LevelSource }) {
   const ticks = Array.from({ length: 60 }, (_, i) => i);
+  const ref = useLiveStyle<HTMLDivElement>(levelSource, (el, v) => el.style.setProperty("--level", v.toFixed(2)));
   return (
     <div
+      ref={ref}
       className={`core core--${state}`}
       style={{ width: size, height: size, ["--level" as string]: level.toFixed(3) }}
       role="img"

@@ -117,13 +117,6 @@ export function drawFace(ctx: CanvasRenderingContext2D, w: number, h: number, me
     cy: h * 0.38 + Math.sin(t * 0.5) * h * 0.006,
   };
 
-  // Glow behind the head
-  const halo = ctx.createRadialGradient(pose.cx, pose.cy, scale * 0.2, pose.cx, pose.cy, scale * 1.6);
-  halo.addColorStop(0, col(0.16 + level * 0.12));
-  halo.addColorStop(1, col(0));
-  ctx.fillStyle = halo;
-  ctx.fillRect(0, 0, w, h);
-
   // HUD rings behind the head, turning slowly (faster while thinking), with tick marks.
   ctx.globalCompositeOperation = "lighter";
   const spin = t * (mood === "thinking" ? 0.9 : 0.12);
@@ -195,37 +188,16 @@ export function drawFace(ctx: CanvasRenderingContext2D, w: number, h: number, me
       add(p, pts[i + 1]?.[(i + j) % 2 === 0 ? j + 1 : j - 1]);
     }
   }
+  // One stroke per brightness bucket (the soft glow comes from a CSS blur on the canvas, which the GPU does for free).
+  ctx.lineWidth = 1.15;
   for (let k = 0; k < BUCKETS; k++) {
     const a = 0.05 + Math.pow(k / (BUCKETS - 1), 1.4) * 0.95;
-    ctx.lineWidth = 3.4;
-    ctx.strokeStyle = col(a * 0.13);
-    ctx.stroke(paths[k]!);
-    ctx.lineWidth = 1.05;
     ctx.strokeStyle = col(a * (mood === "offline" ? 0.4 : 0.9));
     ctx.stroke(paths[k]!);
   }
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = col(0.18);
-  ctx.stroke(outline);
-  ctx.lineWidth = 1.6;
+  ctx.lineWidth = 1.8;
   ctx.strokeStyle = col(0.85);
   ctx.stroke(outline);
-  // Glitch: while thinking, a slice of the face shifts sideways now and then.
-  const glitch = mood === "thinking" && Math.sin(t * 13) > 0.93;
-  for (let k = 0; k < BUCKETS; k++) {
-    const a = 0.12 + (k / (BUCKETS - 1)) * 0.75;
-    ctx.lineWidth = 3.2;
-    ctx.strokeStyle = col(a * 0.14);
-    ctx.stroke(paths[k]!);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = col(a * (mood === "offline" ? 0.4 : 0.85));
-    ctx.stroke(paths[k]!);
-  }
-  if (glitch) {
-    const y = pose.cy + Math.sin(t * 7) * scale * 0.6;
-    const img = ctx.getImageData(0, Math.max(0, y), w, Math.min(h - y, scale * 0.08) | 0);
-    ctx.putImageData(img, 12 * Math.sin(t * 31), Math.max(0, y));
-  }
 
   // Eyes: hot white cores with a red flare; brighter while listening, pulsing while thinking.
   // A slow blink now and then (irregular, so it doesn't look mechanical); never while speaking.
@@ -257,9 +229,6 @@ export function drawFace(ctx: CanvasRenderingContext2D, w: number, h: number, me
   // Scan line sweeping down
   ctx.globalCompositeOperation = "source-over";
   const sy = ((t * 0.18) % 1) * h;
-  const scan = ctx.createLinearGradient(0, sy - 40, 0, sy);
-  scan.addColorStop(0, col(0));
-  scan.addColorStop(1, col(0.07));
-  ctx.fillStyle = scan;
-  ctx.fillRect(0, sy - 40, w, 40);
+  ctx.fillStyle = col(0.06);
+  ctx.fillRect(0, sy, w, 2);
 }

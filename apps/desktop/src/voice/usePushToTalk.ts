@@ -17,7 +17,7 @@ const isTyping = (el: EventTarget | null) => el instanceof HTMLElement && (["INP
 export function usePushToTalk(onTranscript: (text: string) => void, enabled: boolean, onStart?: () => void) {
   const recorder = useRef(new Recorder());
   const [state, setState] = useState<PttState>("idle");
-  const [level, setLevel] = useState(0);
+  const levelRef = useRef(0);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const pressedAt = useRef(0);
@@ -109,16 +109,17 @@ export function usePushToTalk(onTranscript: (text: string) => void, enabled: boo
   // Live level + timer while listening; hard stop at the limit.
   useEffect(() => {
     if (state !== "listening") {
-      setLevel(0);
+      levelRef.current = 0;
       setSeconds(0);
       return;
     }
     const t0 = Date.now();
     let raf = 0;
     const tick = () => {
-      setLevel(recorder.current.level());
+      levelRef.current = recorder.current.level();
       const s = (Date.now() - t0) / 1000;
-      setSeconds(s);
+      // The timer shows whole seconds: only re-render when that changes (not every frame).
+      setSeconds((prev) => (Math.floor(prev) === Math.floor(s) ? prev : s));
       if (s >= MAX_SECONDS) return void finish();
       raf = requestAnimationFrame(tick);
     };
@@ -129,5 +130,6 @@ export function usePushToTalk(onTranscript: (text: string) => void, enabled: boo
   // Never leave the microphone open if the view unmounts.
   useEffect(() => () => recorder.current.cancel(), []);
 
-  return { state, level, seconds, error, clearError: () => setError(null), onPointerDown, onPointerUp, cancel, latched: latched.current };
+  const getLevel = useCallback(() => levelRef.current, []);
+  return { state, getLevel, seconds, error, clearError: () => setError(null), onPointerDown, onPointerUp, cancel, latched: latched.current };
 }
