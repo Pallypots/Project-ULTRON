@@ -30,14 +30,20 @@ export function Council({ mood, level, said, heard, brain, problem, onSend, onEx
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState("");
   const exitRef = useRef<HTMLButtonElement>(null);
+  // Focus the exit button once when Council opens (not on every redraw: the face and mic level redraw constantly, and
+  // stealing focus then would send Enter from the text box to the exit button).
   useEffect(() => {
     exitRef.current?.focus();
+  }, []);
+  const exitNow = useRef(onExit);
+  exitNow.current = onExit;
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !typing) onExit();
+      if (e.key === "Escape" && !typing) exitNow.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onExit, typing]);
+  }, [typing]);
   // Show the tail of a long reply, a sentence or two, like subtitles.
   const caption = said.replace(/\s+/g, " ").replace(/[*#`]/g, "").trim();
   const tail = caption.length > 260 ? "…" + caption.slice(caption.length - 260).replace(/^\S*\s/, "") : caption;
