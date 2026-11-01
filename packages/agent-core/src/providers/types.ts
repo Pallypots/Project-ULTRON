@@ -22,6 +22,8 @@ export interface ToolSpec {
 export type ProviderEvent = { type: "text"; text: string } | { type: "tool_call"; call: ToolCall };
 
 export interface ModelRequest {
+  /** Called with the local model's own timings when a call finishes (diagnostics; local providers only). */
+  onStats?: (s: { loadMs: number; promptTokens: number; promptMs: number; outputTokens: number; outputMs: number }) => void;
   system: string;
   messages: ChatTurn[];
   /** Retrieved memories, also embedded in `system`; exposed so offline providers can use them. */

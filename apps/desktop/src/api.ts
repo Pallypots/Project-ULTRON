@@ -319,6 +319,8 @@ export const api = {
   email: () => call<{ email: EmailStatus }>("GET", "/api/email"),
   connectEmail: (address: string, password: string, host?: string) => call<{ email: EmailStatus; unread: number }>("PUT", "/api/email", { address, password, ...(host ? { host } : {}) }),
   disconnectEmail: () => call<{ email: EmailStatus }>("DELETE", "/api/email"),
+  reportTurn: (id: string, t: { sttMs?: number; endToSendMs?: number; firstAudioMs?: number }) => call("POST", `/api/turns/${id}/client`, t),
+  perf: () => call<PerfReport>("GET", "/api/perf"),
   hud: () => call<Hud>("GET", "/api/hud"),
   quit: () => call<{ ok: boolean }>("POST", "/api/system/quit", {}),
   removeSearchKey: () => call<SearchStatus>("DELETE", "/api/settings/search"),
@@ -392,6 +394,9 @@ export async function speak(text: string, signal?: AbortSignal): Promise<ArrayBu
 
 /** Hands-free: the server checks for the wake word and returns words only when they were addressed to ULTRON. */
 export async function transcribeWake(wav: Uint8Array, requireWakeWord: boolean): Promise<{ addressed: boolean; text?: string }> {
+  const t0 = performance.now();
+  // Hands-free: the phrase ended when it was handed over (the 700 ms silence before that is added in handsFree).
+  voiceTiming.speechEndAt = t0;
   const res = await fetch(`/api/voice/transcribe${requireWakeWord ? "?mode=wake" : ""}`, {
     method: "POST",
     headers: { authorization: `Bearer ${await getToken()}`, "content-type": "audio/wav" },
@@ -400,10 +405,14 @@ export async function transcribeWake(wav: Uint8Array, requireWakeWord: boolean):
   const data = await res.json().catch(() => ({}));
   if (res.status === 422 || res.status === 400) return { addressed: false };
   if (!res.ok) throw new ApiError((data as { message?: string }).message ?? `Listening failed (${res.status})`, res.status);
+  voiceTiming.sttMs = performance.now() - t0;
+  voiceTiming.sttAt = performance.now();
   return requireWakeWord ? (data as { addressed: boolean; text?: string }) : { addressed: true, text: (data as { text: string }).text };
 }
 
 export async function transcribe(wav: Uint8Array): Promise<TranscribeResult> {
+  const t0 = performance.now();
+  voiceTiming.speechEndAt = t0;
   const res = await fetch("/api/voice/transcribe", {
     method: "POST",
     headers: { authorization: `Bearer ${await getToken()}`, "content-type": "audio/wav" },
@@ -411,6 +420,8 @@ export async function transcribe(wav: Uint8Array): Promise<TranscribeResult> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError((data as { message?: string }).message ?? `Transcription failed (${res.status})`, res.status);
+  voiceTiming.sttMs = performance.now() - t0;
+  voiceTiming.sttAt = performance.now();
   return data as TranscribeResult;
 }
 
@@ -494,4 +505,16 @@ export interface EmailStatus {
   address: string | null;
   host: string | null;
   error: string | null;
+}
+
+/** Timings of the last spoken phrase, for the response-time measurements (never the audio or words). */
+export const voiceTiming = { speechEndAt: 0, sttMs: 0, sttAt: 0 };
+
+export interface PerfStat { p50: number | null; p90: number | null; n: number }
+export interface PerfReport {
+  summary: Record<"speechRecognition" | "context" | "modelLoad" | "promptReading" | "promptTokens" | "firstWord" | "firstSentence" | "firstSound" | "whole" | "outputTokensPerSec", PerfStat> & { turns: number };
+  recent: { id: string; at: string; inputMode: string; kind: string; model: string; marks: Record<string, number>; llm: { loadMs: number; promptTokens: number; promptMs: number; outputTokens: number; outputMs: number }[]; client?: { sttMs?: number; endToSendMs?: number; firstAudioMs?: number } }[];
+  hardware: { ramBytes: number; cpuThreads: number; gpus: { name: string; vramBytes: number; vendor: string }[]; usableGpu: { name: string } | null } | null;
+  ollama: { name: string; size: number; sizeVram: number }[] | null;
+  diagnosis: string[];
 }

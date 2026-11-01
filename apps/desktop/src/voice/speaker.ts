@@ -21,6 +21,8 @@ export class Speaker {
   private generation = 0;
   private buf = new Float32Array(1024);
   onChange: (speaking: boolean) => void = () => {};
+  /** Called the moment audio actually starts coming out of the speakers (for measuring response time). */
+  onSound: () => void = () => {};
   onError: (message: string) => void = () => {};
 
   constructor(
@@ -88,6 +90,7 @@ export class Speaker {
         src.onended = () => resolve();
         this.current = src;
         src.start();
+        this.onSound();
       });
       this.current = null;
     }
@@ -145,7 +148,10 @@ export class Speaker {
     const v = speechSynthesis.getVoices().find((x) => x.voiceURI === this.browserVoice());
     if (v) u.voice = v;
     u.rate = this.speed();
-    u.onstart = () => this.setPlaying(true);
+    u.onstart = () => {
+      this.setPlaying(true);
+      this.onSound();
+    };
     u.onend = () => !speechSynthesis.speaking && this.setPlaying(false);
     speechSynthesis.speak(u);
   }

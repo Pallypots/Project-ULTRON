@@ -8,6 +8,10 @@ export interface FakeOllama {
   /** Tokens streamed for chat; may include thinking or <think> content to test filtering. */
   chatScript: { content?: string; thinking?: string }[];
   rejectThink: boolean;
+  /** Pause before the first word (to test the timing trace), in ms. */
+  firstTokenDelayMs: number;
+  /** Models currently "loaded" for /api/ps, with how much sits in graphics memory. */
+  loaded: { name: string; size: number; size_vram: number }[];
   close(): Promise<void>;
 }
 
@@ -17,6 +21,8 @@ export async function startFakeOllama(): Promise<FakeOllama> {
     requests: [],
     chatScript: [{ thinking: "hmm, let me think" }, { content: "<think>secret plan</think>" }, { content: "Hello " }, { content: "from local." }],
     rejectThink: false,
+    firstTokenDelayMs: 0,
+    loaded: [],
   };
   const server: Server = createServer(async (req, res) => {
     let raw = "";
@@ -24,6 +30,7 @@ export async function startFakeOllama(): Promise<FakeOllama> {
     const body = raw ? JSON.parse(raw) : null;
     state.requests.push({ path: req.url ?? "", body });
     const line = (o: unknown) => res.write(JSON.stringify(o) + "\n");
+    if (req.url === "/api/ps") return res.end(JSON.stringify({ models: state.loaded }));
     if (req.url === "/api/version") return res.end(JSON.stringify({ version: "0.99.0-fake" }));
     if (req.url === "/api/tags")
       return res.end(JSON.stringify({ models: state.installed.map((name) => ({ name, model: name, size: 2_000_000_000, details: { parameter_size: "2B", family: name.split(":")[0] } })) }));
@@ -55,11 +62,13 @@ export async function startFakeOllama(): Promise<FakeOllama> {
         return res.end(JSON.stringify({ error: `"${body.model}" does not support thinking` }));
       }
       res.writeHead(200, { "content-type": "application/x-ndjson" });
+      if (state.firstTokenDelayMs) await new Promise((r) => setTimeout(r, state.firstTokenDelayMs));
       // "format test …" is echoed back, so the browser test can check how replies are formatted.
       const lastUser = [...(body.messages ?? [])].reverse().find((m: { role: string }) => m.role === "user")?.content ?? "";
       if (/^format test /.test(lastUser)) line({ model: body.model, message: { role: "assistant", content: `Echo: ${lastUser.slice(12)}` }, done: false });
       else for (const m of state.chatScript) line({ model: body.model, message: { role: "assistant", ...m }, done: false });
-      line({ model: body.model, message: { role: "assistant", content: "" }, done: true, done_reason: "stop" });
+      // Real Ollama reports its own timings (nanoseconds) on the final line.
+      line({ model: body.model, message: { role: "assistant", content: "" }, done: true, done_reason: "stop", load_duration: 12e6, prompt_eval_count: 321, prompt_eval_duration: 456e6, eval_count: 20, eval_duration: 800e6 });
       return res.end();
     }
     res.writeHead(404);

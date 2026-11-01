@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChatEvent, Conversation, Message } from "@ultron/schemas";
-import { api, sendMessage, type Status } from "../api.ts";
+import { voiceTiming, api, sendMessage, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
 import { usePushToTalk } from "../voice/usePushToTalk.ts";
 import { Speaker, voiceMode, type TtsEngineId } from "../voice/speaker.ts";
@@ -193,6 +193,11 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     onCoreState("thinking");
     // wanted.current updates synchronously on "New conversation"/selection, so a fast Enter can't go to the old chat.
     const id = creating.current ? await creating.current : (wanted.current ?? activeId ?? (await newConversation()));
+    // Response-time measurement: when this was sent, and (for speech) how long recognising it took.
+    const tSend = performance.now();
+    const spoken = inputMode === "voice" && performance.now() - voiceTiming.sttAt < 15_000;
+    const timing = spoken ? { sttMs: Math.round(voiceTiming.sttMs), endToSendMs: Math.round(tSend - voiceTiming.speechEndAt) } : {};
+    let reported = false;
     const ctl = new AbortController();
     abortRef.current = ctl;
     let assistantId = "";
@@ -208,6 +213,16 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
         switch (e.type) {
           case "start":
             assistantId = e.assistantMessageId;
+            if (spoken) api.reportTurn(e.assistantMessageId, timing).catch(() => {});
+            if (splitter) {
+              const id = e.assistantMessageId;
+              sp.onSound = () => {
+                sp.onSound = () => {};
+                if (reported) return;
+                reported = true;
+                api.reportTurn(id, { firstAudioMs: Math.round(performance.now() - tSend) }).catch(() => {});
+              };
+            }
             setMessages((cur) => [...cur, e.userMessage, { ...e.userMessage, id: e.assistantMessageId, role: "assistant", content: "", status: "streaming", provider: e.provider, model: e.model, memoryIds: [], toolEvents: [] }]);
             break;
           case "memories":

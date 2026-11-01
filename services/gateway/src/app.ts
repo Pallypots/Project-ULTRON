@@ -29,6 +29,8 @@ import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
 import { HudService } from "./hud.ts";
+import { PerfLog } from "./perf.ts";
+import { diagnose, ollamaPs } from "./perf-diagnosis.ts";
 import { nodeSecurity } from "./system/node-version.ts";
 import { setHomeStatus, setMailStatus } from "./capabilities.ts";
 import { setHomeForPreview } from "./actions/home.ts";
@@ -146,7 +148,8 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const watchers = new WatcherService(stores, bus);
   watchers.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
-  const deps = { files, similarFiles: (q: string) => embeddings.similarFiles(q), room, calendar, home, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+  const perf = new PerfLog(config.dataDir);
+  const deps = { files, similarFiles: (q: string) => embeddings.similarFiles(q), room, calendar, home, perf, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
   // Pre-load the local brain when the owner opens ULTRON (at most every 5 minutes), so the first answer is quick.
@@ -299,6 +302,21 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     mail.disconnect();
     stores.audit.record("email.disconnected", "owner");
     return { email: mail.status() };
+  });
+
+  // ---- performance: where each reply's time goes ----
+  app.post<{ Params: { id: string } }>("/api/turns/:id/client", async (req, reply) => {
+    const ms = z.number().min(0).max(600_000).optional();
+    const body = z.object({ sttMs: ms, endToSendMs: ms, firstAudioMs: ms }).strict().parse(req.body);
+    if (!perf.client(req.params.id, body)) return reply.code(404).send({ error: "not_found" });
+    return { ok: true };
+  });
+  app.get("/api/perf", async () => {
+    const summary = perf.summary();
+    const s = settings();
+    const model = s.provider === "ollama" ? s.model : "";
+    const [hw, ps] = await Promise.all([detectHardware().catch(() => null), s.provider === "ollama" ? ollamaPs(ollama.url) : Promise.resolve(null)]);
+    return { summary, recent: perf.recent(20), hardware: hw, ollama: ps, diagnosis: s.provider === "ollama" ? diagnose(summary, hw, ps, model) : ["Measurements are most useful with the local brain."] };
   });
 
   // ---- smart home (Home Assistant) ----

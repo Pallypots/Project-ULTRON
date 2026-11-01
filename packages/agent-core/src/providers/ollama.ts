@@ -7,6 +7,12 @@ interface ChatChunk {
   done?: boolean;
   done_reason?: string;
   error?: string;
+  // Timings Ollama reports on the final chunk (nanoseconds).
+  load_duration?: number;
+  prompt_eval_count?: number;
+  prompt_eval_duration?: number;
+  eval_count?: number;
+  eval_duration?: number;
 }
 
 const toOllamaMessages = (system: string, turns: ChatTurn[]) => [
@@ -130,6 +136,14 @@ export class OllamaProvider implements ModelProvider {
           text = out;
         }
         if (text) yield { type: "text", text };
+        if (chunk.done)
+          req.onStats?.({
+            loadMs: Math.round((chunk.load_duration ?? 0) / 1e6),
+            promptTokens: chunk.prompt_eval_count ?? 0,
+            promptMs: Math.round((chunk.prompt_eval_duration ?? 0) / 1e6),
+            outputTokens: chunk.eval_count ?? 0,
+            outputMs: Math.round((chunk.eval_duration ?? 0) / 1e6),
+          });
         if (chunk.done && chunk.done_reason === "length") yield { type: "text", text: "\n\n[Response truncated at the length limit.]" };
       }
     }

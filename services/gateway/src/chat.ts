@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
 import { eventLine, type CalendarService } from "./calendar/service.ts";
+import type { LlmStats, PerfLog } from "./perf.ts";
 import { EVERYDAY, matchEntities, securityLike, type HomeService } from "./home/assistant.ts";
 import type { FileHit, Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
@@ -41,6 +42,7 @@ export interface ChatDeps {
   embeddings?: EmbeddingService;
   calendar?: CalendarService;
   home?: HomeService;
+  perf?: PerfLog;
   dataDir?: string;
   files?: FileService;
   similarFiles?: (q: string) => Promise<FileHit[]>;
@@ -134,6 +136,8 @@ export async function handleUserMessage(
     model: modelId,
   });
   emit({ type: "start", userMessage, assistantMessageId: assistant.id, provider: providerId, model: modelId });
+  // Where the time goes in this turn (Phase 0 measurement; never records what was said).
+  const trace = deps.perf?.start({ id: assistant.id, inputMode: opts.inputMode === "voice" ? "voice" : "text", provider: providerId, model: modelId, kind: "other" });
 
   let toolEvents: ToolEvent[] = [];
   // The owner may approve or deny an action while this reply is still streaming; never write back a stale status.
@@ -144,6 +148,7 @@ export async function handleUserMessage(
   const finish = (text: string, status: Message["status"], memoryIds: string[] = []) => {
     const done = stores.conversations.updateMessage(assistant.id, { content: text, status, memoryIds, toolEvents: latest() })!;
     emit({ type: "done", message: done });
+    trace?.finish();
   };
   const recordTool = (e: ToolEvent) => {
     toolEvents.push(e);
@@ -255,6 +260,7 @@ export async function handleUserMessage(
     return { status: r.execution?.status ?? "failed", error: r.execution?.error ?? data?.error ?? null, data };
   };
   if (quick && deps.actions) {
+    if (trace) trace.rec.kind = "instant";
     const text = await quickReply(quick, run, stores);
     emit({ type: "delta", text });
     return finish(text, "complete");
@@ -394,6 +400,7 @@ export async function handleUserMessage(
       room: roomInPrompt },
   });
   const turns: ChatTurn[] = turnsSoFar;
+  trace?.mark("context_ready");
 
   // Picking up after an approval: the approved action's result goes to the brain with this message (not stored in the chat).
   if (opts.continueFrom) {
@@ -522,7 +529,9 @@ export async function handleUserMessage(
         hidden += r.hidden;
         return r.text;
       };
-      const req = { system: out(system), messages: turns.map((t) => ({ ...t, content: out(t.content) })) as ChatTurn[], memories, capabilities, signal: opts.signal, deep };
+      if (trace) trace.rec.kind = "brain";
+      if (round === 0) trace?.mark("llm_request");
+      const req = { system: out(system), messages: turns.map((t) => ({ ...t, content: out(t.content) })) as ChatTurn[], memories, capabilities, signal: opts.signal, deep, onStats: (s: LlmStats) => trace?.llm(s) };
       if (round === 0 && hidden > 0) {
         const exec = stores.actions.create({ conversationId, tool: "privacy_shield", input: {}, risk: 0, requestedBy: "owner", summary: `Hid ${hidden} sensitive item${hidden > 1 ? "s" : ""} (like card numbers or passwords) before sending to the cloud brain`, status: "succeeded" });
         stores.audit.record("privacy.shielded", "system", exec.id, { provider: provider.id, hidden });
@@ -539,6 +548,8 @@ export async function handleUserMessage(
         }
         text += ev.text;
         roundText += ev.text;
+        if (ev.text.trim()) trace?.mark("first_token");
+        if (/[.!?…](\s|$)/.test(text) && text.trim().length >= 12) trace?.mark("first_sentence");
         emit({ type: "delta", text: ev.text });
         // Persist partial text periodically so a crash keeps what was already said.
         if (Date.now() - lastFlush > 1000) {
