@@ -13,6 +13,12 @@ the microphone stays open: no wake word, no time limit, just talk. His mouth mov
 when he's listening, and what he says appears as subtitles. You can talk over him to interrupt. **Type instead** gives
 you a text box. Leave with **Esc**, the **×** button, or by saying "that's all".
 
+## Your clipboard
+Copy some text, then ask: "summarise what I copied", "translate my clipboard into Spanish", "fix the code I just copied",
+"reply to the email I copied". The clipboard is only read when *you* ask in your own words, for that one message, and
+it isn't saved in the conversation. ULTRON's AI can't read it on its own initiative. With a cloud brain, passwords and
+card numbers are hidden first.
+
 ## Smart home (Home Assistant)
 If your lights and plugs are set up in **Home Assistant** (a free smart-home hub that works with Hue, IKEA, TP-Link, Shelly,
 Nest and thousands of others), go to Connections → **Smart home**. Enter its address (for example

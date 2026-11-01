@@ -11,6 +11,7 @@ import type { RoomContext } from "./voice/room.ts";
 import { gatherSources, researchTopic, saveReport, sourcesList, synthesisPrompt } from "./research.ts";
 import type { FileService } from "./files/service.ts";
 import { captureScreen, wantsScreen } from "./system/screen.ts";
+import { readClipboard, wantsClipboard, withClipboard } from "./system/clipboard.ts";
 import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
@@ -431,6 +432,37 @@ export async function handleUserMessage(
       emit({ type: "delta", text });
       return finish(text, "complete");
     }
+  }
+
+  // "Summarise what I copied": the clipboard's text goes with this one message (owner's own words only).
+  if (wantsClipboard(content) && !opts.continueFrom) {
+    let clip = "";
+    try {
+      clip = (await readClipboard()).trim();
+    } catch (err) {
+      const t = `I couldn't read your clipboard: ${(err as Error).message}`;
+      emit({ type: "delta", text: t });
+      return finish(t, "complete");
+    }
+    if (!clip) {
+      const t = "Your clipboard is empty, or it holds something that isn't text (like a picture). Copy some text and ask again.";
+      emit({ type: "delta", text: t });
+      return finish(t, "complete");
+    }
+    const last = turns.at(-1);
+    if (last?.role === "user") turns[turns.length - 1] = { ...last, content: withClipboard(last.content, clip) };
+    const local = provider.id === "ollama" || provider.id === "mock";
+    const exec = stores.actions.create({
+      conversationId,
+      tool: "read_clipboard",
+      input: {},
+      risk: 0,
+      requestedBy: "owner",
+      summary: `Shared your clipboard (${clip.length.toLocaleString()} characters) with the ${local ? "local brain (stays on this PC)" : `cloud brain (${provider.id}), with passwords and card numbers hidden`}`,
+      status: "succeeded",
+    });
+    stores.audit.record("clipboard.shared", "owner", exec.id, { provider: provider.id, chars: clip.length });
+    recordTool(toEvent(exec));
   }
 
   let text = "";

@@ -6,6 +6,8 @@
   Locks and alarms are never touched. The Home screen gets a Home Systems panel.
 - **Natural turn-taking:** if you trail off mid-thought ("and, um…", "remind me about the…"), ULTRON waits a moment
   for the rest instead of answering half a sentence.
+- **Clipboard:** "summarise what I copied", "translate my clipboard", "fix the code I just copied". Read only when you
+  ask, for that message only. Never saved, and the AI can't read it on its own.
 - **Council mode greets you** out loud when you open it, and wakes the local brain straight away so the first
   answer is quicker.
 
