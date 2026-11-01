@@ -126,12 +126,16 @@ export function App() {
 
   // One slow answer isn't "offline" (ULTRON may be busy loading a model): only say so after two misses in a row.
   const misses = useRef(0);
+  const refreshStatusRef = useRef<(() => Promise<void>) | null>(null);
   const refreshStatus = useCallback(async () => {
     const ok = await health();
     misses.current = ok ? 0 : misses.current + 1;
     if (ok || misses.current >= 2) setOnline(ok);
+    // One miss: check again soon rather than waiting for the next 5-second tick, so a real outage shows quickly.
+    if (misses.current === 1) setTimeout(() => void refreshStatusRef.current?.(), 1500);
     if (ok) setStatus(await api.status().catch(() => null));
   }, []);
+  refreshStatusRef.current = refreshStatus;
 
   useEffect(() => {
     refreshStatus();
