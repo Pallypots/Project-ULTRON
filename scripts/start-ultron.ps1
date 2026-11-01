@@ -10,6 +10,15 @@ $url = "http://localhost:$port"
 $dataDir = if ($env:ULTRON_DATA_DIR) { $env:ULTRON_DATA_DIR } else { Join-Path $env:APPDATA "ULTRON" }
 
 function Say($msg) { Write-Host "  $msg" -ForegroundColor Red }
+# npm prints harmless warnings on stderr; Windows PowerShell would treat those as fatal errors. Judge by exit code only.
+function Npm([string[]]$npmArgs) {
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  & cmd /c "npm $($npmArgs -join ' ') 2>&1" | Out-Host
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = $prev
+  return $code
+}
 function Healthy { try { return (Invoke-WebRequest "$url/api/health" -UseBasicParsing -TimeoutSec 3).StatusCode -eq 200 } catch { return $false } }
 function OpenWindow {
   if ($Background) { return }
@@ -36,8 +45,7 @@ $lockHash = (Get-FileHash "package-lock.json" -Algorithm SHA256).Hash
 $stamp = "node_modules\.ultron-installed"
 if (-not (Test-Path $stamp) -or (Get-Content $stamp -Raw).Trim() -ne $lockHash) {
   Say "Installing components (first run or after an update; takes a minute or two)..."
-  npm install --no-audit --no-fund
-  if ($LASTEXITCODE) { Write-Host "  Installing failed. Check your internet connection and try again." -ForegroundColor Yellow; exit 1 }
+  if (Npm @("install", "--no-audit", "--no-fund")) { Write-Host "  Installing failed. Check your internet connection and try again." -ForegroundColor Yellow; exit 1 }
   Set-Content $stamp $lockHash
   Remove-Item "apps\desktop\dist" -Recurse -Force -ErrorAction SilentlyContinue
 }
@@ -45,8 +53,7 @@ $version = (Get-Content "package.json" -Raw | ConvertFrom-Json).version
 $built = "apps\desktop\dist\.ultron-version"
 if (-not (Test-Path "apps\desktop\dist\index.html") -or -not (Test-Path $built) -or (Get-Content $built -Raw).Trim() -ne $version) {
   Say "Building the interface..."
-  npm run build
-  if ($LASTEXITCODE) { exit 1 }
+  if (Npm @("run", "build")) { Write-Host "  Building the interface failed (see above)." -ForegroundColor Yellow; exit 1 }
   Set-Content $built $version
 }
 
