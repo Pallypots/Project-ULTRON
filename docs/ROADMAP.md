@@ -66,3 +66,13 @@ Also queued: live-key provider validation on the owner's PC, Tauri build on Wind
 - ✅ UL-CON-001…005 connector framework, encrypted credentials, event store, GitHub read-only, issue drafts with approval
 - ⬜ UL-CON-006 YouTube subscriptions/uploads · UL-CON-007 Reddit (only after Reddit grants API approval)
 - ⬜ UL-CON-008 Discord via official bot only · UL-CON-009–011 voice/project mappings, digests, security review
+
+## Cycle: overnight 2026-11-01 (v0.24–v0.25)
+- ✅ Reliability: background service with a watchdog, crash log, update-aware launcher, Quit, quick reconnect detection
+- ✅ Command-centre Home (reactor, gauges, feeds, setup checklist), HUD styling everywhere, Skills page
+- ✅ Council mode: procedural wireframe face that speaks, open-mic conversation, Council voice
+- ✅ Conversation: short spoken replies, early speech, trailing-off detection, 15 s reply window
+- ✅ Smart home (Home Assistant) with safety tiers; read-only email (IMAP); news (BBC RSS); notes; clipboard; rain heads-up
+- ✅ Prompt-injection guard: actions after untrusted text need approval
+- ⏳ Next: end-of-turn detection, Outlook (OAuth), Spotify, smart-home colours/scenes by name
+
