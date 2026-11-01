@@ -98,6 +98,19 @@ bodies are not fetched, which minimises private content and prompt-injection sur
 Write actions (draft issues/comments) are deliberately not included yet (UL-CON-005, behind approvals). Verified in CI against the real API with the
 Actions-provided read-only `GITHUB_TOKEN` on this repository.
 
+### D-031 · 2026-11-01 · Council face drawn procedurally
+The face is a height field (forehead, brow, eye sockets, nose, cheekbones, lips, chin) built from a few Gaussian bumps,
+meshed along the face outline and lit from one direction on a 2D canvas. There's no model file to download and no
+WebGL dependency, and it runs at 60 fps on integrated graphics. The jaw moves from the TTS output level, not from
+phoneme timings, which is good enough at this level of abstraction.
+
+### D-030 · 2026-11-01 · Background service with a supervisor
+The owner kept seeing "service isn't responding": the service lived in the launcher's console window (closing it killed
+ULTRON), Node exits on any unhandled rejection, and stale `node_modules` after unpacking a new version could stop it at
+start. Now the launcher starts `scripts/supervise.mjs` hidden, which restarts the service with backoff (an exit code of
+0 means Quit, 3 means already running). The service logs instead of exiting on stray errors. Reinstalls are keyed on a
+hash of `package-lock.json` and rebuilds on the version. Quit is a loopback-only route.
+
 ### D-029 · 2026-10-31 · SearXNG as the keyless web search; Markdown parsed to elements, never HTML
 Many self-hosted assistants use SearXNG for search because it needs no account or key. The owner types its address on the PC (PC-only route);
 ULTRON checks it answers JSON before saving. Its address may be on this PC or the home network, so it is exempt from the public-only rule that

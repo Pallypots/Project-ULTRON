@@ -1,5 +1,25 @@
 # ULTRON user guide
 
+## The command centre (Home)
+Home is ULTRON's command centre. In the middle is the reactor. The ring around it is a set of buttons (BRIEF, WEATHER,
+AGENDA, TO-DO, NEWS, MEDIA, SCREEN, SYSTEM, JOKE, SKILLS, COUNCIL, TALK), and the two inner arcs show your PC's CPU and
+memory use live. Around it: the AI core status, a system monitor (CPU, RAM, disk, uptime), the weather for your home city
+(set it in Settings → Personality), a live feed of anything that needs you (approvals, reminders, connected accounts), and
+today's calendar and to-dos.
+
+## Council mode: face to face
+Click **Council** (left menu or Home), or just say or type **"council mode"**. ULTRON's face fills the screen and
+the microphone stays open: no wake word, no time limit, just talk. His mouth moves as he speaks, his eyes brighten
+when he's listening, and what he says appears as subtitles. You can talk over him to interrupt. **Type instead** gives
+you a text box. Leave with **Esc**, the **×** button, or by saying "that's all".
+
+## Starting and stopping ULTRON
+Double-click **Start-ULTRON** (or the desktop icon). The first start after a new download installs and builds
+everything, which takes a few minutes. After that it opens in seconds. ULTRON runs in the background, so you can
+close the black launcher window, and if it ever stops unexpectedly it restarts itself. To stop it completely, go to
+Settings → System → **Quit ULTRON**. If something goes wrong, `npm run doctor` in the ULTRON folder explains it.
+The logs are in `%APPDATA%\ULTRON\logs`.
+
 ## Talking to ULTRON
 Open **Chat**, type, press **Enter**. **Shift+Enter** adds a new line. **Esc** or **Stop** cancels a reply mid-sentence.
 **Stop all** (bottom-left, every screen) cancels everything ULTRON is doing.
@@ -50,7 +70,7 @@ It can read files to answer you, but opening something on your screen needs your
 
 ## Just talk: conversation mode
 Click **🎙 Talk to ULTRON** on Home (or turn on 🎧 Hands-free in Chat and say "Ultron, …"). After each answer, ULTRON keeps listening
-for about 10 seconds, so you can simply reply, like a normal conversation. The bar under the chat says **"Conversation · I'm listening"**
+for about 15 seconds, so you can simply reply, like a normal conversation. The bar under the chat says **"Conversation · I'm listening"**
 while it waits. Say **"that's all"**, "goodbye" or "never mind" to wrap up; after that it only responds to "Ultron, …" again.
 Turn conversation mode off in Settings → Voice if you prefer to say the name every time.
 

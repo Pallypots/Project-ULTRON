@@ -22,6 +22,7 @@ export function toSpeakable(text: string): string {
  */
 export class SentenceSplitter {
   private buf = "";
+  private spoken = 0;
   constructor(private minChars = 24) {}
 
   push(text: string): string[] {
@@ -41,6 +42,16 @@ export class SentenceSplitter {
       start = end + m[2]!.length;
     }
     this.buf = this.buf.slice(start);
+    // Talk sooner: if the very first sentence is long, start speaking at its first natural pause (a comma, colon or
+    // dash after a few words) instead of waiting for the full stop. Later sentences keep their natural rhythm.
+    if (!out.length && this.spoken === 0 && this.buf.length >= 70) {
+      const pause = /^(.{35,}?[,;:—–])\s+/s.exec(this.buf);
+      if (pause && !/\d[,.]$/.test(pause[1]!)) {
+        out.push(pause[1]!.trim());
+        this.buf = this.buf.slice(pause[0].length);
+      }
+    }
+    this.spoken += out.length;
     return out;
   }
 

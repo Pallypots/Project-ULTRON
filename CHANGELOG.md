@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.24.0 · 2026-11-01 · Command centre, Council mode, rock-solid start-up
+- **"ULTRON's service isn't responding" fixed at the root:** ULTRON now runs in the background with a supervisor
+  that restarts it if it ever stops; one stray error can no longer bring it down (it's logged instead, and
+  `npm run doctor` shows it). Closing the launcher window no longer stops ULTRON. Unpacking a new version over an old
+  one now reinstalls and rebuilds automatically. Settings → System → **Quit ULTRON** stops it properly. The app only
+  says it's reconnecting after two missed checks, not when ULTRON is just busy.
+- **Command-centre Home:** an arc-reactor centrepiece with a ring of commands and live CPU and memory gauges, a big
+  clock, AI core status, system monitor (CPU, RAM, disk, uptime), weather, a live feed of what needs you, and today's
+  timeline. New sci-fi fonts are built in (they work offline).
+- **Council mode:** a full-screen 3D wireframe face, in red, that talks back. The mouth moves with ULTRON's voice and
+  the eyes glow. The microphone stays open (no wake word) until you leave, and you can interrupt him. Subtitles show
+  what he says. Open it from the menu, Home, or by saying "council mode".
+- **More natural conversation:** spoken replies are shorter and more conversational. ULTRON starts talking at the
+  first pause of a long sentence instead of waiting for the full stop. You have 15 seconds to reply before he goes
+  back to needing his name.
+
 ## 0.23.0 · 2026-10-31 · Free web search and formatted replies
 Looked at how other self-hosted assistants search the web without paid keys: most use SearXNG.
 - **Free web search, no account:** Settings → Web search → "Free: my own SearXNG". Run SearXNG (one Docker command), turn on its JSON

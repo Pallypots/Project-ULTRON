@@ -20,7 +20,7 @@ const PREROLL_FRAMES = 15; // keep 300 ms before speech started
 const MAX_SEC = 10;
 const MIN_SEC = 0.4;
 const AWAKE_MS = 8000; // after just "Ultron", the next phrase is the command
-const FOLLOW_MS = 10_000;
+const FOLLOW_MS = 15_000;
 const BARGE_FRAMES = 15; // 300 ms of clearly loud speech while ULTRON talks counts as interrupting
 const BARGE_GRACE_MS = 2000; // after an interruption, keep listening while the reply is being cancelled // conversation mode: how long ULTRON waits for your reply after answering
 
@@ -198,6 +198,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     const st = r.current;
     st.openMic = Boolean(opts.openMic);
     if (st.on) {
+      st.bargeIn = loadVoicePrefs().bargeIn || st.openMic;
       if (st.openMic) set("followup");
       return;
     }
@@ -229,7 +230,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       mute.gain.value = 0;
       src.connect(st.node).connect(mute).connect(st.ctx.destination);
       st.on = true;
-      st.bargeIn = loadVoicePrefs().bargeIn;
+      // Council mode is a real back-and-forth: you can always talk over ULTRON to interrupt.
+      st.bargeIn = loadVoicePrefs().bargeIn || st.openMic;
       if (opts.conversation) {
         st.conversing = true;
         st.awakeUntil = Date.now() + FOLLOW_MS * 2;

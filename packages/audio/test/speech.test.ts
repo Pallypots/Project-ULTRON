@@ -23,3 +23,17 @@ describe("SentenceSplitter", () => {
     expect(out).toEqual(["Use e.g. version 3.5 of it.", "Ok. Then we go on to the next part."]);
   });
 });
+
+describe("SentenceSplitter: speaking starts at the first pause of a long opening sentence", () => {
+  it("emits the opening clause early, then whole sentences", () => {
+    const s = new SentenceSplitter();
+    expect(s.push("Well, that is a remarkably ambitious plan for a Tuesday afternoon, and I")).toEqual(["Well, that is a remarkably ambitious plan for a Tuesday afternoon,"]);
+    expect(s.push(" approve of it entirely. Shall we begin, then, with the part where")).toEqual(["and I approve of it entirely."]);
+    expect(s.flush()).toEqual(["Shall we begin, then, with the part where"]);
+  });
+  it("doesn't split numbers like 1,299", () => {
+    const s = new SentenceSplitter();
+    expect(s.push("The total comes to roughly 1,299 pounds once you add the delivery and the")).toEqual([]);
+  });
+});
+
