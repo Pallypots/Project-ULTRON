@@ -228,7 +228,10 @@ export function drawFace(ctx: CanvasRenderingContext2D, w: number, h: number, me
   }
 
   // Eyes: hot white cores with a red flare; brighter while listening, pulsing while thinking.
-  const eyePower = mood === "offline" ? 0.2 : mood === "listening" ? 1.25 : mood === "thinking" ? 0.8 + 0.4 * Math.sin(t * 6) : 1 + level * 0.4;
+  // A slow blink now and then (irregular, so it doesn't look mechanical); never while speaking.
+  const cycle = (t + Math.sin(t * 0.37) * 1.3) % 6.2;
+  const blink = mood !== "speaking" && cycle < 0.14 ? 0.12 : 1;
+  const eyePower = blink * (mood === "offline" ? 0.2 : mood === "listening" ? 1.25 : mood === "thinking" ? 0.8 + 0.4 * Math.sin(t * 6) : 1 + level * 0.4);
   for (const e of EYES) {
     const p = project(e, pose);
     const rad = scale * 0.085 * eyePower;
