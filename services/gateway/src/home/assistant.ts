@@ -21,8 +21,12 @@ export interface HaEntity {
   attributes: Record<string, unknown>;
 }
 
-export const EVERYDAY = new Set(["light", "switch", "fan", "input_boolean", "media_player", "scene", "climate", "vacuum"]);
-export const SENSITIVE = new Set(["cover", "script"]);
+export const EVERYDAY = new Set(["light", "switch", "fan", "media_player", "climate", "vacuum"]);
+// Scenes, scripts and helper toggles can do anything (unlock a door, open the garage, disarm an alarm through an
+// automation), so like covers they always need approval.
+export const SENSITIVE = new Set(["cover", "script", "scene", "input_boolean"]);
+/** Plugs and relays named like a door, gate or alarm are treated as such (many garage openers are plain switches). */
+export const securityLike = (e: { id: string; name: string }) => /\b(garage|gate|door|lock|alarm|security|shutter|barrier)\b/i.test(`${e.name} ${e.id.replace(/[._]/g, " ")}`);
 const READABLE = new Set([...EVERYDAY, ...SENSITIVE, "lock", "sensor", "binary_sensor", "alarm_control_panel", "weather", "person"]);
 
 export class HomeError extends Error {}
@@ -55,20 +59,31 @@ const KIND_WORDS: [RegExp, string[]][] = [
 ];
 const FILLER = /\b(the|my|all|of|in|a|an|please|lights?|lamps?|bulbs?|lighting|fans?|plugs?|sockets?|outlets?|switch(?:es)?|tv|television|devices?|everything|room|scene)\b/g;
 
+/** The words in a phrase that name a particular device or room (not just "the lights" or "the blinds"). */
+export function specificWords(phrase: string): string[] {
+  const q = phrase.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  return q.replace(FILLER, " ").replace(/\b(blinds?|curtains?|shutters?|covers?|scripts?|scenes?|mood)\b/g, " ").split(/\s+/).filter((w) => w.length > 1);
+}
+
 /** Finds the devices a phrase like "the kitchen lights" or "living room lamp" means. */
 export function matchEntities(all: HaEntity[], phrase: string): HaEntity[] {
   const q = phrase.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
   if (!q) return [];
   const kinds = KIND_WORDS.filter(([re]) => re.test(q)).flatMap(([, d]) => d);
   const pool = kinds.length ? all.filter((e) => kinds.includes(e.domain)) : all;
-  const words = q.replace(FILLER, " ").split(/\s+/).filter((w) => w.length > 1);
+  const words = specificWords(q);
   if (!words.length) return kinds.length ? pool : [];
   const name = (e: HaEntity) => `${e.name} ${e.id.split(".")[1]?.replace(/_/g, " ")} ${e.domain.replace("_", " ")}`.toLowerCase();
-  const exact = pool.filter((e) => e.name.toLowerCase() === q || e.name.toLowerCase() === words.join(" "));
-  if (exact.length) return exact;
-  const scored = pool.map((e) => ({ e, s: words.filter((w) => name(e).includes(w)).length })).filter((x) => x.s > 0);
-  const best = Math.max(0, ...scored.map((x) => x.s));
-  return scored.filter((x) => x.s === best && best === words.length).map((x) => x.e);
+  const search = (from: HaEntity[]) => {
+    const exact = from.filter((e) => e.name.toLowerCase() === q || e.name.toLowerCase() === words.join(" "));
+    if (exact.length) return exact;
+    const scored = from.map((e) => ({ e, s: words.filter((w) => name(e).includes(w)).length })).filter((x) => x.s > 0);
+    const best = Math.max(0, ...scored.map((x) => x.s));
+    return scored.filter((x) => x.s === best && best === words.length).map((x) => x.e);
+  };
+  // "Garage opener" may be a plug rather than a cover: if the kind-filtered search finds nothing, look at everything.
+  const found = search(pool);
+  return found.length || !kinds.length ? found : search(all);
 }
 
 export class HomeService {

@@ -27,6 +27,11 @@ describe("clipboard (owner's words only)", () => {
     expect(JSON.stringify(events)).toContain("Shared your clipboard (42 characters) with the local brain");
     const saved = (await g.api("GET", `/api/conversations/${id}`)).body.messages.filter((m: { role: string }) => m.role === "user");
     expect(saved.at(-1).content).toBe("summarise what I copied");
+
+    // Never by voice (it could be the TV), and never from a paired phone.
+    const viaVoice = await g.gw.app.inject({ method: "POST", url: `/api/conversations/${id}/messages`, headers: { authorization: `Bearer ${g.gw.token}`, host: "localhost:7477" }, payload: { content: "read my clipboard", inputMode: "voice" } });
+    expect(viaVoice.body).toMatch(/only read the clipboard when you type the request on the PC/);
+    expect(viaVoice.body).not.toContain("revenue up 12%");
   });
 });
 

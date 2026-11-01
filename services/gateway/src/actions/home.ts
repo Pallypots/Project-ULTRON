@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { describeEntity, EVERYDAY, matchEntities, SENSITIVE, type HaEntity } from "../home/assistant.ts";
+import { describeEntity, EVERYDAY, matchEntities, securityLike, SENSITIVE, type HaEntity, type HomeService } from "../home/assistant.ts";
+
+/** The app's Home Assistant link, so approval cards can list exactly which devices an action would operate. */
+let homeForPreview: HomeService | null = null;
+export function setHomeForPreview(h: HomeService) {
+  homeForPreview = h;
+}
 import type { ToolContext, ToolDef } from "./tools.ts";
 
 const notConnected = JSON.stringify({ connected: false, note: "Home Assistant isn't connected. The owner can connect it in Connections → Home. Say so; don't pretend." });
@@ -49,19 +55,39 @@ function plan(e: HaEntity, i: ControlIn): { domain: string; service: string; dat
   }
 }
 
-async function control(i: ControlIn, ctx: ToolContext, allowed: Set<string>, open?: "open" | "close") {
+/** Which devices a request may operate: everyday ones (never door/gate/alarm-like), or the approval-only kind. */
+function allowedFor(sensitive: boolean) {
+  return (e: HaEntity) => (sensitive ? SENSITIVE.has(e.domain) || (e.domain === "switch" && securityLike(e)) : EVERYDAY.has(e.domain) && !securityLike(e));
+}
+const MAX_SENSITIVE = 6;
+
+function sensitivePlan(e: HaEntity, action: "open" | "close" | "run") {
+  const id = { entity_id: e.id };
+  if (e.domain === "cover") return action === "run" ? `${e.name} is a cover: say open or close` : { domain: "cover", service: action === "open" ? "open_cover" : "close_cover", data: id };
+  if (e.domain === "scene" || e.domain === "script") return { domain: e.domain, service: "turn_on", data: id };
+  // input_boolean helpers and door-like switches: open/run = on, close = off.
+  return { domain: "homeassistant", service: action === "close" ? "turn_off" : "turn_on", data: id };
+}
+
+async function control(i: ControlIn, ctx: ToolContext, sensitive: boolean, open?: "open" | "close" | "run") {
   if (!ctx.home?.connected) return notConnected;
   const all = await ctx.home.entities();
   const matched = matchEntities(all, i.target);
-  if (!matched.length) return JSON.stringify({ error: `No device matches "${i.target}".`, known: all.filter((e) => EVERYDAY.has(e.domain) || SENSITIVE.has(e.domain)).slice(0, 25).map((e) => e.name) });
-  const refused = matched.filter((e) => !allowed.has(e.domain));
-  const targets = matched.filter((e) => allowed.has(e.domain)).slice(0, 25);
-  if (!targets.length)
-    return JSON.stringify({ error: refused.some((e) => e.domain === "lock" || e.domain === "alarm_control_panel") ? "For safety, ULTRON never unlocks doors or changes alarms. Use the Home Assistant app." : `${refused.map((e) => e.name).join(", ")} can't be controlled this way.` });
+  const ok = allowedFor(sensitive);
+  if (!matched.length) return JSON.stringify({ error: `No device matches "${i.target}".`, untrusted_known_devices: all.filter((e) => EVERYDAY.has(e.domain) || SENSITIVE.has(e.domain)).slice(0, 25).map((e) => e.name) });
+  const refused = matched.filter((e) => !ok(e));
+  const targets = matched.filter(ok);
+  if (sensitive && targets.length > MAX_SENSITIVE) return JSON.stringify({ error: `That matches ${targets.length} devices; name the one you mean.` });
+  if (!targets.length) {
+    if (refused.some((e) => e.domain === "lock" || e.domain === "alarm_control_panel")) return JSON.stringify({ error: "For safety, ULTRON never unlocks doors or changes alarms. Use the Home Assistant app." });
+    if (!sensitive && refused.some((e) => SENSITIVE.has(e.domain) || securityLike(e)))
+      return JSON.stringify({ error: `${refused.map((e) => e.name).join(", ")} can open doors or run automations, so it needs the owner's approval: use home_cover_or_script.` });
+    return JSON.stringify({ error: `${refused.map((e) => e.name).join(", ")} can't be controlled this way.` });
+  }
   const done: string[] = [];
   const problems: string[] = [];
   for (const e of targets) {
-    const p = open ? { domain: "cover", service: open === "open" ? "open_cover" : "close_cover", data: { entity_id: e.id } } : plan(e, i);
+    const p = open ? sensitivePlan(e, open) : plan(e, i);
     if (typeof p === "string") {
       problems.push(p);
       continue;
@@ -79,7 +105,7 @@ async function control(i: ControlIn, ctx: ToolContext, allowed: Set<string>, ope
 const homeControl: ToolDef<ControlIn> = {
   name: "home_control",
   description:
-    "Smart home (Home Assistant): turn lights, plugs, fans, TVs and vacuums on/off, dim lights (action 'brightness', value 0-100), set the heating (action 'set_temperature', value in degrees) or activate a scene. target is what the owner called it, e.g. 'kitchen lights', 'all lights', 'fan'. Garage doors, blinds and scripts use home_cover_or_script; locks and alarms are never controlled.",
+    "Smart home (Home Assistant): turn lights, plugs, fans, TVs and vacuums on/off, dim lights (action 'brightness', value 0-100) or set the heating (action 'set_temperature', value in degrees). target is what the owner called it, e.g. 'kitchen lights', 'all lights', 'fan'. Garage doors, gates, blinds, scenes and scripts use home_cover_or_script (approval); locks and alarms are never controlled.",
   input: ControlInput,
   parameters: {
     type: "object",
@@ -95,20 +121,28 @@ const homeControl: ToolDef<ControlIn> = {
   timeoutMs: 15_000,
   describe: (i) =>
     i.action === "brightness" ? `Set ${i.target} to ${i.value ?? 50}% brightness` : i.action === "set_temperature" ? `Set ${i.target} to ${i.value}°` : i.action === "activate" ? `Activate the "${i.target}" scene` : `Turn ${i.action === "toggle" ? "over" : i.action} ${i.target}`,
-  run: (i, ctx) => control(i, ctx, EVERYDAY),
+  run: (i, ctx) => control(i, ctx, false),
 };
 
 const CoverInput = z.object({ target: z.string().trim().min(2).max(100), action: z.enum(["open", "close", "run"]) }).strict();
 const homeCover: ToolDef<z.infer<typeof CoverInput>> = {
   name: "home_cover_or_script",
-  description: "Smart home: open/close garage doors, gates and blinds, or run a Home Assistant script. Always needs the owner's approval.",
+  description:
+    "Smart home, always with the owner's approval: open/close garage doors, gates and blinds (and door-like switches), or run a scene, script or helper toggle ('run'). Name the specific device. Locks and alarms are never controlled.",
   input: CoverInput,
   parameters: { type: "object", properties: { target: { type: "string" }, action: { type: "string", enum: ["open", "close", "run"] } }, required: ["target", "action"], additionalProperties: false },
   risk: 2,
   timeoutMs: 15_000,
-  describe: (i) => (i.action === "run" ? `Run the Home Assistant script "${i.target}"` : `${i.action === "open" ? "Open" : "Close"} ${i.target}`),
-  run: (i, ctx) =>
-    i.action === "run" ? control({ target: i.target, action: "on" }, ctx, new Set(["script"])) : control({ target: i.target, action: "on" }, ctx, new Set(["cover"]), i.action),
+  describe: (i) => (i.action === "run" ? `Run "${i.target}" in Home Assistant` : `${i.action === "open" ? "Open" : "Close"} ${i.target}`),
+  // The approval card names exactly which devices would be operated.
+  preview: (i) => {
+    const all = homeForPreview?.cached() ?? [];
+    const hits = matchEntities(all, i.target).filter(allowedFor(true));
+    if (!hits.length) return "No matching device found right now; nothing will be operated.";
+    if (hits.length > MAX_SENSITIVE) return `Matches ${hits.length} devices; it will be refused. Name the one you mean.`;
+    return `Will ${i.action} exactly: ${hits.map((e) => `${e.name} (${e.id})`).join(", ")}`;
+  },
+  run: (i, ctx) => control({ target: i.target, action: "on" }, ctx, true, i.action),
 };
 
 export const HOME_TOOLS: ToolDef[] = [homeDevices, homeControl, homeCover];

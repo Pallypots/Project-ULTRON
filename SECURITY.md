@@ -116,3 +116,19 @@ Email (read-only IMAP), the clipboard and Home Assistant joined the places outsi
 - After a turn has read untrusted text (email, web, files, calendar, connected feeds, clipboard, screen), any L1 action
   the model proposes in that turn is raised to L2 (approval). L0 reads stay allowed.
 - Smart home: covers and scripts are always L2. Locks and alarms can't be controlled at all.
+
+### Independent review of the night's features (2026-11-01): 6 findings, all fixed
+1. The untrusted-text guard was off on the turn resuming after an approval (whose result is injected). Approval
+   continuations now always count as untrusted.
+2. The untrusted list was incomplete (calendar titles and overheard speech in the system prompt; notes, lists and
+   memories). The rule is inverted: only tools whose results are ULTRON's own numbers or action confirmations are
+   trusted, and anything else (or calendar/room text in the prompt) marks the turn.
+3. Scenes, helper toggles and door/gate-like switches could reach locks or garage doors through automations. Scenes,
+   scripts and `input_boolean` are approval-only, and switches named like a door, gate, lock or alarm can't be
+   operated by everyday control.
+4. Approval cards for covers and scripts now list exactly which devices would be operated. A bare "cover" no longer
+   matches every cover, and more than 6 matches is refused.
+5. The clipboard could be read from a paired phone or by a voice (TV). It's now only shared for requests typed on the
+   PC. The screen is never shared to a paired phone.
+6. Uncaught exceptions now exit after logging, so the supervisor restarts cleanly instead of running in an unknown
+   state. Stray promise rejections are still only logged.

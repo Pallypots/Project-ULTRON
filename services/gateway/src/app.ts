@@ -29,6 +29,7 @@ import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
 import { HudService } from "./hud.ts";
 import { setHomeStatus, setMailStatus } from "./capabilities.ts";
+import { setHomeForPreview } from "./actions/home.ts";
 import { MailError, MailService } from "./mail/imap.ts";
 import { describeEntity, EVERYDAY, HomeError, HomeService, SENSITIVE } from "./home/assistant.ts";
 import { EmbeddingService } from "./embeddings/index.ts";
@@ -130,6 +131,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   actions.calendar = calendar;
   const home = new HomeService(stores, secrets);
   actions.home = home;
+  setHomeForPreview(home);
   home.start();
   const mail = new MailService(stores, secrets);
   actions.mail = mail;
@@ -517,7 +519,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     try {
       greeter.cancel();
       summarizer.cancel();
-      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, continueFrom: body.continueFrom, signal: ctl.signal, emit });
+      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, continueFrom: body.continueFrom, fromPc: !remote.isRemote(req), signal: ctl.signal, emit });
     } catch (err) {
       app.log.error(err);
       emit({ type: "error", code: "internal", message: "ULTRON hit an internal error. Details are in the log." });

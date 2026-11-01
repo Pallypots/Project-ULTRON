@@ -12,6 +12,8 @@ const states = [
   { entity_id: "switch.coffee_machine", state: "off", attributes: { friendly_name: "Coffee Machine" } },
   { entity_id: "cover.garage_door", state: "closed", attributes: { friendly_name: "Garage Door" } },
   { entity_id: "lock.front_door", state: "locked", attributes: { friendly_name: "Front Door" } },
+  { entity_id: "switch.garage_opener", state: "off", attributes: { friendly_name: "Garage Opener" } },
+  { entity_id: "scene.away", state: "scening", attributes: { friendly_name: "Away" } },
   { entity_id: "climate.hallway", state: "heat", attributes: { friendly_name: "Heating", temperature: 19, current_temperature: 18.5 } },
   { entity_id: "sensor.outside_temp", state: "7.5", attributes: { friendly_name: "Outside Temperature", device_class: "temperature", unit_of_measurement: "°C" } },
 ];
@@ -64,7 +66,7 @@ describe("smart home (Home Assistant)", () => {
     expect(replyText(await g.chat(id, "lights off"))).not.toMatch(/^Done:/);
     expect((await g.api("PUT", "/api/home", { url: base, token: "wrong-token-000000000000" })).body.message).toMatch(/refused the token/);
     const ok = await g.api("PUT", "/api/home", { url: `${base}/api/`, token: TOKEN });
-    expect(ok.body).toMatchObject({ home: { connected: true, url: base }, devices: 5 });
+    expect(ok.body).toMatchObject({ home: { connected: true, url: base }, devices: 7 });
     expect(JSON.stringify((await g.api("GET", "/api/home")).body)).not.toContain(TOKEN);
 
     expect(replyText(await g.chat(id, "turn off the kitchen lights"))).toBe("Done: Kitchen Lights off.");
@@ -79,6 +81,14 @@ describe("smart home (Home Assistant)", () => {
     expect(replyText(await g.chat(id, 'mock-tool home_control {"target":"front door lock","action":"off"}'))).toMatch(/never unlocks doors/);
     // Garage door: waits for approval.
     expect(replyText(await g.chat(id, 'mock-tool home_cover_or_script {"target":"garage door","action":"open"}'))).toMatch(/approval/i);
+    // Door-like switches and scenes (which can unlock doors through automations) never go through everyday control...
+    expect(replyText(await g.chat(id, 'mock-tool home_control {"target":"garage opener","action":"on"}'))).toMatch(/needs the owner's approval/);
+    expect(replyText(await g.chat(id, "turn on the garage opener"))).not.toMatch(/^Done/);
+    expect(replyText(await g.chat(id, 'mock-tool home_control {"target":"away scene","action":"activate"}'))).toMatch(/needs the owner's approval/);
+    // ...and the approval card names exactly what would be operated.
+    const card = (await g.api("GET", "/api/actions")).body.pending.find((a: { tool: string }) => a.tool === "home_cover_or_script");
+    expect(card.preview).toBe("Will open exactly: Garage Door (cover.garage_door)");
+    expect(replyText(await g.chat(id, 'mock-tool home_cover_or_script {"target":"cover","action":"open"}'))).toMatch(/approval/i);
     expect(calls.length).toBe(n);
     const caps = (await g.api("GET", "/api/capabilities")).body.capabilities;
     expect(caps.find((c: { id: string }) => c.id === "home")).toMatchObject({ status: "enabled" });

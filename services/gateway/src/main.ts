@@ -17,7 +17,11 @@ const crashLog = (kind: string, err: unknown) => {
   }
 };
 process.on("unhandledRejection", (err) => crashLog("unhandled rejection", err));
-process.on("uncaughtException", (err) => crashLog("uncaught exception", err));
+// An uncaught exception can leave things half-done: log it and exit, and the supervisor restarts ULTRON cleanly.
+process.on("uncaughtException", (err) => {
+  crashLog("uncaught exception", err);
+  process.exit(1);
+});
 
 const { app, config } = await buildGateway();
 try {

@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
 import { eventLine, type CalendarService } from "./calendar/service.ts";
-import { EVERYDAY, matchEntities, type HomeService } from "./home/assistant.ts";
+import { EVERYDAY, matchEntities, securityLike, type HomeService } from "./home/assistant.ts";
 import type { FileHit, Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
 import { currentCapabilities } from "./capabilities.ts";
@@ -112,7 +112,7 @@ export async function handleUserMessage(
   deps: ChatDeps,
   conversationId: string,
   content: string,
-  opts: { deviceId?: string; inputMode?: Message["inputMode"]; continueFrom?: string; signal: AbortSignal; emit: (e: ChatEvent) => void },
+  opts: { deviceId?: string; inputMode?: Message["inputMode"]; continueFrom?: string; /** Typed or spoken at the PC itself (not a paired phone). */ fromPc?: boolean; signal: AbortSignal; emit: (e: ChatEvent) => void },
 ): Promise<void> {
   const { stores, emit } = { ...deps, emit: opts.emit };
   const settings = readProviderSettings(stores.preferences);
@@ -380,15 +380,18 @@ export async function handleUserMessage(
   const toolSet = provider.id === "ollama" ? focusTools(recentUser, TOOLS) : TOOLS;
   const toolSpecs = specsFor(toolSet);
   const useTools = Boolean(provider.streamWithTools && deps.actions) && toolSet.length > 0;
+  const calendarLines = await calendarSoon(deps.calendar);
+  const calendarInPrompt = calendarLines.length > 0;
+  const roomInPrompt = opts.inputMode === "voice" && (provider.id === "ollama" || provider.id === "mock") ? deps.room?.recent() : undefined;
   const system = buildSystemPrompt(deps.persona(), {
     capabilities,
     toolsEnabled: useTools,
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),
-    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: [...agendaFor(stores), ...(await calendarSoon(deps.calendar))], deep,
+    rapport: { ...rapportFor(stores, conversationId, opts.inputMode), recentMemories: recentMemories(stores, memories), agenda: [...agendaFor(stores), ...calendarLines], deep,
       // Overheard conversation goes only to a local brain (it never leaves the PC).
-      room: opts.inputMode === "voice" && (provider.id === "ollama" || provider.id === "mock") ? deps.room?.recent() : undefined },
+      room: roomInPrompt },
   });
   const turns: ChatTurn[] = turnsSoFar;
 
@@ -405,6 +408,11 @@ export async function handleUserMessage(
   }
 
   // "Look at my screen": one screenshot, attached to this message for the brain only. Never stored, never taken unasked.
+  if (wantsScreen(content) && !opts.continueFrom && opts.fromPc === false) {
+    const t = "For privacy, I only look at the PC's screen when you ask on the PC itself.";
+    emit({ type: "delta", text: t });
+    return finish(t, "complete");
+  }
   if (wantsScreen(content) && !opts.continueFrom) {
     const seeing = await canSee(provider as Parameters<typeof canSee>[0]);
     if (!seeing.ok) {
@@ -435,6 +443,13 @@ export async function handleUserMessage(
   }
 
   // "Summarise what I copied": the clipboard's text goes with this one message (owner's own words only).
+  if (wantsClipboard(content) && !opts.continueFrom && (opts.fromPc === false || opts.inputMode === "voice")) {
+    // The clipboard often holds a password just copied from a password manager: only a request typed on the PC itself
+    // can share it (not a paired phone, and not a voice that could be a TV or someone else in the room).
+    const t = opts.fromPc === false ? "For privacy, I only read the clipboard when you ask on the PC itself." : "For privacy, I only read the clipboard when you type the request on the PC (a voice could be anyone, or the TV).";
+    emit({ type: "delta", text: t });
+    return finish(t, "complete");
+  }
   if (wantsClipboard(content) && !opts.continueFrom) {
     let clip = "";
     try {
@@ -469,7 +484,9 @@ export async function handleUserMessage(
   let lastFlush = Date.now();
   let callsThisTurn = 0;
   // Did the brain see text from outside (email, web, files, clipboard, screen) this turn? Then actions need approval.
-  let tainted = (wantsClipboard(content) || wantsScreen(content)) && !opts.continueFrom;
+  // Approval continuations carry an action's result (often outside text); calendar titles and overheard speech are in the
+  // system prompt; the clipboard and screen are outside text too.
+  let tainted = Boolean(opts.continueFrom) || wantsClipboard(content) || wantsScreen(content) || calendarInPrompt || Boolean(roomInPrompt?.length);
   try {
     // Model ↔ tools loop, bounded so a confused model can't spin (cost and safety cap).
     for (let round = 0; round <= MAX_TOOL_ROUNDS && !opts.signal.aborted; round++) {
@@ -515,7 +532,7 @@ export async function handleUserMessage(
           continue;
         }
         const { execution, resultForModel } = await deps.actions!.propose(call.name, call.args, { conversationId, requestedBy: "model", afterUntrusted: tainted });
-        if (UNTRUSTED_SOURCES.has(call.name)) tainted = true;
+        if (!TRUSTED_RESULTS.has(call.name)) tainted = true;
         if (execution) recordTool(toEvent(execution));
         turns.push({ role: "tool", content: resultForModel, toolCallId: call.id, name: call.name });
       }
@@ -589,8 +606,15 @@ export function isSmallTalk(text: string): boolean {
   return /^(?:(?:hi|hey|hello|yo|sup|hiya|howdy|ok|okay|thanks|thank you|cheers|good (?:morning|afternoon|evening|night)|morning|evening|i'm back|im back|what's up|whats up|how are you|how's it going|you there|are you there)\s*)+$/.test(t);
 }
 
-/** Tools whose results contain text from outside ULTRON (it could carry planted instructions). */
-const UNTRUSTED_SOURCES = new Set(["read_email", "check_email", "read_webpage", "web_search", "lookup_wikipedia", "read_file", "search_files", "connected_updates", "get_calendar", "daily_briefing", "home_devices", "list_watchers", "search_conversations"]);
+/**
+ * Tools whose results contain nothing but ULTRON's own numbers and confirmations. After any OTHER tool (email, web,
+ * files, calendar, feeds, notes, lists, memories, device names…) the turn counts as having read outside text.
+ */
+const TRUSTED_RESULTS = new Set([
+  "calculate", "get_current_time", "convert_units", "convert_currency", "world_time", "pc_status", "media_control", "lock_pc",
+  // Actions: their results are confirmations of what was just done, echoing the request itself.
+  "create_reminder", "cancel_reminder", "add_todo", "complete_todo", "add_note", "save_memory", "open_website", "open_app", "open_on_screen", "home_control", "home_cover_or_script", "watch_page", "stop_watching",
+]);
 
 type QuickRun = (tool: string, args: Record<string, unknown>) => Promise<{ status: string; error: string | null; data: any }>;
 
@@ -794,7 +818,7 @@ export function conversionFor(text: string): { kind: "units"; value: number; fro
 export function validQuick(content: string, home?: Pick<HomeService, "connected" | "cached">) {
   const quick = detectQuickCommand(content);
   // Smart-home phrases are instant commands only if they name devices Home Assistant really has.
-  if (quick?.type === "home" && !(home?.connected && matchEntities(home.cached(), quick.target).some((e) => EVERYDAY.has(e.domain)))) return null;
+  if (quick?.type === "home" && !(home?.connected && matchEntities(home.cached(), quick.target).some((e) => EVERYDAY.has(e.domain) && !securityLike(e)))) return null;
   // Conversions are quick commands only if the units or currencies are real; otherwise the brain decides.
   if (quick?.type === "convert" && !conversionFor(quick.text)) return null;
   // "open X" is only a quick command if X really is an installed app; otherwise the brain decides what was meant.
