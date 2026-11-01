@@ -1,4 +1,5 @@
 import { ModelProcess } from "../models/process.ts";
+import { isRestart } from "../stt/local-whisper.ts";
 import { TtsError, type TtsEngine, type TtsStatus, type TtsVoice } from "./types.ts";
 
 export const KOKORO_MODEL = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -74,11 +75,15 @@ export class KokoroEngine implements TtsEngine {
   async synthesize(text: string, voice: string, speed: number) {
     await this.load();
     const v = KOKORO_VOICES.some((x) => x.id === voice) ? voice : "bm_george";
-    try {
-      const out = await this.host.request<{ audio: Float32Array; rate: number }>({ kind: "tts.run", text, voice: v, speed }, 120_000);
-      return { samples: out.audio, sampleRate: out.rate };
-    } catch (err) {
-      throw new TtsError(`Speech generation failed: ${(err as Error).message}`, "failed");
+    for (let attempt = 0; ; attempt++) {
+      if (attempt) await this.load();
+      try {
+        const out = await this.host.request<{ audio: Float32Array; rate: number }>({ kind: "tts.run", text, voice: v, speed }, 120_000);
+        return { samples: out.audio, sampleRate: out.rate };
+      } catch (err) {
+        if (attempt === 0 && isRestart(err)) continue; // the voice process died: restart it and say it once more
+        throw new TtsError(`Speech generation failed: ${(err as Error).message}`, "failed");
+      }
     }
   }
 }

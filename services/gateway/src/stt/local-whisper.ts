@@ -64,12 +64,20 @@ export class LocalWhisperEngine implements SttEngine {
   }
 
   async transcribe(samples: Float32Array): Promise<string> {
-    await this.load();
-    try {
-      const out = await this.host.request<{ text: string }>({ kind: "stt.run", samples }, 120_000);
-      return out.text;
-    } catch (err) {
-      throw new SttError(`Speech recognition failed: ${(err as Error).message}`, "failed");
+    // If the model process died (crash, out of memory), restart it and try this phrase once more, so you never lose
+    // what you just said to a crash.
+    for (let attempt = 0; ; attempt++) {
+      await this.load();
+      try {
+        const out = await this.host.request<{ text: string }>({ kind: "stt.run", samples }, 120_000);
+        return out.text;
+      } catch (err) {
+        if (attempt === 0 && isRestart(err)) continue;
+        throw new SttError(`Speech recognition failed: ${(err as Error).message}`, "failed");
+      }
     }
   }
 }
+
+/** The model process went away (crash, out of memory, or restarted after a timeout): worth one retry. */
+export const isRestart = (err: unknown) => /process stopped|was restarted|not loaded/i.test((err as Error)?.message ?? "");
