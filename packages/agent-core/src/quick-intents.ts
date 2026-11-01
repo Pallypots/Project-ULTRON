@@ -20,7 +20,7 @@ export type QuickCommand =
   | { type: "news"; topic: "top" | "world" | "uk" | "technology" | "business" | "science" | "health" | "entertainment" | "sport" }
   | { type: "add_note"; text: string }
   | { type: "list_notes"; query: string | null }
-  | { type: "home"; action: "on" | "off" | "brightness" | "set_temperature"; target: string; value?: number };
+  | { type: "home"; action: "on" | "off" | "brightness" | "set_temperature" | "color"; target: string; value?: number; color?: string };
 
 const LEAD = /^\s*(?:(?:hey|ok|okay)\s+)?(?:ultron[\s,:!.-]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?/i;
 const TAIL = /(?:[\s,]+please)?[\s?.!]*$/i;
@@ -59,6 +59,8 @@ export function detectQuickCommand(message: string): QuickCommand | null {
   if ((h = new RegExp(`^dim (?:the |my )?${DEV}(?: to (\\d{1,3}) ?(?:%|percent))?$`, "iu").exec(m))) return { type: "home", action: "brightness", target: h[1]!.trim(), value: Math.min(100, Number(h[2] ?? 30)) };
   if ((h = new RegExp(`^(?:brighten|full brightness on) (?:the |my )?${DEV}$`, "iu").exec(m))) return { type: "home", action: "brightness", target: h[1]!.trim(), value: 100 };
   if ((h = new RegExp(`^set (?:the |my )?${DEV} to (\\d{1,3}) ?(?:%|percent)$`, "iu").exec(m))) return { type: "home", action: "brightness", target: h[1]!.trim(), value: Math.min(100, Number(h[2])) };
+  if ((h = new RegExp(`^(?:make|turn|set|change) (?:the |my |all (?:the )?)?${DEV} (?:to |into )?(red|orange|yellow|green|blue|purple|pink|white|warm white|cyan|magenta|teal|gold|crimson|violet|lime|turquoise|amber)$`, "iu").exec(m)))
+    return { type: "home", action: "color", target: h[1]!.trim(), color: h[2]!.toLowerCase().replace(" ", "") };
   if ((h = /^(?:set|turn) (?:the |my )?(heating|thermostat|temperature|heat|ac|air ?con)(?: (?:up |down )?to) (\d{1,2}(?:\.5)?) ?(?:°|degrees?)?(?: ?[cf])?$/i.exec(m))) return { type: "home", action: "set_temperature", target: h[1]!, value: Number(h[2]) };
 
   if (/^(?:pause|resume|unpause)(?: the)?(?: music| song| video| track| it| playback)?$|^play(?: the)? (?:music|it)$|^(?:play|pause)$/i.test(m)) return { type: "media", action: "play_pause" };

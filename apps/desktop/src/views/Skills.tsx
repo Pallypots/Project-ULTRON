@@ -3,7 +3,7 @@ const SKILLS: { title: string; icon: string; say: string[]; note?: string }[] = 
   { title: "Just talk", icon: "◉", say: ["council mode", "Tell me a joke", "What do you think about AI?", "Catch me up"], note: "Council mode is face to face, with an open microphone. Say \"that's all\" to finish." },
   { title: "Your day", icon: "☀", say: ["Good morning, brief me", "What's the news?", "What's on my calendar today?", "What's the weather?", "Any new emails?"] },
   { title: "Reminders, to-dos and notes", icon: "⏰", say: ["Remind me in 20 minutes to check the oven", "Add milk and eggs to my list", "What's on my list?", "Take a note: the spare key is under the blue pot", "Read my notes"] },
-  { title: "Smart home", icon: "💡", say: ["Lights off", "Dim the lights to 20%", "Set the heating to 21", "Which lights are on?"], note: "Needs Home Assistant (Connections → Smart home)." },
+  { title: "Smart home", icon: "💡", say: ["Lights off", "Make the lights red", "Dim the lights to 20%", "Set the heating to 21", "Which lights are on?"], note: "Needs Home Assistant (Connections → Smart home)." },
   { title: "Your PC", icon: "🖥", say: ["Pause the music", "Turn it up a bit", "Open notepad", "How's my PC doing?", "Look at my screen and tell me what you see", "Lock my PC"] },
   { title: "Knowledge and research", icon: "🔎", say: ["Research how solid-state batteries work", "Search the web for today's tech news", "Who was Ada Lovelace?", "Define serendipity", "What time is it in Tokyo?"] },
   { title: "Quick maths and conversions", icon: "🧮", say: ["What's 15% of 84.50?", "Convert 5 miles to km", "$50 in euros", "How many cups in a litre?"] },

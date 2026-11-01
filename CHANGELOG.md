@@ -2,7 +2,7 @@
 
 ## 0.25.0 · 2026-11-01 · Smart home and natural turn-taking
 - **Smart home:** connect Home Assistant (Connections → Smart home) and say "lights off", "dim the lights to 20%",
-  "set the heating to 21". Everyday devices respond instantly. Garage doors, blinds and scripts ask for approval.
+  "make the lights red", "set the heating to 21". Everyday devices respond instantly. Garage doors, blinds and scripts ask for approval.
   Locks and alarms are never touched. The Home screen gets a Home Systems panel.
 - **Natural turn-taking:** if you trail off mid-thought ("and, um…", "remind me about the…"), ULTRON waits a moment
   for the rest instead of answering half a sentence.

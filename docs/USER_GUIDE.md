@@ -49,7 +49,7 @@ Nest and thousands of others), go to Connections → **Smart home**. Enter its a
 `http://homeassistant.local:8123`) and a long-lived access token. To get a token: in Home Assistant, click your name, then
 Security, then Long-lived access tokens. ULTRON checks the token works before saving it, encrypted.
 
-Then just say it: "lights off", "turn on the kitchen lights", "dim the lights to 20%", "set the heating to 21", "turn the
+Then just say it: "lights off", "turn on the kitchen lights", "dim the lights to 20%", "make the lights red", "set the heating to 21", "turn the
 fan on". These are instant. Ask "which lights are on?" for a status check. The Home screen shows a Home Systems panel.
 - **Everyday devices** (lights, plugs, fans, TV, heating, scenes, vacuum) just happen, and the Activity log records them.
 - **Garage doors, gates, blinds and scripts** always wait for your approval.

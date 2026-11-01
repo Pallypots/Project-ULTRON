@@ -743,12 +743,12 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       return `${q.query ? `Notes about "${q.query}"` : "Your latest notes"} (${notes.length}):\n${notes.map((n) => `• ${n.untrusted_text} (${n.when})`).join("\n")}`;
     }
     case "home": {
-      const r = await run("home_control", { target: q.target, action: q.action, ...(q.value != null ? { value: q.value } : {}) });
+      const r = await run("home_control", { target: q.target, action: q.action, ...(q.value != null ? { value: q.value } : {}), ...(q.color ? { color: q.color } : {}) });
       if (r.status === "awaiting_approval") return "That needs your OK: click Approve on the card below.";
       if (r.status !== "succeeded" || r.data?.error) return r.data?.error ? `I couldn't: ${r.data.error}` : failed(r);
       const names: string[] = r.data?.done ?? [];
       const who = names.length > 3 ? `${names.length} devices` : names.join(" and ");
-      const what = q.action === "brightness" ? `set to ${q.value}%` : q.action === "set_temperature" ? `set to ${q.value}°` : q.action;
+      const what = q.action === "color" ? `now ${q.color === "red" ? "red. Much better" : q.color}` : q.action === "brightness" ? `set to ${q.value}%` : q.action === "set_temperature" ? `set to ${q.value}°` : q.action;
       const extra = r.data?.problems ? ` (${r.data.problems.join("; ")})` : "";
       return `Done: ${who} ${what}.${extra}`;
     }

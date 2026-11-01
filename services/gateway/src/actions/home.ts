@@ -26,8 +26,9 @@ const homeDevices: ToolDef<{ query?: string }> = {
   },
 };
 
-const Action = z.enum(["on", "off", "toggle", "brightness", "set_temperature", "activate", "start", "dock"]);
-const ControlInput = z.object({ target: z.string().trim().min(2).max(100), action: Action, value: z.number().min(0).max(100).optional() }).strict();
+const Action = z.enum(["on", "off", "toggle", "brightness", "set_temperature", "activate", "start", "dock", "color"]);
+const COLORS = ["red", "orange", "yellow", "green", "blue", "purple", "pink", "white", "warmwhite", "cyan", "magenta", "teal", "gold", "crimson", "violet", "lime", "turquoise", "amber"] as const;
+const ControlInput = z.object({ target: z.string().trim().min(2).max(100), action: Action, value: z.number().min(0).max(100).optional(), color: z.enum(COLORS).optional() }).strict();
 type ControlIn = z.infer<typeof ControlInput>;
 
 /** Maps an everyday action onto Home Assistant services for each device. */
@@ -43,6 +44,11 @@ function plan(e: HaEntity, i: ControlIn): { domain: string; service: string; dat
     case "brightness":
       if (e.domain !== "light") return `${e.name} isn't a dimmable light`;
       return { domain: "light", service: "turn_on", data: { ...id, brightness_pct: Math.round(i.value ?? 50) } };
+    case "color":
+      if (e.domain !== "light") return `${e.name} isn't a light`;
+      if (!i.color) return "Say which colour";
+      if (i.color === "warmwhite") return { domain: "light", service: "turn_on", data: { ...id, color_temp_kelvin: 2700 } };
+      return { domain: "light", service: "turn_on", data: { ...id, color_name: i.color === "amber" ? "orange" : i.color } };
     case "set_temperature":
       if (e.domain !== "climate") return `${e.name} isn't a thermostat`;
       if (i.value == null || i.value < 5 || i.value > 30) return "Give a temperature between 5 and 30 degrees";
@@ -99,13 +105,13 @@ async function control(i: ControlIn, ctx: ToolContext, sensitive: boolean, open?
     await ctx.home.call(p.domain, p.service, p.data);
     done.push(e.name);
   }
-  return JSON.stringify({ done, action: open ?? i.action, value: i.value, problems: problems.length ? problems : undefined, not_controlled: refused.length ? refused.map((e) => e.name) : undefined, dry_run: ctx.dryRun || undefined });
+  return JSON.stringify({ done, action: open ?? i.action, value: i.value, color: i.color, problems: problems.length ? problems : undefined, not_controlled: refused.length ? refused.map((e) => e.name) : undefined, dry_run: ctx.dryRun || undefined });
 }
 
 const homeControl: ToolDef<ControlIn> = {
   name: "home_control",
   description:
-    "Smart home (Home Assistant): turn lights, plugs, fans, TVs and vacuums on/off, dim lights (action 'brightness', value 0-100) or set the heating (action 'set_temperature', value in degrees). target is what the owner called it, e.g. 'kitchen lights', 'all lights', 'fan'. Garage doors, gates, blinds, scenes and scripts use home_cover_or_script (approval); locks and alarms are never controlled.",
+    "Smart home (Home Assistant): turn lights, plugs, fans, TVs and vacuums on/off, dim lights (action 'brightness', value 0-100), change light colour (action 'color', color) or set the heating (action 'set_temperature', value in degrees). target is what the owner called it, e.g. 'kitchen lights', 'all lights', 'fan'. Garage doors, gates, blinds, scenes and scripts use home_cover_or_script (approval); locks and alarms are never controlled.",
   input: ControlInput,
   parameters: {
     type: "object",
@@ -113,6 +119,7 @@ const homeControl: ToolDef<ControlIn> = {
       target: { type: "string", description: "Device or room, e.g. 'living room lamp', 'the lights'" },
       action: { type: "string", enum: Action.options },
       value: { type: "number", description: "Brightness % or temperature °" },
+      color: { type: "string", enum: [...COLORS], description: "For action 'color'" },
     },
     required: ["target", "action"],
     additionalProperties: false,
@@ -120,7 +127,7 @@ const homeControl: ToolDef<ControlIn> = {
   risk: 1,
   timeoutMs: 15_000,
   describe: (i) =>
-    i.action === "brightness" ? `Set ${i.target} to ${i.value ?? 50}% brightness` : i.action === "set_temperature" ? `Set ${i.target} to ${i.value}°` : i.action === "activate" ? `Activate the "${i.target}" scene` : `Turn ${i.action === "toggle" ? "over" : i.action} ${i.target}`,
+    i.action === "color" ? `Make ${i.target} ${i.color}` : i.action === "brightness" ? `Set ${i.target} to ${i.value ?? 50}% brightness` : i.action === "set_temperature" ? `Set ${i.target} to ${i.value}°` : i.action === "activate" ? `Activate the "${i.target}" scene` : `Turn ${i.action === "toggle" ? "over" : i.action} ${i.target}`,
   run: (i, ctx) => control(i, ctx, false),
 };
 

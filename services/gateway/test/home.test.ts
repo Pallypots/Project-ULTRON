@@ -73,6 +73,8 @@ describe("smart home (Home Assistant)", () => {
     expect(calls.at(-1)).toEqual({ path: "/api/services/homeassistant/turn_off", body: { entity_id: "light.kitchen" } });
     expect(replyText(await g.chat(id, "dim the living room lamp to 25%"))).toBe("Done: Living Room Lamp set to 25%.");
     expect(calls.at(-1)).toEqual({ path: "/api/services/light/turn_on", body: { entity_id: "light.living_room_lamp", brightness_pct: 25 } });
+    expect(replyText(await g.chat(id, "make the kitchen lights red"))).toBe("Done: Kitchen Lights now red. Much better.");
+    expect(calls.at(-1)).toEqual({ path: "/api/services/light/turn_on", body: { entity_id: "light.kitchen", color_name: "red" } });
     expect(replyText(await g.chat(id, "set the heating to 21"))).toBe("Done: Heating set to 21°.");
     expect(calls.at(-1)!.body).toEqual({ entity_id: "climate.hallway", temperature: 21 });
 
