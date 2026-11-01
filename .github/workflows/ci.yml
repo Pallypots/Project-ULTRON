@@ -14,6 +14,8 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    # A hung step must not hold a runner for hours.
+    timeout-minutes: 75
     env:
       # Runs the real local Whisper speech-recognition test (downloads the model once, then cached).
       ULTRON_TEST_WHISPER: "1"
@@ -69,12 +71,12 @@ jobs:
           $gwPid = { @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like '*gateway/src/main.ts*' })[0].ProcessId }
           $pid1 = & $gwPid
           # Negative control: launching again with nothing changed must reuse the running ULTRON (same process).
-          Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "Start-ULTRON.bat", "--background" -Wait -WindowStyle Hidden
+          $l = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "Start-ULTRON.bat", "--background" -PassThru -WindowStyle Hidden; if (-not $l.WaitForExit(300000)) { Write-Output "::error title=Windows launcher::The launcher did not finish within 5 minutes"; exit 1 }
           $pid2 = & $gwPid
           if ($pid1 -ne $pid2) { Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::Relaunching with no changes restarted ULTRON ($pid1 -> $pid2)"; exit 1 }
           # Positive control: after the code changes (as when a new download is unpacked), launching must restart it.
           (Get-Item "services/gateway/src/main.ts").LastWriteTime = Get-Date
-          Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "Start-ULTRON.bat", "--background" -Wait -WindowStyle Hidden
+          $l = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "Start-ULTRON.bat", "--background" -PassThru -WindowStyle Hidden; if (-not $l.WaitForExit(300000)) { Write-Output "::error title=Windows launcher::The launcher did not finish within 5 minutes"; exit 1 }
           for ($k = 0; $k -lt 60; $k++) { Start-Sleep -Seconds 1; try { if ((Invoke-WebRequest "http://localhost:7480/api/health" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { break } } catch {} }
           $pid3 = & $gwPid
           if (-not $pid3 -or $pid3 -eq $pid2) { Get-Content "$env:ULTRON_DATA_DIR\logs\service.log" -Tail 30 -ErrorAction SilentlyContinue; Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::Updated code did not replace the running ULTRON ($pid2 -> $pid3)"; exit 1 }
