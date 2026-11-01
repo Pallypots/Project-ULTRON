@@ -306,6 +306,7 @@ export const api = {
   searchSettings: () => call<SearchStatus>("GET", "/api/settings/search"),
   saveSearchKey: (apiKey: string) => call<SearchStatus>("PUT", "/api/settings/search", { apiKey }),
   saveSearxng: (searxngUrl: string) => call<SearchStatus>("PUT", "/api/settings/search", { searxngUrl }),
+  hud: () => call<Hud>("GET", "/api/hud"),
   quit: () => call<{ ok: boolean }>("POST", "/api/system/quit", {}),
   removeSearchKey: () => call<SearchStatus>("DELETE", "/api/settings/search"),
   room: () => call<{ enabled: boolean }>("GET", "/api/voice/room"),
@@ -444,4 +445,18 @@ export interface SearchStatus {
   configured: boolean;
   engine: "searxng" | "brave" | null;
   searxngUrl: string | null;
+}
+
+export interface Hud {
+  system: { cpu: number; cpuThreads: number; cpuModel: string; ram: { used: number; total: number }; disk: { used: number; total: number } | null; pcUptimeSec: number; ultronUptimeSec: number };
+  weather: { place: string; now: { conditions: string; temperature: string; feels_like: string; humidity: string; wind: string }; nextDays: { day: string; conditions: string; high: string; low: string; chance_of_rain?: string }[] } | null;
+  homeLocationSet: boolean;
+  agenda: { title: string; start: string; end: string; allDay: boolean; location?: string }[];
+  calendarConnected: boolean;
+  reminders: { id: string; text: string; dueAt: string }[];
+  todos: { open: number; top: { id: string; text: string }[] };
+  pendingApprovals: { id: string; tool: string; summary: string }[];
+  watchers: number;
+  feed: { id: string; title: string; source: string; url: string | null }[];
+  memories: number;
 }

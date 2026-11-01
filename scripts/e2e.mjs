@@ -570,6 +570,26 @@ try {
   await page.getByLabel("Brave Search API key").waitFor();
   step("Web search settings: SearXNG address is checked before saving; Brave key option available");
 
+  // ---- Command-centre Home and Council mode ----
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.getByRole("meter", { name: "CPU" }).waitFor();
+  await page.getByRole("button", { name: "Morning briefing" }).waitFor(); // command ring around the reactor
+  await page.getByText("SYSTEM MONITOR").waitFor();
+  step("Command-centre Home: live CPU/RAM/disk gauges, reactor command ring, intelligence feed");
+  await page.getByRole("button", { name: "◉ Council mode" }).click();
+  const council = page.getByRole("dialog", { name: /Council mode/ });
+  await council.waitFor();
+  await council.locator("canvas.council__face").waitFor();
+  await page.getByRole("button", { name: "Type instead" }).click();
+  await page.getByLabel("Type to ULTRON").fill("format test hello from the council");
+  await page.getByLabel("Type to ULTRON").press("Enter");
+  await council.locator(".council__said", { hasText: "hello from the council" }).waitFor();
+  await page.screenshot({ path: join(shots, "22-council-mode.png") });
+  await page.getByLabel("Type to ULTRON").press("Escape"); // closes the typing box
+  await page.keyboard.press("Escape"); // leaves Council
+  await council.waitFor({ state: "detached" });
+  step("Council mode: full-screen face, reply shown as subtitles, Esc leaves");
+
   // ---- Phone access over Tailscale (simulated: the "phone" reaches ULTRON through a pretend tailnet address) ----
   const TAILNET = "e2e-pc.tail0000.ts.net";
   await page.getByRole("button", { name: "Settings" }).click();

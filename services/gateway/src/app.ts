@@ -27,6 +27,7 @@ import { FileService, openTarget, openWithDefaultApp } from "./files/service.ts"
 import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
+import { HudService } from "./hud.ts";
 import { EmbeddingService } from "./embeddings/index.ts";
 import { Greeter } from "./greeting.ts";
 import { Summarizer } from "./summarizer.ts";
@@ -123,6 +124,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   files.onIndexed = () => void embeddings.backfillDocs().catch(() => {});
   actions.similarFiles = (q) => embeddings.similarFiles(q);
   const calendar = new CalendarService(stores, secrets);
+  const hud = new HudService(stores, config.dataDir, calendar);
   actions.calendar = calendar;
   actions.secrets = secrets;
   const checkIn = new MorningCheckIn(stores, bus, calendar);
@@ -218,6 +220,9 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     stores.audit.record("settings.search_removed", "owner");
     return searchStatus();
   });
+
+  // ---- command-centre Home screen ----
+  app.get("/api/hud", async () => hud.summary());
 
   // ---- watched pages ----
   app.get("/api/watchers", async () => ({ watchers: stores.watchers.active() }));

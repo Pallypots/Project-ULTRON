@@ -36,6 +36,8 @@ export function App() {
   const [prefs, setPrefs] = useUiPrefs();
   const [chatSeed, setChatSeed] = useState<string | null>(null);
   const [talkNow, setTalkNow] = useState(false);
+  const [council, setCouncil] = useState(false);
+  const enterCouncil = () => { setCouncil(true); setView("chat"); };
   const [needPair, setNeedPair] = useState(false);
   const [seedSpeak, setSeedSpeak] = useState(false);
   useEffect(() => {
@@ -51,9 +53,12 @@ export function App() {
     };
     window.addEventListener("ultron-ask", ask);
     window.addEventListener("ultron-talk", talk);
+    const councilNow = () => { setCouncil(true); setView("chat"); };
+    window.addEventListener("ultron-council", councilNow);
     return () => {
       window.removeEventListener("ultron-ask", ask);
       window.removeEventListener("ultron-talk", talk);
+      window.removeEventListener("ultron-council", councilNow);
     };
   }, []);
   useEffect(() => {
@@ -162,6 +167,10 @@ export function App() {
             {n.id === "reminders" && (status?.upcomingReminders ?? 0) > 0 && <span className="badge badge--soft">{status!.upcomingReminders}</span>}
           </button>
         ))}
+        <button className="nav__item nav__item--council" onClick={enterCouncil} title="Full-screen face-to-face conversation with ULTRON">
+          <span className="nav__icon" aria-hidden="true">◉</span>
+          <span className="nav__label">Council</span>
+        </button>
         <div className="nav__footer">
           <ConnectionPill online={online} status={status} />
           <button className="btn btn--danger btn--block" onClick={() => { speaker.current?.stop(); api.stopAll().then(refreshStatus).catch(() => {}); }} title="Stop every reply, voice and pending action immediately">
@@ -175,8 +184,8 @@ export function App() {
             Reconnecting to ULTRON… If this doesn't clear in a minute, double-click the ULTRON icon (Start-ULTRON) to start it again.
           </div>
         )}
-        {view === "home" && <HomeView status={status} core={effectiveCore} onAsk={(q) => { setChatSeed(q); go("chat"); }} onTalk={() => { setTalkNow(true); go("chat"); }} onNavigate={go} />}
-        {view === "chat" && <ChatView onCoreState={setCoreState} core={effectiveCore} seed={chatSeed} seedSpeak={seedSpeak} clearSeed={() => { setChatSeed(null); setSeedSpeak(false); }} talk={talkNow} clearTalk={() => setTalkNow(false)} status={status} onChanged={refreshStatus} />}
+        {view === "home" && <HomeView status={status} core={effectiveCore} onAsk={(q) => { setChatSeed(q); go("chat"); }} onTalk={() => { setTalkNow(true); go("chat"); }} onCouncil={enterCouncil} onNavigate={go} />}
+        {view === "chat" && <ChatView onCoreState={setCoreState} core={effectiveCore} seed={chatSeed} seedSpeak={seedSpeak} clearSeed={() => { setChatSeed(null); setSeedSpeak(false); }} talk={talkNow} clearTalk={() => setTalkNow(false)} status={status} onChanged={refreshStatus} council={council} onExitCouncil={() => setCouncil(false)} />}
         {view === "reminders" && <RemindersView refreshKey={remindersKey} />}
         {view === "files" && <FilesView />}
         {view === "connections" && <ConnectionsView onAsk={(q) => { setChatSeed(q); go("chat"); }} />}

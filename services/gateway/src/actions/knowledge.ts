@@ -131,7 +131,7 @@ export async function weatherFor(place: string, fahrenheit: boolean) {
   };
 }
 
-const usesFahrenheit = (place: string) => /\b(usa|united states|u\.s\.|liberia|bahamas|belize|cayman|palau)\b|,\s*[A-Z]{2}$/i.test(place) || Intl.DateTimeFormat().resolvedOptions().locale === "en-US";
+export const usesFahrenheit = (place: string) => /\b(usa|united states|u\.s\.|liberia|bahamas|belize|cayman|palau)\b|,\s*[A-Z]{2}$/i.test(place) || Intl.DateTimeFormat().resolvedOptions().locale === "en-US";
 
 const weather: ToolDef<{ place?: string; units?: "celsius" | "fahrenheit" }> = {
   name: "get_weather",

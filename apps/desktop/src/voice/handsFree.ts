@@ -49,6 +49,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     paused: false,
     on: false,
     conversing: false,
+    /** Council mode: a continuous conversation; every phrase is for ULTRON, no wake word, no time-out. */
+    openMic: false,
     followTimer: 0 as ReturnType<typeof setTimeout> | 0,
     speaking: false,
     bargeIn: false,
@@ -63,6 +65,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
   // What to show while waiting: a reply window, a just-heard-"Ultron" window, or plain listening for the wake word.
   const idle = (): HandsFreeState => {
     const st = r.current;
+    if (st.openMic) return "followup";
     if (Date.now() >= st.awakeUntil) return "listening";
     return st.conversing ? "followup" : "awake";
   };
@@ -80,8 +83,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     set("checking");
     let sent = false;
     try {
-      const awake = Date.now() < st.awakeUntil;
-      const following = awake && st.conversing;
+      const awake = st.openMic || Date.now() < st.awakeUntil;
+      const following = awake && (st.conversing || st.openMic);
       const res = await transcribeWake(encodeWav(samples), !awake);
       if (!st.on) return;
       // In a follow-up there's no wake word, so filter Whisper's noise "words" before treating it as a reply.
@@ -90,7 +93,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
         if (res.text) {
           st.awakeUntil = 0;
           if (st.followTimer) clearTimeout(st.followTimer);
-          st.conversing = loadVoicePrefs().conversation && !ENDS_CONVERSATION.test(res.text);
+          st.conversing = st.openMic || (loadVoicePrefs().conversation && !ENDS_CONVERSATION.test(res.text));
           sent = true;
           onCommand(res.text);
         } else {
@@ -107,7 +110,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       if (sent || !st.on) {
         // The reply is coming; the pause/unpause cycle around it opens the follow-up window.
       } else {
-        if (Date.now() >= st.awakeUntil) st.conversing = false;
+        if (Date.now() >= st.awakeUntil && !st.openMic) st.conversing = false;
         set(idle());
       }
     }
@@ -180,6 +183,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     if (st.on) api.setHandsFree(false).catch(() => {});
     st.on = false;
     st.conversing = false;
+    st.openMic = false;
     if (st.followTimer) clearTimeout(st.followTimer);
     st.stream?.getTracks().forEach((t) => t.stop());
     st.node?.disconnect();
@@ -190,9 +194,13 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
   }, []);
 
   /** `conversation`: start already listening for you (no wake word for the first thing you say), e.g. from "Talk to ULTRON". */
-  const start = useCallback(async (opts: { conversation?: boolean } = {}) => {
+  const start = useCallback(async (opts: { conversation?: boolean; openMic?: boolean } = {}) => {
     const st = r.current;
-    if (st.on) return;
+    st.openMic = Boolean(opts.openMic);
+    if (st.on) {
+      if (st.openMic) set("followup");
+      return;
+    }
     setError(null);
     set("starting");
     try {
@@ -227,7 +235,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
         st.awakeUntil = Date.now() + FOLLOW_MS * 2;
         set("followup");
         st.followTimer = setTimeout(() => {
-          if (!st.on || st.inPhrase || st.busy || st.paused || Date.now() < st.awakeUntil) return;
+          if (!st.on || st.openMic || st.inPhrase || st.busy || st.paused || Date.now() < st.awakeUntil) return;
           st.conversing = false;
           set("listening");
         }, FOLLOW_MS * 2 + 50);
@@ -248,14 +256,14 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     if (paused && state !== "paused") set("paused");
     if (!paused && state === "paused") {
       // ULTRON just finished answering: in conversation mode, listen for a reply without the wake word.
-      if (st.conversing && st.on) {
+      if ((st.conversing || st.openMic) && st.on) {
         st.awakeUntil = Date.now() + FOLLOW_MS;
         set("followup");
         if (st.followTimer) clearTimeout(st.followTimer);
         st.followTimer = setTimeout(() => {
           // Only give up if nothing was said; a reply in progress keeps the conversation going.
           // ULTRON started talking again (or you're mid-reply): the next pause/unpause re-opens the window instead.
-          if (!st.on || st.inPhrase || st.busy || st.paused) return;
+          if (!st.on || st.openMic || st.inPhrase || st.busy || st.paused) return;
           st.conversing = false;
           st.awakeUntil = 0;
           set("listening");
@@ -264,5 +272,10 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     }
   }, [paused, state]);
 
-  return { state, level, error, clearError: () => setError(null), start, stop, on: state !== "off" };
+  /** Leave Council mode without stopping hands-free: back to needing the wake word after the usual reply window. */
+  const closeMic = useCallback(() => {
+    r.current.openMic = false;
+  }, []);
+
+  return { state, level, error, clearError: () => setError(null), start, stop, closeMic, on: state !== "off" };
 }

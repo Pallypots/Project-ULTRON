@@ -6,6 +6,9 @@ import { usePushToTalk } from "../voice/usePushToTalk.ts";
 import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
 import { SentenceSplitter } from "@ultron/audio";
 import { Markdown } from "../Markdown.tsx";
+import { Council } from "../council/Council.tsx";
+import type { FaceMood } from "../council/face.ts";
+import { ENDS_CONVERSATION } from "@ultron/audio";
 import { ToolChips } from "../ToolChips.tsx";
 import { useHandsFree } from "../voice/handsFree.ts";
 import { loadVoicePrefs } from "../voice/prefs.ts";
@@ -26,7 +29,7 @@ function pickFiller(): string {
   return FILLERS[i]!;
 }
 
-export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, clearTalk, status, onChanged }: {
+export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, clearTalk, status, onChanged, council, onExitCouncil }: {
   onCoreState: (s: CoreState) => void;
   core: CoreState;
   seed: string | null;
@@ -38,6 +41,9 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   clearTalk?: () => void;
   status: Status | null;
   onChanged: () => void;
+  /** Council mode: full-screen face, open microphone. */
+  council?: boolean;
+  onExitCouncil?: () => void;
 }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(() => localStorage.getItem("ultron.activeConversation"));
@@ -152,6 +158,11 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
 
   const send = useCallback(async (text: string, inputMode: "text" | "voice" = "text", continueFrom?: string, speakReply = false) => {
     if (!text.trim() || busy) return;
+    // "Council mode" / "Ultron, council" opens the full-screen face (handled by the app, not the brain).
+    if (/^\s*(?:(?:hey|ok)\s+)?(?:ultron[\s,:!.-]+)?(?:enter|start|open|activate|go to|switch to)?\s*(?:the\s+)?council(?:\s+mode)?[\s.!]*$/i.test(text)) {
+      window.dispatchEvent(new Event("ultron-council"));
+      return;
+    }
     setError(null);
     setSpeakError(null);
     const sp = speaker.current!;
@@ -241,7 +252,13 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     [send],
   );
   const ptt = usePushToTalk(onTranscript, !busy, stopSpeaking);
-  const onWakeCommand = useCallback((text: string) => send(text, "voice"), [send]);
+  const councilRef = useRef(false);
+  councilRef.current = Boolean(council);
+  const onWakeCommand = useCallback((text: string) => {
+    // "That's all" ends Council mode (after ULTRON says goodbye).
+    if (councilRef.current && ENDS_CONVERSATION.test(text)) setTimeout(() => window.dispatchEvent(new Event("ultron-council-exit")), 2500);
+    return send(text, "voice");
+  }, [send]);
   // An approved action ULTRON needs the result of: carry on in the conversation it came from.
   useEffect(() => {
     const go = (ev: Event) => {
@@ -261,6 +278,23 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
       stopSpeaking();
     },
   });
+  // Council mode: a fresh conversation with the microphone open (no wake word) until you leave.
+  useEffect(() => {
+    if (!council) return;
+    newConversation().then(() => hands.start({ conversation: true, openMic: true }));
+    const exit = () => onExitCouncil?.();
+    window.addEventListener("ultron-council-exit", exit);
+    return () => {
+      window.removeEventListener("ultron-council-exit", exit);
+      hands.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [council]);
+  const levelRef = useRef(0);
+  levelRef.current = speaking ? speakLevel : hands.level * 0.35;
+  const councilMood: FaceMood = speaking ? "speaking" : busy || hands.state === "checking" || ptt.state === "transcribing" ? "thinking" : hands.state === "hearing" || ptt.state === "listening" ? "listening" : core === "offline" ? "offline" : "idle";
+  const lastOf = (role: string) => [...messages].reverse().find((m) => m.role === role)?.content ?? "";
+
   useEffect(() => {
     if (!talk) return;
     clearTalk?.();
@@ -334,6 +368,20 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
       if (list[0]) open(list[0].id);
     }
   };
+
+  if (council)
+    return (
+      <Council
+        mood={councilMood}
+        level={levelRef}
+        said={lastOf("assistant")}
+        heard={lastOf("user").startsWith("✓ Approved") ? "" : lastOf("user")}
+        brain={status ? (status.where === "test" ? "Test brain" : `${status.where === "local" ? "Local" : "Cloud"} brain · ${status.model}`) : ""}
+        problem={hands.error ?? speakError ?? error}
+        onSend={(t) => send(t, "text", undefined, true)}
+        onExit={() => onExitCouncil?.()}
+      />
+    );
 
   return (
     <div className="chat">

@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
 import { loadVoicePrefs } from "../voice/prefs.ts";
 import type { Capability } from "@ultron/schemas";
-import { api, type FeedEvent, type Status } from "../api.ts";
-import { Core, type CoreState } from "../Core.tsx";
+import { api, type Hud, type Status } from "../api.ts";
+import type { CoreState } from "../Core.tsx";
 import type { View } from "../App.tsx";
+import { Reactor, type ReactorCommand } from "../hud/Reactor.tsx";
+import { Gauge } from "../hud/Gauge.tsx";
 
-const SUGGESTIONS = ["Good morning, brief me", "Catch me up", "What's the weather?", "Tell me a joke", "What can you do right now?", "Switch your brain to local"];
+const QUICK = ["Good morning, brief me", "Catch me up", "What's the weather?", "What's on my calendar today?", "Tell me a joke", "What can you do right now?"];
 
 // A little character on the home screen. Jokes only; ULTRON's actual rules are in the persona, not here.
 const QUIPS = [
@@ -18,18 +20,52 @@ const QUIPS = [
   "Your secrets stay here. I'm many things, but a gossip isn't one of them.",
 ];
 
-export function HomeView({ status, core, onAsk, onTalk, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onTalk: () => void; onNavigate: (v: View) => void }) {
+const gb = (b: number) => `${(b / 1e9).toFixed(b > 1e11 ? 0 : 1)} GB`;
+const dur = (s: number) => (s >= 86400 ? `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h` : s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m` : `${Math.floor(s / 60)}m`);
+const hm = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+function Panel({ title, badge, children, className = "" }: { title: string; badge?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  const id = `p-${title.toLowerCase().replace(/\W+/g, "-")}`;
+  return (
+    <section className={`hud-panel ${className}`} aria-labelledby={id}>
+      <h2 className="hud-panel__title" id={id}>
+        <span>{title}</span>
+        {badge}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function useClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
+export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }: { status: Status | null; core: CoreState; onAsk: (q: string) => void; onTalk: () => void; onCouncil: () => void; onNavigate: (v: View) => void }) {
   const [caps, setCaps] = useState<Capability[]>([]);
   const [q, setQ] = useState("");
-  const [news, setNews] = useState<FeedEvent[]>([]);
-  useEffect(() => {
-    api.feed(true).then((r) => setNews(r.events.filter((e) => e.readState === "unread").slice(0, 5))).catch(() => {});
-  }, []);
+  const [hud, setHud] = useState<Hud | null>(null);
+  const now = useClock();
   useEffect(() => {
     api.capabilities().then((r) => setCaps(r.capabilities)).catch(() => {});
   }, [status?.provider, status?.providerReady]);
+  useEffect(() => {
+    let live = true;
+    const load = () => api.hud().then((h) => live && setHud(h)).catch(() => {});
+    load();
+    const t = setInterval(load, 3000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, []);
 
-  const hour = new Date().getHours();
+  const hour = now.getHours();
   const greet = hour < 5 ? "Burning the midnight oil" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const [quip] = useState(() => QUIPS[Math.floor(Math.random() * QUIPS.length)]!);
   // After an update: what's new since the version the owner last saw (once).
@@ -60,51 +96,45 @@ export function HomeView({ status, core, onAsk, onTalk, onNavigate }: { status: 
     return () => { live = false; };
   }, [status?.provider]);
 
+  const sys = hud?.system;
+  const ramPct = sys ? Math.round((sys.ram.used / sys.ram.total) * 100) : 0;
+  const diskPct = sys?.disk ? Math.round((sys.disk.used / sys.disk.total) * 100) : null;
+  const commands: ReactorCommand[] = [
+    { label: "BRIEF", title: "Morning briefing", run: () => onAsk("Good morning, brief me") },
+    { label: "WEATHER", title: "Weather", run: () => onAsk("What's the weather?") },
+    { label: "AGENDA", title: "Today's calendar", run: () => onAsk("What's on my calendar today?") },
+    { label: "TO-DO", title: "My to-do list", run: () => onAsk("What's on my list?") },
+    { label: "NEWS", title: "Catch me up", run: () => onAsk("Catch me up") },
+    { label: "MEDIA", title: "Play or pause music", run: () => onAsk("pause") },
+    { label: "SCREEN", title: "Look at my screen", run: () => onAsk("Look at my screen and tell me what you see") },
+    { label: "SYSTEM", title: "How is my PC doing?", run: () => onAsk("How's my PC doing?") },
+    { label: "JOKE", title: "Tell me a joke", run: () => onAsk("Tell me a joke") },
+    { label: "SKILLS", title: "What can you do?", run: () => onAsk("What can you do right now?") },
+    { label: "COUNCIL", title: "Council mode: talk face to face", run: onCouncil },
+    { label: "TALK", title: "Talk to ULTRON", run: onTalk },
+  ];
+  const ready = status?.providerReady !== false;
+  const feedCount = (hud?.pendingApprovals.length ?? 0) + (hud?.reminders.length ?? 0) + (hud?.feed.length ?? 0);
+
   return (
-    <div className="home">
-      <section className="home__hero">
-        <Core state={core} size={260} />
-        <div className="home__intro">
-          <p className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
-          <h1>{greet}{status?.persona.salutation ? `, ${status.persona.salutation}` : ""}.</h1>
-          <p className="muted">{quip}</p>
-          {hello && (
-            <div className="hello" role="status">
-              <span className="hello__who">
-                ULTRON
-                <button type="button" className="hello__play" onClick={sayHello} aria-label="Say it out loud" title="Say it out loud">🔊</button>
-              </span>
-              <span className="hello__text">{hello}</span>
-            </div>
-          )}
-          <form className="ask" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onAsk(q.trim()); }}>
-            <label htmlFor="home-ask" className="sr-only">Ask ULTRON</label>
-            <input id="home-ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask ULTRON…" autoComplete="off" />
-            <button className="btn btn--primary" type="submit">Ask</button>
-          </form>
-          <button type="button" className="btn talk-btn" onClick={onTalk} title="Opens a conversation and listens: just speak. Say &quot;that's all&quot; when you're done.">
-            🎙 Talk to ULTRON
-          </button>
-          {updates && (
-            <section className="news" aria-labelledby="news-title">
-              <div className="row" style={{ justifyContent: "space-between" }}>
-                <strong id="news-title">What's new in v{updates.version}</strong>
-                <button type="button" className="btn btn--small" onClick={() => { api.whatsNewSeen().catch(() => {}); setUpdates(null); }}>Got it</button>
-              </div>
-              <ul>
-                {updates.sections.flatMap((s) => s.items).slice(0, 8).map((it, i) => (
-                  <li key={i}>{plain(it).slice(0, 220)}{plain(it).length > 220 ? "…" : ""}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-          <div className="chips">
-            {SUGGESTIONS.map((s) => (
-              <button key={s} className="chip" onClick={() => onAsk(s)}>{s}</button>
-            ))}
+    <div className="hud">
+      <header className="hud__top">
+        <div className="hud__id">
+          <div className="hud__brand">U L T R O N</div>
+          <div className={`hud__sys ${ready ? "" : "hud__sys--warn"}`}>
+            <i aria-hidden="true" /> SYSTEM STATUS · {status ? (ready ? "OPTIMAL" : "ATTENTION") : "…"}
           </div>
         </div>
-      </section>
+        <div className="hud__clock" aria-label="Current time">
+          <div className="hud__time">{now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>
+          <div className="hud__date">{now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
+        </div>
+        <div className="hud__brain">
+          <div className="hud__k">NEURAL CORE</div>
+          <div className="hud__v">{status ? (status.where === "test" ? "Test brain" : `${status.model}`) : "–"}</div>
+          <div className="hud__k">{status?.where === "local" ? "LOCAL · PRIVATE" : status?.where === "cloud" ? "CLOUD" : "OFFLINE MODE"}</div>
+        </div>
+      </header>
 
       {status?.secretsProblem && <div className="banner banner--warn" role="alert">{status.secretsProblem}</div>}
       {status && !status.providerReady && (
@@ -118,55 +148,142 @@ export function HomeView({ status, core, onAsk, onTalk, onNavigate }: { status: 
           <button className="link" onClick={() => onNavigate("settings")}>Set up Local AI (free, private, runs on this PC)</button>
         </div>
       )}
-      {status?.where === "cloud" && (
-        <div className="banner" role="status">
-          <strong>Cloud brain</strong> ({status.model}): your messages go to {status.provider === "anthropic" ? "Anthropic" : "OpenAI"}. Say "go local" to switch back.
-        </div>
-      )}
-
-      {news.length > 0 && (
-        <section className="panel">
-          <h2 className="panel__title">What's new (connected accounts)</h2>
-          <ul className="reminders">
-            {news.map((e) => (
-              <li key={e.id} className={`reminder feed feed--u${e.urgency}`}>
-                <span>{e.title}<div className="small muted">{e.why}</div></span>
-                {e.canonicalUrl && <a className="btn btn--small" href={e.canonicalUrl} target="_blank" rel="noreferrer">Open</a>}
-              </li>
+      {updates && (
+        <section className="hud-panel news" aria-labelledby="news-title">
+          <h2 className="hud-panel__title" id="news-title">
+            <span>UPGRADE INSTALLED · v{updates.version}</span>
+            <button type="button" className="btn btn--small" onClick={() => { api.whatsNewSeen().catch(() => {}); setUpdates(null); }}>Got it</button>
+          </h2>
+          <ul>
+            {updates.sections.flatMap((s) => s.items).slice(0, 6).map((it, i) => (
+              <li key={i}>{plain(it).slice(0, 200)}{plain(it).length > 200 ? "…" : ""}</li>
             ))}
           </ul>
-          <div className="row"><button type="button" className="btn btn--small" onClick={() => onNavigate("connections")}>See all</button><button type="button" className="btn btn--small" onClick={() => onAsk("What's new? Catch me up.")}>Brief me</button></div>
         </section>
       )}
 
-      <section className="grid">
-        <div className="panel">
-          <h2 className="panel__title">Systems</h2>
-          <ul className="caps">
-            {caps.map((c) => (
-              <li key={c.id} className={`cap cap--${c.status}`}>
-                <span className="cap__dot" aria-hidden="true" />
-                <span className="cap__label">{c.label}</span>
-                <span className="cap__status">{c.status.replace("_", " ")}</span>
-                <span className="cap__detail">{c.detail}</span>
-              </li>
-            ))}
-          </ul>
+      <div className="hud__grid">
+        <div className="hud__col">
+          <Panel title="AI CORE" badge={<span className="hud-badge">{caps.filter((c) => c.status === "enabled").length}/{caps.length} ONLINE</span>}>
+            <ul className="hud-caps">
+              {caps.map((c) => (
+                <li key={c.id} className={`hud-cap hud-cap--${c.status}`} title={c.detail ?? undefined}>
+                  <i aria-hidden="true" />
+                  <span>{c.label}</span>
+                  <em>{c.status.replace("_", " ")}</em>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+          <Panel title="SYSTEM MONITOR">
+            <div className="gauges">
+              <Gauge label="CPU" value={sys ? sys.cpu : null} detail={sys ? `${sys.cpuThreads} threads` : undefined} />
+              <Gauge label="RAM" value={sys ? ramPct : null} detail={sys ? `${gb(sys.ram.used)} / ${gb(sys.ram.total)}` : undefined} />
+              <Gauge label="DISK" value={diskPct} detail={sys?.disk ? `${gb(sys.disk.total - sys.disk.used)} free` : undefined} />
+            </div>
+            <dl className="hud-kv">
+              <div><dt>PC UPTIME</dt><dd>{sys ? dur(sys.pcUptimeSec) : "–"}</dd></div>
+              <div><dt>ULTRON UPTIME</dt><dd>{sys ? dur(sys.ultronUptimeSec) : "–"}</dd></div>
+              <div><dt>MEMORIES</dt><dd>{hud?.memories ?? "–"}</dd></div>
+              <div><dt>WATCHING</dt><dd>{hud ? `${hud.watchers} page${hud.watchers === 1 ? "" : "s"}` : "–"}</dd></div>
+            </dl>
+          </Panel>
         </div>
-        <div className="panel">
-          <h2 className="panel__title">At a glance</h2>
-          <dl className="stats">
-            <div><dt>Conversations</dt><dd>{status?.counts.conversations ?? "–"}</dd></div>
-            <div><dt>Memories</dt><dd>{status?.counts.memories ?? "–"}</dd></div>
-            <div><dt>Model</dt><dd className="stats__small">{status ? (status.where === "test" ? "Test brain" : `${status.model} (${status.where})`) : "–"}</dd></div>
-            <div><dt>Version</dt><dd className="stats__small">{status?.version ?? "–"}</dd></div>
-          </dl>
-          <div className="row">
-            <button className="btn" onClick={() => onNavigate("memory")}>Open Memory Vault</button>
-            <button className="btn" onClick={() => onNavigate("activity")}>View activity</button>
+
+        <div className="hud__center">
+          <Reactor state={core} cpu={sys?.cpu ?? 0} ram={ramPct} commands={commands} time={now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })} />
+          <div className="hud__greeting">
+            <h1>{greet}{status?.persona.salutation ? `, ${status.persona.salutation}` : ""}.</h1>
+            <p className="muted">{quip}</p>
+            {hello && (
+              <div className="hello" role="status">
+                <span className="hello__who">
+                  ULTRON
+                  <button type="button" className="hello__play" onClick={sayHello} aria-label="Say it out loud" title="Say it out loud">🔊</button>
+                </span>
+                <span className="hello__text">{hello}</span>
+              </div>
+            )}
           </div>
         </div>
-      </section>
+
+        <div className="hud__col">
+          <Panel title="ENVIRONMENT">
+            {hud?.weather ? (
+              <div className="wx">
+                <div className="wx__now">
+                  <span className="wx__temp">{hud.weather.now.temperature}</span>
+                  <span>
+                    <strong>{hud.weather.now.conditions}</strong>
+                    <span className="small muted">{hud.weather.place.split(",")[0]} · feels {hud.weather.now.feels_like} · wind {hud.weather.now.wind}</span>
+                  </span>
+                </div>
+                <ul className="wx__days">
+                  {hud.weather.nextDays.slice(1, 3).map((d) => (
+                    <li key={d.day}><span>{new Date(d.day + "T12:00").toLocaleDateString(undefined, { weekday: "short" })}</span><span>{d.conditions}</span><span>{d.high} / {d.low}</span></li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="small muted">
+                {hud?.homeLocationSet ? "Fetching the weather…" : <>Set your city in <button className="link" onClick={() => onNavigate("settings")}>Settings → Personality</button> to see the weather here.</>}
+              </p>
+            )}
+          </Panel>
+          <Panel title="LIVE INTELLIGENCE FEED" badge={feedCount ? <span className="hud-badge hud-badge--live">LIVE · {feedCount}</span> : <span className="hud-badge">QUIET</span>}>
+            <ul className="hud-feed">
+              {hud?.pendingApprovals.map((a) => (
+                <li key={a.id} className="hud-feed__item hud-feed__item--warn">
+                  <button className="link" onClick={() => onNavigate("activity")}>Waiting for approval: {a.summary}</button>
+                </li>
+              ))}
+              {hud?.reminders.map((r) => (
+                <li key={r.id} className="hud-feed__item"><span className="hud-feed__t">{hm(r.dueAt)}</span> ⏰ {r.text}</li>
+              ))}
+              {hud?.feed.map((e) => (
+                <li key={e.id} className="hud-feed__item">
+                  <span className="hud-feed__t">{e.source.toUpperCase()}</span> {e.url ? <a href={e.url} target="_blank" rel="noreferrer">{e.title}</a> : e.title}
+                </li>
+              ))}
+              {hud && !feedCount && <li className="hud-feed__item muted">All quiet. Nothing needs you right now.</li>}
+            </ul>
+          </Panel>
+          <Panel title="MISSION TIMELINE" badge={<span className="hud-badge">TODAY</span>}>
+            <ul className="hud-feed">
+              {hud?.agenda.map((e, i) => (
+                <li key={i} className="hud-feed__item"><span className="hud-feed__t">{e.allDay ? "ALL DAY" : hm(e.start)}</span> {e.title}</li>
+              ))}
+              {hud && !hud.calendarConnected && <li className="hud-feed__item muted">No calendar linked. <button className="link" onClick={() => onNavigate("connections")}>Connect one</button></li>}
+              {hud?.calendarConnected && !hud.agenda.length && <li className="hud-feed__item muted">Nothing on the calendar today.</li>}
+              {hud?.todos.top.map((t) => (
+                <li key={t.id} className="hud-feed__item"><span className="hud-feed__t">TO-DO</span> {t.text}</li>
+              ))}
+              {hud && hud.todos.open > hud.todos.top.length && <li className="hud-feed__item muted">+{hud.todos.open - hud.todos.top.length} more on your list</li>}
+            </ul>
+          </Panel>
+        </div>
+      </div>
+
+      <footer className="hud__bottom">
+        <div className="chips" aria-label="Quick commands">
+          {QUICK.map((s) => (
+            <button key={s} className="chip" onClick={() => onAsk(s)}>{s}</button>
+          ))}
+        </div>
+        <div className="hud__console">
+          <form className="ask" onSubmit={(e) => { e.preventDefault(); if (q.trim()) onAsk(q.trim()); }}>
+            <label htmlFor="home-ask" className="sr-only">Ask ULTRON</label>
+            <input id="home-ask" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask ULTRON…" autoComplete="off" />
+            <button className="btn btn--primary" type="submit">Ask</button>
+          </form>
+          <button type="button" className="btn talk-btn" onClick={onTalk} title="Opens a conversation and listens: just speak. Say &quot;that's all&quot; when you're done.">
+            🎙 Talk to ULTRON
+          </button>
+          <button type="button" className="btn council-btn" onClick={onCouncil} title="Full screen, face to face, always listening">
+            ◉ Council mode
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }
