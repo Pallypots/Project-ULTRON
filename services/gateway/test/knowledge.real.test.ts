@@ -25,6 +25,14 @@ describe.skipIf(!enabled)("knowledge tools against the real services", () => {
     expect(w.next_days).toHaveLength(3);
   }, 30_000);
 
+  it("gets the chance of rain for the next hours (rain heads-up)", async () => {
+    const { rainSoon } = await import("../src/actions/knowledge.ts");
+    const r = await rainSoon("London");
+    expect(r?.hours.length).toBeGreaterThanOrEqual(2);
+    expect(typeof r?.hours[0]?.chance).toBe("number");
+    ciNote("Rain heads-up", `London: ${r!.rainingNow ? "raining now; " : ""}${r!.hours.map((h) => `${h.at.slice(11)} ${h.chance}%`).join(", ")}`);
+  });
+
   it("reads a public web page", async () => {
     const page = await fetchPage("https://example.com/");
     note("Real web page", `${page.title}: ${page.text.slice(0, 100)}`);

@@ -130,6 +130,10 @@ Standup, 1 to-do due." Click **Brief me** for the full briefing. If ULTRON start
 **Evening check-in:** at 9 p.m. by default ULTRON asks how your day went. Click **Talk** and just tell it; it may offer to remember
 the highlights. Turn either check-in off or change the times in Settings → Check-ins.
 
+**Rain heads-up:** with your home city set (Settings → Personality), ULTRON warns you when rain is likely in the next
+couple of hours: "80% chance of rain around 3pm". It checks at most every 6 hours, during the day only. Turn it off in
+Settings → Check-ins.
+
 ## Good morning briefing
 Say "Ultron, good morning", "brief me" or "what's my day like?" (or tap **Good morning, brief me** on Home). ULTRON gathers today's reminders,
 anything missed while it was off, actions waiting for your approval, and GitHub highlights from the last 24 hours. It tells you plainly which sources

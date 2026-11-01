@@ -76,3 +76,42 @@ describe("calendar heads-up", () => {
     expect(await new MorningCheckIn(s, bus, calendar, now).meetings()).toBe(0);
   });
 });
+
+describe("rain heads-up", () => {
+  it("warns once when rain is likely soon, daytime only, never while it's already raining", async () => {
+    const { createServer } = await import("node:http");
+    let chance = 80;
+    let now = 0;
+    const srv = createServer((req, res) => {
+      res.setHeader("content-type", "application/json");
+      if (req.url!.startsWith("/v1/search")) return res.end(JSON.stringify({ results: [{ name: "Leeds", latitude: 53.8, longitude: -1.5 }] }));
+      res.end(JSON.stringify({ current: { precipitation: now }, hourly: { time: ["2026-11-02T14:00", "2026-11-02T15:00", "2026-11-02T16:00"], precipitation_probability: [10, chance, 40] } }));
+    });
+    await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
+    const base = `http://127.0.0.1:${(srv.address() as { port: number }).port}`;
+    process.env.ULTRON_GEOCODE_API = base;
+    process.env.ULTRON_WEATHER_API = base;
+    try {
+      const s = openStores(":memory:");
+      const bus = new EventBus();
+      const seen: any[] = [];
+      bus.subscribe((e) => seen.push(e));
+      expect(await new MorningCheckIn(s, bus, undefined, at(14, 0)).rain()).toBe(false); // no home city
+      s.preferences.set("home_location", "Leeds");
+      expect(await new MorningCheckIn(s, bus, undefined, at(23, 0)).rain()).toBe(false); // night
+      now = 1.2;
+      expect(await new MorningCheckIn(s, bus, undefined, at(14, 0)).rain()).toBe(false); // already raining
+      now = 0;
+      expect(await new MorningCheckIn(s, bus, undefined, at(14, 0)).rain()).toBe(true);
+      expect(seen.at(-1)).toMatchObject({ type: "checkin", kind: "weather", title: "🌧 Rain on the way" });
+      expect(seen.at(-1).body).toMatch(/^80% chance of rain in Leeds around 3:00/);
+      expect(await new MorningCheckIn(s, bus, undefined, at(16, 0)).rain()).toBe(false); // not again within 6 hours
+      s.preferences.set("checkin", { rainAlerts: false });
+      expect(await new MorningCheckIn(s, bus, undefined, at(14, 0, 1)).rain()).toBe(false); // turned off
+    } finally {
+      delete process.env.ULTRON_GEOCODE_API;
+      delete process.env.ULTRON_WEATHER_API;
+      srv.close();
+    }
+  });
+});

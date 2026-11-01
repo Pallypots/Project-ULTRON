@@ -125,6 +125,7 @@ export interface CheckIn {
   evening: boolean;
   eveningTime: string;
   meetingAlertMinutes: number;
+  rainAlerts: boolean;
 }
 export interface Todo {
   id: string;
@@ -209,7 +210,7 @@ export type ServerEvent =
   | { type: "reminders_missed"; reminders: Reminder[] }
   | { type: "action_updated"; execution: ActionRecord }
   | { type: "connector_synced"; source: string; added: number }
-  | { type: "checkin"; title: string; body: string; kind: "morning" | "evening" | "meeting" | "watch" };
+  | { type: "checkin"; title: string; body: string; kind: "morning" | "evening" | "meeting" | "watch" | "weather" };
 
 /** Keeps a live connection for reminders and approvals; reconnects with backoff. Returns a stop function. */
 export function subscribeEvents(onEvent: (e: ServerEvent) => void): () => void {

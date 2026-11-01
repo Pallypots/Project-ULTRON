@@ -1,6 +1,7 @@
 import type { Stores } from "@ultron/memory";
 import type { EventBus } from "./actions/events.ts";
 import { dayRange, type CalendarService } from "./calendar/service.ts";
+import { rainSoon } from "./actions/knowledge.ts";
 
 export interface CheckInSettings {
   enabled: boolean;
@@ -11,8 +12,10 @@ export interface CheckInSettings {
   /** Evening "how did today go?" check-in. */
   evening: boolean;
   eveningTime: string;
+  /** A heads-up when rain is likely in the next couple of hours (needs the home city). */
+  rainAlerts: boolean;
 }
-export const DEFAULT_CHECKIN: CheckInSettings = { enabled: true, time: "08:00", evening: true, eveningTime: "21:00", meetingAlertMinutes: 10 };
+export const DEFAULT_CHECKIN: CheckInSettings = { enabled: true, time: "08:00", evening: true, eveningTime: "21:00", meetingAlertMinutes: 10, rainAlerts: true };
 
 // Varied so it doesn't feel like a cron job.
 const EVENING_LINES = [
@@ -55,6 +58,7 @@ export class MorningCheckIn {
   /** Sends today's check-ins if they're due. Returns whether one was sent. */
   async tick(): Promise<boolean> {
     await this.meetings();
+    await this.rain().catch(() => false);
     return (await this.morning()) || this.evening();
   }
 
@@ -77,6 +81,29 @@ export class MorningCheckIn {
       n++;
     }
     return n;
+  }
+
+  private rainCheckedAt = 0;
+  /** "Rain likely around 3pm, take an umbrella": at most every 6 hours, daytime only, only if it isn't raining already. */
+  async rain(): Promise<boolean> {
+    const s = this.settings();
+    const place = this.stores.preferences.get<string>("home_location", "").trim();
+    if (!s.rainAlerts || !place) return false;
+    const now = this.now();
+    if (now.getHours() < 7 || now.getHours() >= 22) return false;
+    if (now.getTime() - this.rainCheckedAt < 30 * 60_000) return false;
+    this.rainCheckedAt = now.getTime();
+    const last = this.stores.preferences.get<number>("checkin_rain_last", 0);
+    if (now.getTime() - last < 6 * 3600_000) return false;
+    const r = await rainSoon(place);
+    if (!r || r.rainingNow) return false;
+    const wet = r.hours.find((h) => h.chance >= 70);
+    if (!wet) return false;
+    this.stores.preferences.set("checkin_rain_last", now.getTime());
+    const when = new Date(wet.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    this.stores.audit.record("checkin.rain_sent", "system", null, { chance: wet.chance });
+    this.bus.emit({ type: "checkin", title: "🌧 Rain on the way", body: `${wet.chance}% chance of rain in ${r.place} around ${when}. Umbrella advised; rust is not a good look.`, kind: "weather" });
+    return true;
   }
 
   /** "How did today go?" once an evening (not after midnight, and only if ULTRON is running then). */

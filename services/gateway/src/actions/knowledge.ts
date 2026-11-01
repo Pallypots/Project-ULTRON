@@ -131,6 +131,20 @@ export async function weatherFor(place: string, fahrenheit: boolean) {
   };
 }
 
+/** Chance of rain over the next few hours at a place: { now: mm falling now, hours: [{ at, chance }] }. */
+export async function rainSoon(place: string): Promise<{ place: string; rainingNow: boolean; hours: { at: string; chance: number }[] } | null> {
+  const geo = await getJson(`${GEOCODE()}/v1/search?name=${encodeURIComponent(place)}&count=1&language=en&format=json`);
+  const g = geo?.results?.[0];
+  if (!g) return null;
+  const w = await getJson(`${WEATHER()}/v1/forecast?latitude=${g.latitude}&longitude=${g.longitude}&current=precipitation&hourly=precipitation_probability&forecast_hours=3&timezone=auto`);
+  const times: string[] = w?.hourly?.time ?? [];
+  return {
+    place: g.name,
+    rainingNow: Number(w?.current?.precipitation ?? 0) > 0.1,
+    hours: times.map((at, i) => ({ at, chance: Number(w.hourly.precipitation_probability?.[i] ?? 0) })),
+  };
+}
+
 export const usesFahrenheit = (place: string) => /\b(usa|united states|u\.s\.|liberia|bahamas|belize|cayman|palau)\b|,\s*[A-Z]{2}$/i.test(place) || Intl.DateTimeFormat().resolvedOptions().locale === "en-US";
 
 const weather: ToolDef<{ place?: string; units?: "celsius" | "fahrenheit" }> = {

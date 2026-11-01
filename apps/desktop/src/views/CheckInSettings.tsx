@@ -44,6 +44,10 @@ export function CheckInSettings() {
           <option value={30}>30 minutes before</option>
         </select>
       </label>
+      <label className="toggle">
+        <input type="checkbox" checked={c.rainAlerts ?? true} onChange={(e) => save({ ...c, rainAlerts: e.target.checked })} />
+        <span>Rain heads-up: tell me when rain is likely in the next couple of hours (needs your home city in Personality)</span>
+      </label>
       {saved && <p className="muted small" role="status">Saved.</p>}
     </section>
   );
