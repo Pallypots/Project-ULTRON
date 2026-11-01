@@ -107,14 +107,14 @@ export function drawFace(ctx: CanvasRenderingContext2D, w: number, h: number, me
   ctx.globalCompositeOperation = "source-over";
   ctx.clearRect(0, 0, w, h);
 
-  const scale = Math.min(w * 0.3, h * 0.3);
+  const scale = Math.min(w * 0.28, h * 0.27);
   const pose: Pose = {
     yaw: 0.16 * Math.sin(t * 0.31) + 0.06 * Math.sin(t * 0.83) + look.x * 0.22 + (mood === "thinking" ? 0.08 * Math.sin(t * 2.1) : 0),
     pitch: 0.05 * Math.sin(t * 0.23) + look.y * 0.12 - (mood === "speaking" ? level * 0.05 : 0),
     open: mood === "speaking" ? Math.min(1, level * 1.6) : 0,
     scale,
     cx: w / 2,
-    cy: h * 0.41 + Math.sin(t * 0.5) * h * 0.006,
+    cy: h * 0.38 + Math.sin(t * 0.5) * h * 0.006,
   };
 
   // Glow behind the head
@@ -124,7 +124,42 @@ export function drawFace(ctx: CanvasRenderingContext2D, w: number, h: number, me
   ctx.fillStyle = halo;
   ctx.fillRect(0, 0, w, h);
 
+  // HUD rings behind the head, turning slowly (faster while thinking), with tick marks.
   ctx.globalCompositeOperation = "lighter";
+  const spin = t * (mood === "thinking" ? 0.9 : 0.12);
+  const ring = (r: number, from: number, len: number, width: number, alpha: number) => {
+    ctx.beginPath();
+    ctx.arc(pose.cx, pose.cy, r, from, from + len);
+    ctx.lineWidth = width;
+    ctx.strokeStyle = col(alpha);
+    ctx.stroke();
+  };
+  for (let k = 0; k < 4; k++) ring(scale * 1.32, spin + (k * Math.PI) / 2, Math.PI / 3.2, 2, 0.35);
+  for (let k = 0; k < 3; k++) ring(scale * 1.42, -spin * 0.7 + (k * 2 * Math.PI) / 3, Math.PI / 5, 5, 0.18 + level * 0.3);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = col(0.25);
+  ctx.beginPath();
+  for (let k = 0; k < 120; k++) {
+    const a = (k / 120) * Math.PI * 2 + spin * 0.3;
+    const r1 = scale * 1.52;
+    const r2 = r1 + (k % 10 === 0 ? 12 : 5);
+    ctx.moveTo(pose.cx + Math.cos(a) * r1, pose.cy + Math.sin(a) * r1);
+    ctx.lineTo(pose.cx + Math.cos(a) * r2, pose.cy + Math.sin(a) * r2);
+  }
+  ctx.stroke();
+  // Voice waveform under the chin.
+  const wy = pose.cy + scale * 1.36;
+  ctx.beginPath();
+  for (let x = -scale; x <= scale; x += 4) {
+    const env = Math.cos((x / scale) * (Math.PI / 2));
+    const y = wy + Math.sin(x * 0.06 + t * 9) * Math.sin(x * 0.013 - t * 3) * env * (2 + level * scale * 0.18);
+    if (x === -scale) ctx.moveTo(pose.cx + x, y);
+    else ctx.lineTo(pose.cx + x, y);
+  }
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = col(0.35 + level * 0.6);
+  ctx.stroke();
+
   const cyaw = Math.cos(pose.yaw), syaw = Math.sin(pose.yaw), cp = Math.cos(pose.pitch), sp = Math.sin(pose.pitch);
   // Light from the upper left, slightly in front: the shape of the face shows in how bright each line is.
   const L = [-0.5, 0.6, 0.62];
