@@ -732,10 +732,18 @@ export function contextEchoGuard() {
   const MARKERS = ["[Context", "[End of context"];
   let held = "";
   let stopped = false;
+  // A small brain sometimes opens with a label it saw in its instructions ("Spoken I was going to…"): drop it.
+  let opened = false;
+  const LABEL = /^\s*(?:Spoken|SPOKEN|Typed|TYPED)\b[:.\-–—]?\s*(?=[A-Z"'])/;
   return {
     push(chunk: string): string {
       if (stopped) return "";
       held += chunk;
+      if (!opened) {
+        if (held.trim().length < 12) return "";
+        opened = true;
+        held = held.replace(LABEL, "");
+      }
       const hit = Math.min(...MARKERS.map((m) => held.indexOf(m)).filter((i) => i >= 0));
       if (Number.isFinite(hit)) {
         stopped = true;
@@ -750,6 +758,7 @@ export function contextEchoGuard() {
       return out;
     },
     flush(): string {
+      if (!opened) held = held.replace(LABEL, "");
       const out = stopped ? "" : held;
       held = "";
       return out;
