@@ -41,7 +41,7 @@ if (Healthy) { Say "ULTRON is already running. Opening it..."; OpenWindow; exit 
 
 # Reinstall components when the component list changed (a new version was unpacked over an old one), rebuild the interface
 # when the version changed. Stale leftovers were a common cause of "ULTRON stopped".
-$lockHash = (Get-FileHash "package-lock.json" -Algorithm SHA256).Hash
+$lockHash = (& node -e "process.stdout.write(require('crypto').createHash('sha256').update(require('fs').readFileSync('package-lock.json')).digest('hex'))")
 $stamp = "node_modules\.ultron-installed"
 if (-not (Test-Path $stamp) -or (Get-Content $stamp -Raw).Trim() -ne $lockHash) {
   Say "Installing components (first run or after an update; takes a minute or two)..."
@@ -49,7 +49,7 @@ if (-not (Test-Path $stamp) -or (Get-Content $stamp -Raw).Trim() -ne $lockHash) 
   Set-Content $stamp $lockHash
   Remove-Item "apps\desktop\dist" -Recurse -Force -ErrorAction SilentlyContinue
 }
-$version = (Get-Content "package.json" -Raw | ConvertFrom-Json).version
+$version = (& node -p "require('./package.json').version")
 $built = "apps\desktop\dist\.ultron-version"
 if (-not (Test-Path "apps\desktop\dist\index.html") -or -not (Test-Path $built) -or (Get-Content $built -Raw).Trim() -ne $version) {
   Say "Building the interface..."
