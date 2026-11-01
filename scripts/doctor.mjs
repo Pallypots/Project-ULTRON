@@ -46,6 +46,17 @@ const mic = platform() === "win32" ? run('powershell -NoProfile -Command "(Get-P
 check("Microphone (needed for voice, next cycle)", true, mic === null ? "not checked on this OS" : `${mic} microphone(s) detected`);
 
 let bad = 0;
+// Recent unexpected errors (ULTRON keeps running through them, but they help diagnose problems).
+{
+  const dataDir = process.env.ULTRON_DATA_DIR ?? (platform() === "win32" && process.env.APPDATA ? join(process.env.APPDATA, "ULTRON") : join(homedir(), ".ultron"));
+  const crash = join(dataDir, "logs", "crash.log");
+  if (existsSync(crash)) {
+    const { readFileSync } = await import("node:fs");
+    const lines = readFileSync(crash, "utf8").split("\n").filter((l) => /^\d{4}-/.test(l));
+    const recent = lines.filter((l) => Date.now() - Date.parse(l.slice(0, 24)) < 7 * 864e5);
+    check("Recent errors", recent.length === 0, recent.length ? `${recent.length} in the last 7 days; latest: ${recent.at(-1).slice(0, 160)}` : "none in the last 7 days", `Details are in ${crash}`);
+  }
+}
 console.log("\nULTRON doctor\n");
 for (const r of results) {
   console.log(`${r.ok ? "  ✔" : "  ✖"} ${r.name}: ${r.detail}`);

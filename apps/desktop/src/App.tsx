@@ -117,9 +117,12 @@ export function App() {
     });
   }, []);
 
+  // One slow answer isn't "offline" (ULTRON may be busy loading a model): only say so after two misses in a row.
+  const misses = useRef(0);
   const refreshStatus = useCallback(async () => {
     const ok = await health();
-    setOnline(ok);
+    misses.current = ok ? 0 : misses.current + 1;
+    if (ok || misses.current >= 2) setOnline(ok);
     if (ok) setStatus(await api.status().catch(() => null));
   }, []);
 
@@ -169,7 +172,7 @@ export function App() {
       <main id="main" className="main" tabIndex={-1}>
         {online === false && (
           <div className="banner banner--error" role="alert">
-            ULTRON's service isn't responding. If you closed the ULTRON window or launcher, start it again. Retrying every 5 seconds…
+            Reconnecting to ULTRON… If this doesn't clear in a minute, double-click the ULTRON icon (Start-ULTRON) to start it again.
           </div>
         )}
         {view === "home" && <HomeView status={status} core={effectiveCore} onAsk={(q) => { setChatSeed(q); go("chat"); }} onTalk={() => { setTalkNow(true); go("chat"); }} onNavigate={go} />}

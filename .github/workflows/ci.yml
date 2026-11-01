@@ -58,15 +58,31 @@ jobs:
           $env:ULTRON_DATA_DIR = "$env:RUNNER_TEMP\ultron-launcher"
           $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "Start-ULTRON.bat", "--background" -PassThru -WindowStyle Hidden
           $ok = $false
-          for ($i = 0; $i -lt 90; $i++) {
+          for ($i = 0; $i -lt 300; $i++) {
             Start-Sleep -Seconds 1
             try { if ((Invoke-WebRequest "http://localhost:7480/api/health" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { $ok = $true; break } } catch {}
           }
           $html = if ($ok) { (Invoke-WebRequest "http://localhost:7480/" -UseBasicParsing).Content } else { "" }
+          if (-not $ok) { Get-Content "$env:ULTRON_DATA_DIR\logs\service.log" -Tail 40 -ErrorAction SilentlyContinue; Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::Start-ULTRON.bat did not bring ULTRON online within 300 s"; exit 1 }
+          if ($html -notmatch "<title>ULTRON</title>") { Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::ULTRON started but the interface wasn't served"; exit 1 }
+          $startedAfter = $i
+          # Crash recovery: kill the service itself; the supervisor must bring it back.
+          Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like '*gateway/src/main.ts*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+          Start-Sleep -Seconds 2
+          $back = $false
+          for ($j = 0; $j -lt 90; $j++) {
+            Start-Sleep -Seconds 1
+            try { if ((Invoke-WebRequest "http://localhost:7480/api/health" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { $back = $true; break } } catch {}
+          }
+          if (-not $back) { Get-Content "$env:ULTRON_DATA_DIR\logs\service.log" -Tail 40 -ErrorAction SilentlyContinue; Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Output "::error title=Windows launcher::ULTRON was not restarted after its service was killed"; exit 1 }
+          # Quit (from the PC) stops everything, including the supervisor.
+          $boot = Invoke-RestMethod "http://localhost:7480/api/bootstrap"
+          Invoke-RestMethod -Method Post "http://localhost:7480/api/system/quit" -Headers @{ Authorization = "Bearer $($boot.token)" } -ContentType "application/json" -Body "{}" | Out-Null
+          Start-Sleep -Seconds 4
+          $left = @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -like '*supervise.mjs*' -or $_.CommandLine -like '*gateway/src/main.ts*' })
           Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
-          if (-not $ok) { Write-Output "::error title=Windows launcher::Start-ULTRON.bat did not bring ULTRON online within 90 s"; exit 1 }
-          if ($html -notmatch "<title>ULTRON</title>") { Write-Output "::error title=Windows launcher::ULTRON started but the interface wasn't served"; exit 1 }
-          Write-Output "::notice title=Windows launcher::Start-ULTRON.bat --background brought ULTRON online after $i s and served the interface"
+          if ($left.Count) { Write-Output "::error title=Windows launcher::Quit left $($left.Count) ULTRON process(es) running"; exit 1 }
+          Write-Output "::notice title=Windows launcher::Start-ULTRON.bat --background brought ULTRON online after $startedAfter s, served the interface, came back by itself after its service was killed ($j s), and Quit stopped it"
       - name: Browser end-to-end test (fake microphone)
         run: |
           npm install --no-save --no-audit --no-fund playwright

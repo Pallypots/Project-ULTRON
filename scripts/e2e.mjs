@@ -610,7 +610,7 @@ try {
   server.kill();
   await page.waitForTimeout(800);
   await page.getByRole("button", { name: "Home", exact: true }).click();
-  await page.getByText("isn't responding").waitFor({ timeout: 12000 });
+  await page.getByText("Reconnecting to ULTRON").waitFor({ timeout: 25000 });
   step("UI shows a clear offline message when the service stops");
 } catch (err) {
   failed = true;

@@ -71,7 +71,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 
 export async function health(): Promise<boolean> {
   try {
-    const res = await fetch("/api/health", { signal: AbortSignal.timeout(3000) });
+    const res = await fetch("/api/health", { signal: AbortSignal.timeout(8000) });
     return res.ok;
   } catch {
     return false;
@@ -306,6 +306,7 @@ export const api = {
   searchSettings: () => call<SearchStatus>("GET", "/api/settings/search"),
   saveSearchKey: (apiKey: string) => call<SearchStatus>("PUT", "/api/settings/search", { apiKey }),
   saveSearxng: (searxngUrl: string) => call<SearchStatus>("PUT", "/api/settings/search", { searxngUrl }),
+  quit: () => call<{ ok: boolean }>("POST", "/api/system/quit", {}),
   removeSearchKey: () => call<SearchStatus>("DELETE", "/api/settings/search"),
   room: () => call<{ enabled: boolean }>("GET", "/api/voice/room"),
   setRoom: (enabled: boolean) => call<{ enabled: boolean }>("PUT", "/api/voice/room", { enabled }),

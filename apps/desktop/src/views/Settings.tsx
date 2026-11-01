@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type ProviderSettings } from "../api.ts";
+import { api, onThisPc, type ProviderSettings } from "../api.ts";
 import type { UiPrefs } from "../prefs.ts";
 import { VoiceSettings } from "./VoiceSettings.tsx";
 import { LocalAiPanel } from "./LocalAiPanel.tsx";
@@ -125,6 +125,7 @@ export function SettingsView({ prefs, setPrefs, onSaved }: { prefs: UiPrefs; set
 
       <ActionsSettings />
       <WindowsSettings />
+      <QuitSettings />
       <PhoneAccess />
 
       <section className="panel form">
@@ -174,6 +175,29 @@ function ActionsSettings() {
         <span className="small muted">Windows notifications for reminders: {notify === "granted" ? "on" : notify === "denied" ? "blocked in browser settings" : notify === "unsupported" ? "not supported" : "off"}</span>
         {notify === "default" && <button type="button" className="btn btn--small" onClick={() => Notification.requestPermission().then(setNotify)}>Turn on</button>}
       </div>
+    </section>
+  );
+}
+
+/** ULTRON runs in the background (restarted automatically if it ever stops); this is how to stop it completely. */
+function QuitSettings() {
+  const [state, setState] = useState<"idle" | "confirm" | "done">("idle");
+  if (!onThisPc()) return null;
+  return (
+    <section className="panel form" aria-labelledby="quit-title">
+      <h2 className="panel__title" id="quit-title">System</h2>
+      <p className="muted small">ULTRON keeps running in the background even when this window is closed, so reminders and check-ins still work. If it ever stops unexpectedly, it restarts by itself.</p>
+      {state === "done" ? (
+        <p className="small" role="status">ULTRON has stopped. Double-click the ULTRON icon (Start-ULTRON) to start it again.</p>
+      ) : state === "confirm" ? (
+        <div className="row">
+          <span className="small">Stop ULTRON completely? Reminders won't fire until you start it again.</span>
+          <button type="button" className="btn btn--danger" onClick={() => { void api.quit().catch(() => {}); setState("done"); }}>Yes, quit</button>
+          <button type="button" className="btn" onClick={() => setState("idle")}>Cancel</button>
+        </div>
+      ) : (
+        <button type="button" className="btn" onClick={() => setState("confirm")}>Quit ULTRON</button>
+      )}
     </section>
   );
 }

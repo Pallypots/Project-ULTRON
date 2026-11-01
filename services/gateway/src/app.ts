@@ -723,7 +723,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   app.post("/api/system/start-at-login", async (req, reply) => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
     try {
-      const s = shortcuts.setStartAtLogin(enabled);
+      const s = await shortcuts.setStartAtLogin(enabled);
       stores.audit.record(enabled ? "system.start_at_login_on" : "system.start_at_login_off", "owner");
       return s;
     } catch (err) {
@@ -732,12 +732,20 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   });
   app.post("/api/system/desktop-shortcut", async (_req, reply) => {
     try {
-      const s = shortcuts.createDesktopShortcut();
+      const s = await shortcuts.createDesktopShortcut();
       stores.audit.record("system.desktop_shortcut", "owner");
       return s;
     } catch (err) {
       return reply.code(400).send({ error: "unsupported", message: (err as Error).message });
     }
+  });
+
+  // Quit: the supervisor treats a clean exit as "the owner chose to stop", so ULTRON isn't restarted.
+  app.post("/api/system/quit", async (req, reply) => {
+    if (!isLoopbackRequest(req)) return reply.code(403).send({ error: "pc_only" });
+    stores.audit.record("system.quit", "owner");
+    setTimeout(() => void app.close().finally(() => process.exit(0)), 300);
+    return { ok: true };
   });
 
   // ---- actions & approvals ----
