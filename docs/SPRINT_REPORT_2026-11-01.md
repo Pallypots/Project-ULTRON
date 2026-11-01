@@ -41,7 +41,8 @@ Sci-fi fonts are built in, and every screen uses the same angled HUD panels.
 ## New things he can do (all tested)
 | Say | What happens |
 |---|---|
-| "Lights off", "dim the lights to 20%", "set the heating to 21" | Smart home through Home Assistant (Connections → Smart home). Garage doors, blinds and scenes ask first. Locks and alarms are never controlled. |
+| 📷 then "what's this?" | Shows him one photo from your camera (PC or phone) for that message. Never saved. |
+| "Lights off", "make the lights red", "dim the lights to 20%", "set the heating to 21" | Smart home through Home Assistant (Connections → Smart home). Garage doors, blinds and scenes ask first. Locks and alarms are never controlled. |
 | "Any new emails?", "read the one from Mum" | Email, read-only (Gmail, iCloud, Yahoo, Fastmail with an app password). Never sends, deletes or marks anything. |
 | "What's the news?", "tech news" | Free BBC headlines, no setup. The top three are also in your morning briefing. |
 | "Take a note: …", "what did I note about …?" | Notes, listed on the Reminders page. |
@@ -53,6 +54,8 @@ Plus:
 - Replies are formatted properly: bold text, headings and lists instead of `**` and `##`.
 - A **Skills** page lists everything, with phrases you can click.
 - A **Get ULTRON ready** checklist on Home walks a new setup through.
+- In Council mode he shows what he's doing ("✓ Turned off Kitchen Lights"), and you can approve actions right there.
+- Spoken replies say "7 degrees Celsius" and "80 percent" instead of skipping the symbols.
 
 ## Safety
 - An independent review of tonight's code found six issues, all fixed (details in SECURITY.md).
@@ -61,7 +64,8 @@ Plus:
   act by itself.
 
 ## Checks
-- 272 automated tests and 57 browser steps pass locally.
+- 274 automated tests and 58 browser steps pass locally.
+- A new online check talks to the real local AI by voice and records how short and natural its replies are.
 - The online checks (Windows and Linux, with the real local AI model) run on every change.
 
 ## Ideas for next time
