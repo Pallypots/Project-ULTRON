@@ -30,6 +30,20 @@ const calServer = createServer((_req, res) => {
 });
 await new Promise((r) => calServer.listen(0, "127.0.0.1", r));
 const calUrl = `http://127.0.0.1:${calServer.address().port}/basic.ics`;
+// A pretend Home Assistant with two lights.
+const HA_TOKEN = "e2e-home-assistant-token-0123456789";
+const haServer = createServer((req, res) => {
+  if (req.headers.authorization !== `Bearer ${HA_TOKEN}`) return res.writeHead(401).end();
+  res.setHeader("content-type", "application/json");
+  if (req.url === "/api/") return res.end(JSON.stringify({ message: "API running." }));
+  if (req.url === "/api/states") return res.end(JSON.stringify([
+    { entity_id: "light.desk", state: "on", attributes: { friendly_name: "Desk Lamp" } },
+    { entity_id: "light.ceiling", state: "on", attributes: { friendly_name: "Ceiling Light" } },
+  ]));
+  res.end("[]");
+});
+await new Promise((r) => haServer.listen(0, "127.0.0.1", r));
+const haUrl = `http://127.0.0.1:${haServer.address().port}`;
 // A pretend Start menu, so "open notepad" has something to find on any OS.
 const startMenu = join(dataDir, "..", `ultron-e2e-startmenu-${process.pid}`);
 mkdirSync(startMenu, { recursive: true });
@@ -465,6 +479,17 @@ try {
   await page.getByRole("button", { name: "What's on today?" }).click();
   await page.locator(".msg--assistant", { hasText: "Dentist" }).waitFor();
   step("Calendar: private iCal link connected in Connections; 'what's on today?' lists the event");
+  await page.getByRole("button", { name: "Connections" }).click();
+  await page.getByLabel("Home Assistant address").fill(haUrl);
+  await page.getByLabel("Long-lived access token").fill(HA_TOKEN);
+  await page.getByRole("button", { name: "Connect Home Assistant" }).click();
+  await page.getByText(/Connected: 2 devices/).waitFor();
+  await page.getByText("Desk Lamp: on").waitFor();
+  await page.getByRole("button", { name: "Chat" }).click();
+  await page.getByLabel("Message ULTRON").fill("Ultron, lights off");
+  await page.getByLabel("Message ULTRON").press("Enter");
+  await page.locator(".msg--assistant", { hasText: "Done: Desk Lamp and Ceiling Light off." }).waitFor();
+  step("Smart home: Home Assistant connected in Connections (token checked first); \"lights off\" switches the lights off instantly");
 
   // ---- Personality + morning briefing ----
   await page.getByRole("button", { name: "Settings" }).click();
@@ -647,6 +672,7 @@ try {
   await browser.close();
   server.kill();
   fakeOllama.kill();
+  haServer.close();
   fakeGithub.kill();
   calServer.close();
 }

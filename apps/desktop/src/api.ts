@@ -306,6 +306,10 @@ export const api = {
   searchSettings: () => call<SearchStatus>("GET", "/api/settings/search"),
   saveSearchKey: (apiKey: string) => call<SearchStatus>("PUT", "/api/settings/search", { apiKey }),
   saveSearxng: (searxngUrl: string) => call<SearchStatus>("PUT", "/api/settings/search", { searxngUrl }),
+  home: () => call<{ home: HomeStatus }>("GET", "/api/home"),
+  connectHome: (url: string, token: string) => call<{ home: HomeStatus; devices: number }>("PUT", "/api/home", { url, token }),
+  disconnectHome: () => call<{ home: HomeStatus }>("DELETE", "/api/home"),
+  homeDevices: () => call<{ devices: { id: string; domain: string; name: string; state: string; summary: string }[] }>("GET", "/api/home/devices"),
   hud: () => call<Hud>("GET", "/api/hud"),
   quit: () => call<{ ok: boolean }>("POST", "/api/system/quit", {}),
   removeSearchKey: () => call<SearchStatus>("DELETE", "/api/settings/search"),
@@ -459,4 +463,12 @@ export interface Hud {
   watchers: number;
   feed: { id: string; title: string; source: string; url: string | null }[];
   memories: number;
+  home: { lightsOn: string[]; lights: number; heating: { name: string; target: unknown; current: unknown } | null } | null;
+}
+
+export interface HomeStatus {
+  connected: boolean;
+  url: string | null;
+  devices: number;
+  error: string | null;
 }

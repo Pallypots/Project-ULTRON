@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { TOOLS } from "./actions/tools.ts";
 import type { EmbeddingService } from "./embeddings/index.ts";
 import { eventLine, type CalendarService } from "./calendar/service.ts";
+import { EVERYDAY, matchEntities, type HomeService } from "./home/assistant.ts";
 import type { FileHit, Stores } from "@ultron/memory";
 import type { ChatEvent, Memory, Message } from "@ultron/schemas";
 import { currentCapabilities } from "./capabilities.ts";
@@ -38,6 +39,7 @@ export interface ChatDeps {
   actions?: ActionRunner;
   embeddings?: EmbeddingService;
   calendar?: CalendarService;
+  home?: HomeService;
   dataDir?: string;
   files?: FileService;
   similarFiles?: (q: string) => Promise<FileHit[]>;
@@ -238,7 +240,7 @@ export async function handleUserMessage(
   }
 
   // Everyday commands answered by code: instant, and reliable even on a small local model.
-  const quick = intent.type === "chat" && !timeIntent && deps.actions && !opts.continueFrom ? validQuick(content) : null;
+  const quick = intent.type === "chat" && !timeIntent && deps.actions && !opts.continueFrom ? validQuick(content, deps.home) : null;
   const routine = intent.type === "chat" && !timeIntent && !quick && deps.actions && !opts.continueFrom ? matchRoutine(stores.preferences, content) : null;
   const run: QuickRun = async (tool, args) => {
     const r = await deps.actions!.propose(tool, args, { conversationId, requestedBy: "command" });
@@ -262,7 +264,7 @@ export async function handleUserMessage(
     const lines: string[] = [];
     for (const step of routine.steps) {
       if (opts.signal.aborted) break;
-      const q = validQuick(step);
+      const q = validQuick(step, deps.home);
       if (q) {
         lines.push((await quickReply(q, run, stores)).replace(/\n/g, "\n   "));
         continue;
@@ -651,6 +653,16 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
         ? `I'll keep an eye on ${r.data.watching} and tell you when it says "${q.lookFor}". I check every ${r.data.every_minutes} minutes while I'm running.`
         : `I'll keep an eye on ${r.data.watching} and tell you when it changes. I check every ${r.data.every_minutes} minutes while I'm running.`;
     }
+    case "home": {
+      const r = await run("home_control", { target: q.target, action: q.action, ...(q.value != null ? { value: q.value } : {}) });
+      if (r.status === "awaiting_approval") return "That needs your OK: click Approve on the card below.";
+      if (r.status !== "succeeded" || r.data?.error) return r.data?.error ? `I couldn't: ${r.data.error}` : failed(r);
+      const names: string[] = r.data?.done ?? [];
+      const who = names.length > 3 ? `${names.length} devices` : names.join(" and ");
+      const what = q.action === "brightness" ? `set to ${q.value}%` : q.action === "set_temperature" ? `set to ${q.value}°` : q.action;
+      const extra = r.data?.problems ? ` (${r.data.problems.join("; ")})` : "";
+      return `Done: ${who} ${what}.${extra}`;
+    }
     case "lock_pc": {
       const r = await run("lock_pc", {});
       return r.status === "succeeded" ? "Locking your PC. See you on the other side of the password." : failed(r);
@@ -721,8 +733,10 @@ export function conversionFor(text: string): { kind: "units"; value: number; fro
 }
 
 /** A quick command, but only if it can really be answered by code (real units, real apps, parseable maths). */
-export function validQuick(content: string) {
+export function validQuick(content: string, home?: Pick<HomeService, "connected" | "cached">) {
   const quick = detectQuickCommand(content);
+  // Smart-home phrases are instant commands only if they name devices Home Assistant really has.
+  if (quick?.type === "home" && !(home?.connected && matchEntities(home.cached(), quick.target).some((e) => EVERYDAY.has(e.domain)))) return null;
   // Conversions are quick commands only if the units or currencies are real; otherwise the brain decides.
   if (quick?.type === "convert" && !conversionFor(quick.text)) return null;
   // "open X" is only a quick command if X really is an installed app; otherwise the brain decides what was meant.

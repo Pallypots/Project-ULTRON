@@ -27,7 +27,7 @@ export function isPcOnly(method: string, path: string): boolean {
   if (/^\/api\/(remote|logs\/export|memories\/export)(\/|$)/.test(path)) return true;
   if (method === "GET" || method === "HEAD") return false;
   // Anything that adds credentials, widens access, sends audio to the cloud, or acts on the PC's screen stays on the PC.
-  return /^\/api\/(settings\/(provider|search|checkin)|connectors\/github|files\/(folders|open)|system\/|local-ai\/(pull|use)|persona|calendar|voice\/(settings|tts\/settings|room)|routines)(\/|$)/.test(path);
+  return /^\/api\/(settings\/(provider|search|checkin)|connectors\/github|files\/(folders|open)|system\/|local-ai\/(pull|use)|persona|calendar|home|voice\/(settings|tts\/settings|room)|routines)(\/|$)/.test(path);
 }
 
 export class RemoteAccess {

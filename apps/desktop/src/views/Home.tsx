@@ -230,6 +230,18 @@ export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }:
               </p>
             )}
           </Panel>
+          {hud?.home && (
+            <Panel title="HOME SYSTEMS">
+              <dl className="hud-kv">
+                <div><dt>LIGHTS ON</dt><dd>{hud.home.lightsOn.length} / {hud.home.lights}</dd></div>
+                {hud.home.heating && <div><dt>{hud.home.heating.name.toUpperCase()}</dt><dd>{String(hud.home.heating.current ?? "–")}° → {String(hud.home.heating.target ?? "–")}°</dd></div>}
+              </dl>
+              {hud.home.lightsOn.length > 0 && <p className="small muted" style={{ margin: "8px 0 0" }}>{hud.home.lightsOn.slice(0, 4).join(", ")}{hud.home.lightsOn.length > 4 ? "…" : ""}</p>}
+              <div className="row" style={{ marginTop: 8 }}>
+                <button type="button" className="btn btn--small" onClick={() => onAsk("turn off the lights")}>All lights off</button>
+              </div>
+            </Panel>
+          )}
           <Panel title="LIVE INTELLIGENCE FEED" badge={feedCount ? <span className="hud-badge hud-badge--live">LIVE · {feedCount}</span> : <span className="hud-badge">QUIET</span>}>
             <ul className="hud-feed">
               {hud?.pendingApprovals.map((a) => (

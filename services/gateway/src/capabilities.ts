@@ -10,6 +10,12 @@ function voiceInput(stt: SttEngine | undefined): Capability {
   return { id: "voice_input", label: "Voice input (push-to-talk)", status: "enabled", detail: `${where}; microphone only on while the talk button is held${st.state === "ready" ? "" : `; ${st.detail}`}` };
 }
 
+let homeStatus: () => { connected: boolean; devices: number } = () => ({ connected: false, devices: 0 });
+/** The app tells capabilities whether Home Assistant is connected (one gateway per process). */
+export function setHomeStatus(fn: typeof homeStatus) {
+  homeStatus = fn;
+}
+
 /** The single source of truth for "what can you do right now?" - reported to the model and to the UI. */
 export function currentCapabilities(settings: ProviderSettings, resolution: ProviderResolution, stt?: SttEngine, ttsEngine?: string): Capability[] {
   const model: Capability = resolution.ok
@@ -54,6 +60,12 @@ export function currentCapabilities(settings: ProviderSettings, resolution: Prov
     { id: "brain_switch", label: "Switch brains by voice or text", status: "enabled", detail: 'e.g. "switch your brain to local" or "switch to Fable"' },
     { id: "integrations", label: "Connected accounts", status: "enabled", detail: "GitHub (read-only, if connected in Connections); calendar (read-only, via its private iCal link, if connected); YouTube, Reddit, Discord and email not available yet. Use connected_updates for real data; never guess" },
     { id: "screen", label: "Screen viewing", status: "enabled", detail: "only when the owner asks ('look at my screen'): one screenshot of the main screen for that message, never saved; Windows; needs a brain that can see images" },
+    (() => {
+      const h = homeStatus();
+      return h.connected
+        ? { id: "home", label: "Smart home", status: "enabled" as const, detail: `Home Assistant connected (${h.devices} devices): lights, plugs, fans, TV, heating, scenes and vacuums just happen; garage doors, blinds and scripts need approval; locks and alarms are never controlled` }
+        : { id: "home", label: "Smart home", status: "not_configured" as const, detail: "connect Home Assistant in Connections → Home to control lights and devices" };
+    })(),
     { id: "remote", label: "Phone access", status: "enabled", detail: "from the owner's paired phones over Tailscale, if turned on in Settings → Phone access" },
   ];
 }

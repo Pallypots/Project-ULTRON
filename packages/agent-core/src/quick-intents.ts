@@ -15,7 +15,8 @@ export type QuickCommand =
   | { type: "define"; word: string }
   | { type: "world_time"; place: string }
   | { type: "lock_pc" }
-  | { type: "watch"; url: string; lookFor: string | null };
+  | { type: "watch"; url: string; lookFor: string | null }
+  | { type: "home"; action: "on" | "off" | "brightness" | "set_temperature"; target: string; value?: number };
 
 const LEAD = /^\s*(?:(?:hey|ok|okay)\s+)?(?:ultron[\s,:!.-]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?/i;
 const TAIL = /(?:[\s,]+please)?[\s?.!]*$/i;
@@ -43,6 +44,18 @@ export function detectQuickCommand(message: string): QuickCommand | null {
     return { type: "watch", url: /^https?:\/\//i.test(watch[1]!) ? watch[1]! : `https://${watch[1]}`, lookFor: watch[2]?.trim() || null };
 
   if (/^lock (?:my |the )?(?:pc|computer|laptop|screen|desktop)(?: now)?$/i.test(m)) return { type: "lock_pc" };
+
+  // Smart home: "turn off the kitchen lights", "lights on", "dim the lights", "set the heating to 21".
+  // The gateway only treats these as instant commands if the words match real Home Assistant devices.
+  const DEV = "([\\p{L}\\p{N}][\\p{L}\\p{N} '-]{1,50}?)";
+  let h: RegExpExecArray | null;
+  if ((h = new RegExp(`^(?:turn|switch|put) (on|off) (?:the |my |all (?:the )?)?${DEV}$`, "iu").exec(m))) return { type: "home", action: h[1]!.toLowerCase() as "on" | "off", target: h[2]!.trim() };
+  if ((h = new RegExp(`^(?:turn|switch|put) (?:the |my |all (?:the )?)?${DEV} (on|off)$`, "iu").exec(m))) return { type: "home", action: h[2]!.toLowerCase() as "on" | "off", target: h[1]!.trim() };
+  if ((h = new RegExp(`^(?:the |all (?:the )?)?${DEV} (on|off)$`, "iu").exec(m)) && /\b(lights?|lamps?|fan|tv|heating|plug)\b/i.test(h[1]!)) return { type: "home", action: h[2]!.toLowerCase() as "on" | "off", target: h[1]!.trim() };
+  if ((h = new RegExp(`^dim (?:the |my )?${DEV}(?: to (\\d{1,3}) ?(?:%|percent))?$`, "iu").exec(m))) return { type: "home", action: "brightness", target: h[1]!.trim(), value: Math.min(100, Number(h[2] ?? 30)) };
+  if ((h = new RegExp(`^(?:brighten|full brightness on) (?:the |my )?${DEV}$`, "iu").exec(m))) return { type: "home", action: "brightness", target: h[1]!.trim(), value: 100 };
+  if ((h = new RegExp(`^set (?:the |my )?${DEV} to (\\d{1,3}) ?(?:%|percent)$`, "iu").exec(m))) return { type: "home", action: "brightness", target: h[1]!.trim(), value: Math.min(100, Number(h[2])) };
+  if ((h = /^(?:set|turn) (?:the |my )?(heating|thermostat|temperature|heat|ac|air ?con)(?: (?:up |down )?to) (\d{1,2}(?:\.5)?) ?(?:°|degrees?)?(?: ?[cf])?$/i.exec(m))) return { type: "home", action: "set_temperature", target: h[1]!, value: Number(h[2]) };
 
   if (/^(?:pause|resume|unpause)(?: the)?(?: music| song| video| track| it| playback)?$|^play(?: the)? (?:music|it)$|^(?:play|pause)$/i.test(m)) return { type: "media", action: "play_pause" };
   if (/^(?:next|skip)(?: this| the)?(?: song| track)?$|^skip (?:this|it)$/i.test(m)) return { type: "media", action: "next" };

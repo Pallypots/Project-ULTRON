@@ -3,6 +3,7 @@ import { cpus, freemem, totalmem, uptime } from "node:os";
 import type { Stores } from "@ultron/memory";
 import { usesFahrenheit, weatherFor } from "./actions/knowledge.ts";
 import type { CalendarService } from "./calendar/service.ts";
+import type { HomeService } from "./home/assistant.ts";
 import { dayRange } from "./calendar/service.ts";
 
 /**
@@ -20,6 +21,7 @@ export class HudService {
     private stores: Stores,
     private dataDir: string,
     private calendar?: CalendarService,
+    private home?: HomeService,
   ) {}
 
   private sampleCpu(): number {
@@ -104,6 +106,13 @@ export class HudService {
       watchers: s.watchers.active().length,
       feed,
       memories: s.memories.list().length,
+      home: this.home?.connected
+        ? (() => {
+            const all = this.home!.cached();
+            const climate = all.find((e) => e.domain === "climate");
+            return { lightsOn: all.filter((e) => e.domain === "light" && e.state === "on").map((e) => e.name), lights: all.filter((e) => e.domain === "light").length, heating: climate ? { name: climate.name, target: climate.attributes.temperature ?? null, current: climate.attributes.current_temperature ?? null } : null };
+          })()
+        : null,
     };
   }
 }

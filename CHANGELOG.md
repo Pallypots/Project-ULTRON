@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.25.0 · 2026-11-01 · Smart home and natural turn-taking
+- **Smart home:** connect Home Assistant (Connections → Smart home) and say "lights off", "dim the lights to 20%",
+  "set the heating to 21". Everyday devices respond instantly. Garage doors, blinds and scripts ask for approval.
+  Locks and alarms are never touched. The Home screen gets a Home Systems panel.
+- **Natural turn-taking:** if you trail off mid-thought ("and, um…", "remind me about the…"), ULTRON waits a moment
+  for the rest instead of answering half a sentence.
+- **Council mode greets you** out loud when you open it, and wakes the local brain straight away so the first
+  answer is quicker.
+
 ## 0.24.0 · 2026-11-01 · Command centre, Council mode, rock-solid start-up
 - **"ULTRON's service isn't responding" fixed at the root:** ULTRON now runs in the background with a supervisor
   that restarts it if it ever stops; one stray error can no longer bring it down (it's logged instead, and

@@ -28,6 +28,8 @@ import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
 import { HudService } from "./hud.ts";
+import { setHomeStatus } from "./capabilities.ts";
+import { describeEntity, EVERYDAY, HomeError, HomeService, SENSITIVE } from "./home/assistant.ts";
 import { EmbeddingService } from "./embeddings/index.ts";
 import { Greeter } from "./greeting.ts";
 import { Summarizer } from "./summarizer.ts";
@@ -124,15 +126,19 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   files.onIndexed = () => void embeddings.backfillDocs().catch(() => {});
   actions.similarFiles = (q) => embeddings.similarFiles(q);
   const calendar = new CalendarService(stores, secrets);
-  const hud = new HudService(stores, config.dataDir, calendar);
   actions.calendar = calendar;
+  const home = new HomeService(stores, secrets);
+  actions.home = home;
+  home.start();
+  const hud = new HudService(stores, config.dataDir, calendar, home);
+  setHomeStatus(() => home.status());
   actions.secrets = secrets;
   const checkIn = new MorningCheckIn(stores, bus, calendar);
   checkIn.start();
   const watchers = new WatcherService(stores, bus);
   watchers.start();
   if (stores.files.folders().length) embeddings.backfillDocs().catch(() => {});
-  const deps = { files, similarFiles: (q: string) => embeddings.similarFiles(q), room, calendar, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
+  const deps = { files, similarFiles: (q: string) => embeddings.similarFiles(q), room, calendar, home, dataDir: config.dataDir, embeddings, stores, secrets, persona: () => persona, mockDelayMs: config.mockDelayMs, stt: () => stt.current(), ttsEngine: () => tts.settings().engine, ollama, actions };
 
   const greeter = new Greeter(deps);
   // Pre-load the local brain when the owner opens ULTRON (at most every 5 minutes), so the first answer is quick.
@@ -259,6 +265,33 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     stores.preferences.set("checkin", body);
     stores.audit.record("settings.checkin_changed", "owner", null, body);
     return { checkin: checkIn.settings() };
+  });
+
+  // ---- smart home (Home Assistant) ----
+  app.get("/api/home", async () => ({ home: home.status() }));
+  app.put("/api/home", async (req, reply) => {
+    const { url, token } = z.object({ url: z.string().trim().min(3).max(300), token: z.string().trim().min(20).max(1000) }).strict().parse(req.body);
+    try {
+      const r = await home.connect(url, token);
+      stores.audit.record("home.connected", "owner", home.base());
+      return { home: home.status(), devices: r.devices };
+    } catch (err) {
+      if (err instanceof HomeError) return reply.code(400).send({ error: "home", message: err.message });
+      throw err;
+    }
+  });
+  app.delete("/api/home", async () => {
+    home.disconnect();
+    stores.audit.record("home.disconnected", "owner");
+    return { home: home.status() };
+  });
+  app.get("/api/home/devices", async (_req, reply) => {
+    try {
+      const all = await home.entities();
+      return { devices: all.filter((e) => EVERYDAY.has(e.domain) || SENSITIVE.has(e.domain) || e.domain === "lock").map((e) => ({ id: e.id, domain: e.domain, name: e.name, state: e.state, summary: describeEntity(e) })) };
+    } catch (err) {
+      return reply.code(400).send({ error: "home", message: (err as Error).message });
+    }
   });
 
   // ---- calendar (read-only, private iCal link) ----
