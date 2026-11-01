@@ -3,7 +3,7 @@ import type { ChatEvent, Conversation, Message } from "@ultron/schemas";
 import { api, sendMessage, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
 import { usePushToTalk } from "../voice/usePushToTalk.ts";
-import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
+import { Speaker, voiceMode, type TtsEngineId } from "../voice/speaker.ts";
 import { SentenceSplitter } from "@ultron/audio";
 import { Markdown } from "../Markdown.tsx";
 import { Council } from "../council/Council.tsx";
@@ -282,6 +282,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   const [councilLine, setCouncilLine] = useState("");
   useEffect(() => {
     if (!council) return;
+    voiceMode.council = true;
     api.greeting().catch(() => {}); // also wakes the local brain so the first answer is quick
     const sir = status?.persona.salutation ? `, ${status.persona.salutation}` : "";
     const lines = [`The council is in session. What's on your mind${sir}?`, `Ah, face to face at last${sir}. Go on, I'm listening.`, `I'm all yours${sir}. No strings, no wake word. Talk to me.`, `Here I am${sir}. What shall we discuss?`];
@@ -294,6 +295,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     window.addEventListener("ultron-council-exit", exit);
     return () => {
       window.removeEventListener("ultron-council-exit", exit);
+      voiceMode.council = false;
       hands.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -8,6 +8,9 @@ export type TtsEngineId = "local" | "browser" | "mock";
  * Plays ULTRON's replies sentence by sentence. The next sentence is generated while the current one plays,
  * and stop() silences everything immediately (barge-in, Stop button, new message).
  */
+/** Set while Council mode is open (its own voice-effect preference applies). */
+export const voiceMode = { council: false };
+
 export class Speaker {
   private ctx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -77,7 +80,8 @@ export class Speaker {
       await new Promise<void>((resolve) => {
         const src = this.ctx!.createBufferSource();
         src.buffer = buffer;
-        if (loadVoicePrefs().ultronEffect) {
+        const p = loadVoicePrefs();
+        if (p.ultronEffect || (voiceMode.council && p.councilEffect)) {
           src.playbackRate.value = 0.95; // a touch deeper
           src.connect(this.effectInput());
         } else src.connect(this.analyser!);

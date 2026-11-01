@@ -12,9 +12,11 @@ export interface VoicePrefs {
   bargeIn: boolean;
   /** Spoken replies get the "Ultron" colour: a little deeper, faintly metallic. */
   ultronEffect: boolean;
+  /** The Ultron voice effect while in Council mode (on by default: it's his face-to-face voice). */
+  councilEffect: boolean;
 }
 const KEY = "ultron.voice";
-const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true, bargeIn: false, ultronEffect: false };
+const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true, bargeIn: false, ultronEffect: false, councilEffect: true };
 
 export function loadVoicePrefs(): VoicePrefs {
   try {

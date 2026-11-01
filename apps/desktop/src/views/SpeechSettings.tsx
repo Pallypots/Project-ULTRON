@@ -121,6 +121,12 @@ export function SpeechSettings() {
           <span>Ultron voice effect: a little deeper with a faint metallic edge (preview it to hear)</span>
         </label>
       )}
+      {s.engine !== "browser" && (
+        <label className="toggle">
+          <input type="checkbox" checked={prefs.councilEffect} onChange={(e) => updatePrefs({ councilEffect: e.target.checked })} />
+          <span>Use the Ultron voice effect in Council mode</span>
+        </label>
+      )}
 
       <div className="row">
         <button type="button" className="btn btn--primary" onClick={previewing ? () => speaker.current?.stop() : preview}>{previewing ? "■ Stop" : "▶ Preview voice"}</button>
