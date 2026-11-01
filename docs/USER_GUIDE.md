@@ -13,6 +13,12 @@ the microphone stays open: no wake word, no time limit, just talk. His mouth mov
 when he's listening, and what he says appears as subtitles. You can talk over him to interrupt. **Type instead** gives
 you a text box. Leave with **Esc**, the **×** button, or by saying "that's all".
 
+## Notes
+"Take a note: the spare key is under the blue pot", "jot down buy a new kettle", "note that the meeting moved to Friday".
+These are saved instantly. "Read my notes" or "what did I note about the key?" finds them. All notes are on the
+**Reminders** page (newest first), where you can add, filter and delete them. Notes are things to look up later; facts
+about *you* ("my sister's birthday is…") belong in memory.
+
 ## Your clipboard
 Copy some text, then ask: "summarise what I copied", "translate my clipboard into Spanish", "fix the code I just copied",
 "reply to the email I copied". The clipboard is only read when *you* ask in your own words, for that one message, and

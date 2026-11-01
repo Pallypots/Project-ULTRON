@@ -320,4 +320,19 @@ export const MIGRATIONS: Migration[] = [
     `,
     down: `DROP TABLE watchers;`,
   },
+  {
+    version: 13,
+    name: "notes",
+    // Quick notes the owner dictates ("take a note: the boiler code is 4471"), separate from memories about them.
+    up: `
+      CREATE TABLE notes (
+        id TEXT PRIMARY KEY,
+        text TEXT NOT NULL,
+        conversation_id TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX notes_created ON notes(created_at);
+    `,
+    down: `DROP TABLE notes;`,
+  },
 ];

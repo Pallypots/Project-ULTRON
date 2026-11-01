@@ -16,6 +16,8 @@ export type QuickCommand =
   | { type: "world_time"; place: string }
   | { type: "lock_pc" }
   | { type: "watch"; url: string; lookFor: string | null }
+  | { type: "add_note"; text: string }
+  | { type: "list_notes"; query: string | null }
   | { type: "home"; action: "on" | "off" | "brightness" | "set_temperature"; target: string; value?: number };
 
 const LEAD = /^\s*(?:(?:hey|ok|okay)\s+)?(?:ultron[\s,:!.-]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?/i;
@@ -68,6 +70,13 @@ export function detectQuickCommand(message: string): QuickCommand | null {
     const steps = vol[5]?.toLowerCase() === "lot" ? 12 : vol[5] ? 3 : 5;
     return { type: "media", action: up ? "volume_up" : "volume_down", steps };
   }
+
+  // Notes: "take a note: …", "jot down …", "note that …"; "read my notes", "what notes do I have about the boiler?"
+  const note = /^(?:(?:take|make|add|write|save) (?:a |this )?note(?: of| that| saying)?|note (?:that|down|this)|jot (?:this |that |it )?down(?: that)?)[\s:,-]+(.{2,2000})$/is.exec(m);
+  if (note) return { type: "add_note", text: note[1]!.trim() };
+  if (/^(?:read|show|list|open)(?: me)? my notes$|^what(?:'s| is| are) (?:in )?my notes$/i.test(m)) return { type: "list_notes", query: null };
+  const noteQ = /^(?:what|which|any|do i have any) notes(?: do i have)? (?:about|on|for) (.{2,100})$|^what did i (?:note|jot down|write down) about (.{2,100})$/i.exec(m);
+  if (noteQ) return { type: "list_notes", query: (noteQ[1] ?? noteQ[2])!.trim() };
 
   const add = /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:my|the)\s+(?:to-?do\s+|shopping\s+)?list$/i.exec(m);
   if (add) {

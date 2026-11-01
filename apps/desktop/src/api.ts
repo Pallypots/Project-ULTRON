@@ -311,6 +311,9 @@ export const api = {
   connectHome: (url: string, token: string) => call<{ home: HomeStatus; devices: number }>("PUT", "/api/home", { url, token }),
   disconnectHome: () => call<{ home: HomeStatus }>("DELETE", "/api/home"),
   homeDevices: () => call<{ devices: { id: string; domain: string; name: string; state: string; summary: string }[] }>("GET", "/api/home/devices"),
+  notes: () => call<{ notes: Note[] }>("GET", "/api/notes"),
+  addNote: (text: string) => call<{ note: Note }>("POST", "/api/notes", { text }),
+  deleteNote: (id: string) => call("DELETE", `/api/notes/${id}`),
   hud: () => call<Hud>("GET", "/api/hud"),
   quit: () => call<{ ok: boolean }>("POST", "/api/system/quit", {}),
   removeSearchKey: () => call<SearchStatus>("DELETE", "/api/settings/search"),
@@ -472,4 +475,10 @@ export interface HomeStatus {
   url: string | null;
   devices: number;
   error: string | null;
+}
+
+export interface Note {
+  id: string;
+  text: string;
+  createdAt: string;
 }

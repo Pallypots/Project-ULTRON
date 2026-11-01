@@ -6,6 +6,9 @@
   Locks and alarms are never touched. The Home screen gets a Home Systems panel.
 - **Natural turn-taking:** if you trail off mid-thought ("and, um…", "remind me about the…"), ULTRON waits a moment
   for the rest instead of answering half a sentence.
+- **Notes:** "take a note: the boiler manual is in the blue folder", "jot down …", "read my notes", "what did I note
+  about the boiler?". These are instant. Notes appear on the Reminders page, where you can add, filter and delete them,
+  and they're included in the Memory Vault export.
 - **Rain heads-up:** if rain is likely in the next couple of hours, ULTRON pops up (and says) "80% chance of rain around
   3pm". At most every 6 hours, daytime only, and not when it's already raining. Needs your home city. You can turn it
   off in Settings → Check-ins.

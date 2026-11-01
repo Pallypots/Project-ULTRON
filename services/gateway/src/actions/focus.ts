@@ -6,6 +6,7 @@ import type { ToolDef } from "./tools.ts";
  */
 const GROUPS: { when: RegExp; tools: string[] }[] = [
   { when: /\b(remind|reminder|timer|alarm|wake me|in \d+ (?:min|minute|hour|second)s?)\b/i, tools: ["create_reminder", "list_reminders", "cancel_reminder"] },
+  { when: /\b(notes?|jot|write (?:that|this|it) down|noted)\b/i, tools: ["add_note", "list_notes"] },
   { when: /\b(to-?do|my list|on the list|tasks?|tick|cross off|finished|done with|i (?:did|paid|bought|called|sent|emailed|booked))\b/i, tools: ["add_todo", "list_todos", "complete_todo"] },
   { when: /https?:\/\/|www\.|\.(?:com|org|net|io|dev|co\.uk)\b|\b(website|web ?page|link|article|site|open)\b/i, tools: ["open_website", "read_webpage"] },
   { when: /\b(files?|folders?|documents?|docs?|pull up|find|search|notes?|projects?|read)\b/i, tools: ["search_files", "read_file", "open_on_screen"] },

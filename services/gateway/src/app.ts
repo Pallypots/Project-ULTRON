@@ -649,6 +649,20 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   });
 
   // ---- to-do list ----
+  // ---- notes ----
+  app.get("/api/notes", async () => ({ notes: stores.notes.list() }));
+  app.post("/api/notes", async (req) => {
+    const { text } = z.object({ text: z.string().trim().min(1).max(2000) }).strict().parse(req.body);
+    const note = stores.notes.add({ text });
+    stores.audit.record("note.added", "owner", note.id);
+    return { note };
+  });
+  app.delete<{ Params: { id: string } }>("/api/notes/:id", async (req, reply) => {
+    if (!stores.notes.remove(req.params.id)) return reply.code(404).send({ error: "not_found" });
+    stores.audit.record("note.deleted", "owner", req.params.id);
+    return { ok: true };
+  });
+
   app.get("/api/todos", async () => ({ todos: stores.todos.list({ includeDone: true }) }));
   const TodoText = z.string().trim().min(1).max(200);
   const TodoDue = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable();
@@ -848,7 +862,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   app.get("/api/memories/export", async (_req, reply) => {
     stores.audit.record("memory.exported", "owner");
     reply.header("content-disposition", `attachment; filename="ultron-memories-${new Date().toISOString().slice(0, 10)}.json"`);
-    return { exportedAt: new Date().toISOString(), memories: stores.memories.list() };
+    return { exportedAt: new Date().toISOString(), memories: stores.memories.list(), notes: stores.notes.list(100_000), todos: stores.todos.list({ includeDone: true }) };
   });
 
   // ---- activity ----

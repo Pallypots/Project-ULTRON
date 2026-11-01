@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Reminder } from "../api.ts";
 import { TodoPanel } from "./Todos.tsx";
+import { NotesPanel } from "./Notes.tsx";
 import { WatchersPanel } from "./WatchersPanel.tsx";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -66,6 +67,7 @@ export function RemindersView({ refreshKey }: { refreshKey: number }) {
       </header>
 
       <TodoPanel refreshKey={refreshKey} />
+      <NotesPanel refreshKey={refreshKey} />
       <WatchersPanel refreshKey={refreshKey} />
 
       <form className="panel add-memory" onSubmit={add}>

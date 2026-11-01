@@ -685,6 +685,18 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
         ? `I'll keep an eye on ${r.data.watching} and tell you when it says "${q.lookFor}". I check every ${r.data.every_minutes} minutes while I'm running.`
         : `I'll keep an eye on ${r.data.watching} and tell you when it changes. I check every ${r.data.every_minutes} minutes while I'm running.`;
     }
+    case "add_note": {
+      const r = await run("add_note", { text: q.text });
+      if (r.status !== "succeeded") return failed(r);
+      return `Noted: "${r.data?.saved ?? q.text}". You have ${r.data?.total_notes ?? "some"} note${r.data?.total_notes === 1 ? "" : "s"} (Reminders page → Notes).`;
+    }
+    case "list_notes": {
+      const r = await run("list_notes", q.query ? { query: q.query } : {});
+      if (r.status !== "succeeded") return failed(r);
+      const notes: { when: string; untrusted_text: string }[] = r.data?.notes ?? [];
+      if (!notes.length) return q.query ? `No notes about "${q.query}".` : 'No notes yet. Say "take a note: …" and I\'ll keep it.';
+      return `${q.query ? `Notes about "${q.query}"` : "Your latest notes"} (${notes.length}):\n${notes.map((n) => `• ${n.untrusted_text} (${n.when})`).join("\n")}`;
+    }
     case "home": {
       const r = await run("home_control", { target: q.target, action: q.action, ...(q.value != null ? { value: q.value } : {}) });
       if (r.status === "awaiting_approval") return "That needs your OK: click Approve on the card below.";
