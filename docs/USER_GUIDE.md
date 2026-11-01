@@ -7,6 +7,10 @@ memory use live. Around it: the AI core status, a system monitor (CPU, RAM, disk
 (set it in Settings → Personality), a live feed of anything that needs you (approvals, reminders, connected accounts), and
 today's calendar and to-dos.
 
+## Not sure what to say?
+Open **Skills** in the left menu. It lists everything ULTRON can do, grouped (your day, smart home, your PC, research,
+notes…), with example phrases. Click one to try it.
+
 ## Council mode: face to face
 Click **Council** (left menu or Home), or just say or type **"council mode"**. ULTRON's face fills the screen and
 the microphone stays open: no wake word, no time limit, just talk. His mouth moves as he speaks, his eyes brighten

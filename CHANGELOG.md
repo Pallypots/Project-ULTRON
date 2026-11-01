@@ -6,6 +6,7 @@
   Locks and alarms are never touched. The Home screen gets a Home Systems panel.
 - **Natural turn-taking:** if you trail off mid-thought ("and, um…", "remind me about the…"), ULTRON waits a moment
   for the rest instead of answering half a sentence.
+- **Skills page:** everything ULTRON can do, grouped, with example phrases you can click to try.
 - **Email (read-only):** connect Gmail, iCloud, Yahoo or Fastmail with an app password (Connections → Email). Ask
   "any new emails?" or "read the one from Mum". ULTRON never sends, deletes or marks anything as read, and treats email
   content as untrusted.

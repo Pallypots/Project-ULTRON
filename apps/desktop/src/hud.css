@@ -215,3 +215,8 @@ body::after {
 .msg__who { font-family: var(--display); font-size: 0.66rem; letter-spacing: 0.22em; }
 .msg--assistant { border-left: 2px solid var(--accent); box-shadow: inset 12px 0 18px -14px var(--accent); }
 .btn--primary { clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); border-radius: 0; letter-spacing: 0.04em; }
+
+/* Skills page */
+.skills { display: grid; gap: 14px; max-width: 1400px; margin: 0 auto; }
+.skills__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.skills .chip { font-family: var(--hud); font-weight: 600; text-align: left; }

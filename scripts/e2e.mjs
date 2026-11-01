@@ -601,6 +601,12 @@ try {
   await page.getByRole("button", { name: "Morning briefing" }).waitFor(); // command ring around the reactor
   await page.getByText("SYSTEM MONITOR").waitFor();
   step("Command-centre Home: live CPU/RAM/disk gauges, reactor command ring, intelligence feed");
+  await page.getByRole("button", { name: "Skills" }).click();
+  await page.getByRole("heading", { name: "What can I say?" }).waitFor();
+  await page.getByRole("button", { name: "“Read my notes”" }).click();
+  await page.locator(".msg--assistant", { hasText: /No notes yet|Your latest notes/ }).waitFor();
+  step("Skills page: every ability with phrases to click; clicking one asks ULTRON");
+  await page.getByRole("button", { name: "Home", exact: true }).click();
   await page.getByRole("button", { name: "◉ Council mode" }).click();
   const council = page.getByRole("dialog", { name: /Council mode/ });
   await council.waitFor();

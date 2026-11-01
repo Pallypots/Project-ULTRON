@@ -9,13 +9,14 @@ import { loadVoicePrefs } from "./voice/prefs.ts";
 import type { CoreState } from "./Core.tsx";
 import { useUiPrefs } from "./prefs.ts";
 import { HomeView } from "./views/Home.tsx";
+import { SkillsView } from "./views/Skills.tsx";
 import { ChatView } from "./views/Chat.tsx";
 import { MemoryView } from "./views/Memory.tsx";
 import { ActivityView } from "./views/Activity.tsx";
 import { SettingsView } from "./views/Settings.tsx";
 import { PairScreen } from "./views/Pair.tsx";
 
-export type View = "home" | "chat" | "reminders" | "files" | "connections" | "memory" | "activity" | "settings";
+export type View = "home" | "chat" | "reminders" | "files" | "connections" | "memory" | "activity" | "skills" | "settings";
 
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: "home", label: "Home", icon: "◎" },
@@ -25,6 +26,7 @@ const NAV: { id: View; label: string; icon: string }[] = [
   { id: "connections", label: "Connections", icon: "⛓" },
   { id: "memory", label: "Memory Vault", icon: "▣" },
   { id: "activity", label: "Activity", icon: "≡" },
+  { id: "skills", label: "Skills", icon: "✧" },
   { id: "settings", label: "Settings", icon: "⚙" },
 ];
 
@@ -191,6 +193,7 @@ export function App() {
         {view === "connections" && <ConnectionsView onAsk={(q) => { setChatSeed(q); go("chat"); }} />}
         {view === "memory" && <MemoryView />}
         {view === "activity" && <ActivityView />}
+        {view === "skills" && <SkillsView onAsk={(q) => { setChatSeed(q); go("chat"); }} />}
         {view === "settings" && <SettingsView prefs={prefs} setPrefs={setPrefs} onSaved={refreshStatus} />}
       </main>
       <Toasts toasts={toasts} dismiss={(id) => setToasts((cur) => cur.filter((t) => t.id !== id))} />
