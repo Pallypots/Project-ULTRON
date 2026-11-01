@@ -616,10 +616,14 @@ try {
   await page.getByLabel("Type to ULTRON").press("Enter");
   await council.locator(".council__said", { hasText: "hello from the council" }).waitFor();
   await page.screenshot({ path: join(shots, "22-council-mode.png") });
+  await page.getByLabel("Type to ULTRON").fill("open notepad");
+  await page.getByLabel("Type to ULTRON").press("Enter");
+  await council.locator(".council__pending").getByRole("button", { name: "Approve" }).click();
+  await council.locator(".council__activity", { hasText: "✓" }).waitFor();
   await page.getByLabel("Type to ULTRON").press("Escape"); // closes the typing box
   await page.keyboard.press("Escape"); // leaves Council
   await council.waitFor({ state: "detached" });
-  step("Council mode: full-screen face, reply shown as subtitles, Esc leaves");
+  step("Council mode: full-screen face, reply shown as subtitles, approvals right there, Esc leaves");
 
   // ---- Phone access over Tailscale (simulated: the "phone" reaches ULTRON through a pretend tailnet address) ----
   const TAILNET = "e2e-pc.tail0000.ts.net";

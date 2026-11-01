@@ -388,6 +388,13 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
         heard={lastOf("user").startsWith("✓ Approved") ? "" : lastOf("user")}
         brain={status ? (status.where === "test" ? "Test brain" : `${status.where === "local" ? "Local" : "Cloud"} brain · ${status.model}`) : ""}
         problem={hands.error ?? speakError ?? error}
+        pending={[...messages].reverse().find((m) => m.role === "assistant")?.toolEvents?.filter((t) => t.status === "awaiting_approval") ?? []}
+        activity={(() => {
+          const last = [...messages].reverse().find((m) => m.role === "assistant");
+          const t = last?.toolEvents?.at(-1);
+          if (!t) return null;
+          return t.status === "awaiting_approval" ? `Waiting for your approval: ${t.summary}` : t.status === "running" ? `${t.summary}…` : t.status === "succeeded" ? `✓ ${t.summary}` : null;
+        })()}
         onSend={(t) => send(t, "text", undefined, true)}
         onExit={() => onExitCouncil?.()}
       />

@@ -226,3 +226,5 @@ body::after {
 .setup__steps li { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border-left: 2px solid var(--line-strong); background: rgba(239, 43, 43, 0.04); }
 .setup__steps li.is-done { opacity: 0.6; border-left-color: var(--ok); }
 .setup__tick { width: 18px; height: 18px; border: 1px solid var(--line-strong); display: grid; place-items: center; color: var(--ok); font-weight: 700; }
+.council__activity { margin: 0 auto; font-family: var(--display); font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: #ffd0c8; border: 1px solid var(--line-strong); padding: 4px 12px; background: rgba(60, 4, 8, 0.6); }
+.council__pending { margin: 0 auto; max-width: 720px; text-align: left; }

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import type { ToolEvent } from "@ultron/schemas";
+import { ToolChips } from "../ToolChips.tsx";
 import { Face } from "./Face.tsx";
 import type { FaceMood } from "./face.ts";
 
@@ -15,7 +17,7 @@ const STATUS: Record<FaceMood, string> = {
  * Council mode: full screen, just ULTRON's face and a conversation. The microphone stays open (no wake word) until
  * you leave with Esc, the × button, or by saying "that's all".
  */
-export function Council({ mood, level, said, heard, brain, problem, onSend, onExit }: {
+export function Council({ mood, level, said, heard, brain, problem, activity, pending, onSend, onExit }: {
   mood: FaceMood;
   level: { current: number };
   /** What ULTRON is saying / last said. */
@@ -24,6 +26,10 @@ export function Council({ mood, level, said, heard, brain, problem, onSend, onEx
   heard: string;
   brain: string;
   problem: string | null;
+  /** What ULTRON is doing or just did (an action), shown like a HUD readout. */
+  activity?: string | null;
+  /** Actions waiting for approval, with Approve / Deny right here. */
+  pending?: ToolEvent[];
   onSend: (text: string) => void;
   onExit: () => void;
 }) {
@@ -61,6 +67,8 @@ export function Council({ mood, level, said, heard, brain, problem, onSend, onEx
       <div className="council__captions" aria-live="polite">
         {heard && <p className="council__heard">“{heard}”</p>}
         {tail && <p className="council__said">{tail}</p>}
+        {activity && <p className="council__activity">{activity}</p>}
+        {pending && pending.length > 0 && <div className="council__pending"><ToolChips events={pending} /></div>}
         <p className="council__status">{problem ?? STATUS[mood]}</p>
       </div>
       <footer className="council__bottom">
