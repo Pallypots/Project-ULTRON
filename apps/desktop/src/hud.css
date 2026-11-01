@@ -197,3 +197,21 @@ body::after {
 .council__type input { flex: 1; background: rgba(30, 0, 4, 0.75); border: 1px solid var(--line-strong); color: #fff; padding: 10px 12px; font: inherit; font-size: 1.05rem; }
 .council__typelink { color: var(--muted); }
 .council__hint { font-size: 0.82rem; letter-spacing: 0.1em; color: rgba(255, 200, 200, 0.45); }
+
+/* ===== Same HUD language on every screen ===== */
+:root:not([data-contrast="high"]) .panel {
+  border-radius: 0;
+  background: var(--panel-hud);
+  border-color: var(--line-strong);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+}
+:root:not([data-contrast="high"]) .panel::before {
+  content: ""; position: absolute; left: 0; top: 0; width: 34%; height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent); box-shadow: 0 0 10px var(--accent);
+}
+.panel__title { letter-spacing: 0.22em; text-shadow: 0 0 8px rgba(239, 43, 43, 0.45); }
+.main h1 { font-family: var(--display); font-weight: 600; letter-spacing: 0.06em; }
+.chat__heading { font-family: var(--display); font-size: 1.05rem; letter-spacing: 0.06em; }
+.msg__who { font-family: var(--display); font-size: 0.66rem; letter-spacing: 0.22em; }
+.msg--assistant { border-left: 2px solid var(--accent); box-shadow: inset 12px 0 18px -14px var(--accent); }
+.btn--primary { clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); border-radius: 0; letter-spacing: 0.04em; }
