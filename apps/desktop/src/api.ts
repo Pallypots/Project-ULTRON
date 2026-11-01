@@ -470,6 +470,7 @@ export interface Hud {
   watchers: number;
   feed: { id: string; title: string; source: string; url: string | null }[];
   memories: number;
+  email: { unread: { from: string; subject: string }[] } | null;
   home: { lightsOn: string[]; lights: number; heating: { name: string; target: unknown; current: unknown } | null } | null;
 }
 

@@ -4,6 +4,7 @@ import type { Stores } from "@ultron/memory";
 import { usesFahrenheit, weatherFor } from "./actions/knowledge.ts";
 import type { CalendarService } from "./calendar/service.ts";
 import type { HomeService } from "./home/assistant.ts";
+import type { MailService } from "./mail/imap.ts";
 import { dayRange } from "./calendar/service.ts";
 
 /**
@@ -22,7 +23,21 @@ export class HudService {
     private dataDir: string,
     private calendar?: CalendarService,
     private home?: HomeService,
+    private mail?: MailService,
   ) {}
+
+  private inbox: { at: number; unread: { from: string; subject: string }[]; busy: boolean } = { at: 0, unread: [], busy: false };
+  private refreshInbox() {
+    const b = this.inbox;
+    if (!this.mail?.connected) return void (b.unread = []);
+    if (b.busy || Date.now() - b.at < 5 * 60_000) return;
+    b.busy = true;
+    this.mail
+      .recent({ unreadOnly: true, days: 2, limit: 5 })
+      .then((l) => Object.assign(b, { at: Date.now(), unread: l.map((m) => ({ from: m.from, subject: m.subject })) }))
+      .catch(() => (b.at = Date.now() - 3 * 60_000))
+      .finally(() => (b.busy = false));
+  }
 
   private sampleCpu(): number {
     const now = cpus().map((c) => c.times);
@@ -88,6 +103,7 @@ export class HudService {
   async summary() {
     this.refreshWeather();
     this.refreshAgenda();
+    this.refreshInbox();
     const s = this.stores;
     const reminders = s.reminders.upcoming().slice(0, 5).map((r) => ({ id: r.id, text: r.text, dueAt: r.dueAt }));
     const todos = s.todos.list();
@@ -106,6 +122,7 @@ export class HudService {
       watchers: s.watchers.active().length,
       feed,
       memories: s.memories.list().length,
+      email: this.mail?.connected ? { unread: this.inbox.unread } : null,
       home: this.home?.connected
         ? (() => {
             const all = this.home!.cached();

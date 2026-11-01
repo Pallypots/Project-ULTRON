@@ -57,6 +57,15 @@ describe("email (read-only)", () => {
     expect(cmds).not.toMatch(/\b(SELECT|STORE|EXPUNGE|APPEND|COPY|MOVE|DELETE)\b/);
     expect(cmds).not.toContain("abcdabcdabcdabcd");
 
+    // The morning briefing and the Home screen include unread mail.
+    const brief = replyText(await g.chat(id, "mock-tool daily_briefing {}"));
+    expect(brief).toMatch(/"email":\{"unread_last_24h":2/);
+    expect(brief).not.toMatch(/not_connected":\[[^\]]*"email"/);
+    await new Promise((r) => setTimeout(r, 50));
+    await g.api("GET", "/api/hud");
+    await new Promise((r) => setTimeout(r, 300));
+    expect((await g.api("GET", "/api/hud")).body.email.unread.map((m: { from: string }) => m.from)).toContain("Mum");
+
     await g.api("DELETE", "/api/email");
     expect((await g.api("GET", "/api/email")).body.email.connected).toBe(false);
   });

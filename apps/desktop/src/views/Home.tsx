@@ -114,7 +114,7 @@ export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }:
     { label: "TALK", title: "Talk to ULTRON", run: onTalk },
   ];
   const ready = status?.providerReady !== false;
-  const feedCount = (hud?.pendingApprovals.length ?? 0) + (hud?.reminders.length ?? 0) + (hud?.feed.length ?? 0);
+  const feedCount = (hud?.pendingApprovals.length ?? 0) + (hud?.reminders.length ?? 0) + (hud?.feed.length ?? 0) + (hud?.email?.unread.length ?? 0);
 
   return (
     <div className="hud">
@@ -251,6 +251,9 @@ export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }:
               ))}
               {hud?.reminders.map((r) => (
                 <li key={r.id} className="hud-feed__item"><span className="hud-feed__t">{hm(r.dueAt)}</span> ⏰ {r.text}</li>
+              ))}
+              {hud?.email?.unread.map((m, i) => (
+                <li key={`mail-${i}`} className="hud-feed__item"><span className="hud-feed__t">MAIL</span> {m.from}: {m.subject}</li>
               ))}
               {hud?.feed.map((e) => (
                 <li key={e.id} className="hud-feed__item">
