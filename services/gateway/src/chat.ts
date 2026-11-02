@@ -1,7 +1,7 @@
 import { buildPromptParts, shield, detectIntent, detectQuickCommand, detectTimeIntent, ProviderError, type ChatTurn, type Persona, type ProviderEvent, type ToolCall } from "@ultron/agent-core";
 import type { ToolEvent } from "@ultron/schemas";
 import { MAX_CALLS_PER_TURN, toEvent, type ActionRunner } from "./actions/runner.ts";
-import { claimsUnbackedAction, focusTools, HONESTY_NOTE } from "./actions/focus.ts";
+import { claimsUnbackedAction, localTools, localToolMode, HONESTY_NOTE } from "./actions/focus.ts";
 import { calculate } from "./actions/calc.ts";
 import { findApps } from "./actions/system.ts";
 import { convertUnits, parseConversion, parseMoney } from "./actions/units.ts";
@@ -433,7 +433,7 @@ export async function handleUserMessage(
   // (a small model given many tools wrote tool calls as text instead of making them). Everyday commands (lights, notes,
   // email, news, weather…) are answered instantly without the brain.
   const recentUser = turnsSoFar.filter((t) => t.role === "user").slice(-1).map((t) => t.content);
-  const toolSet = provider.id === "ollama" ? focusTools(recentUser, TOOLS) : TOOLS;
+  const toolSet = provider.id === "ollama" ? localTools(recentUser, TOOLS) : TOOLS;
   const toolSpecs = specsFor(toolSet);
   // Whether actions exist at all for this brain (fixed, so the instructions' wording never changes turn to turn)…
   const actionsPossible = Boolean(provider.streamWithTools && deps.actions);
@@ -731,8 +731,8 @@ export function stablePrefix(deps: ChatDeps): { system: string; tools: ReturnTyp
   const actionsPossible = Boolean(resolution.provider.streamWithTools && deps.actions);
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
   const { stable } = buildPromptParts(deps.persona(), { capabilities, toolsEnabled: actionsPossible, toolsSometimes: actionsPossible, memories: [], nowIso: "" });
-  // Ordinary conversation has no tools, so that's the prefix worth preparing.
-  return { system: stable, tools: [] };
+  // Ordinary conversation has no tools (or, in core mode, always the same ones), so that's the prefix worth preparing.
+  return { system: stable, tools: localToolMode() === "core" ? specsFor(localTools([], TOOLS)) : [] };
 }
 
 

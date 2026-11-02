@@ -42,7 +42,7 @@ That needs the owner's PC and is listed as an open item, not claimed.
 
 ## Spoken replies (v0.4, UL-009)
 - **Engine:** Kokoro-82M (Apache-2.0) via `kokoro-js`, sharing ULTRON's transformers.js/ONNX Runtime (npm `overrides` dedupes it, so there's no second
-  500 MB runtime). Model `onnx-community/Kokoro-82M-v1.0-ONNX` (fp16, ~165 MB) downloads once into `<data>/models`; voices ship with the package.
+  500 MB runtime). Model `onnx-community/Kokoro-82M-v1.0-ONNX` (fp32, ~330 MB) downloads once into `<data>/models`; voices ship with the package.
 - **Streaming:** the UI splits the reply into sentences as tokens arrive (`SentenceSplitter`) and requests `POST /api/voice/speak` per sentence. The next
   sentence is generated while the current one plays.
 - **Barge-in:** opening the mic (Talk / Space), Esc, Stop, or sending a new message stops playback and aborts pending generations. The mic is
@@ -64,7 +64,7 @@ Real-time factor (generation time ÷ audio length; below 1 = faster than speakin
 | **fp16 (default)** | **0.87** | **0.77** |
 | q4 | 1.58 | 0.77 |
 
-The 8-bit model is the smallest download but the slowest on CPU, so fp16 is the default (half of fp32's size, same speed).
+The 8-bit model is the smallest download but the slowest on CPU. November 2026 re-run, timing the short first chunk the owner actually waits for ("Right away."): fp32 1.41 s (Linux) / 1.55 s (Windows), fp16 1.58 / 2.05 s, q4 1.67 / 1.33 s, q8 3.78 / 3.56 s. fp32 is now the default: it starts speaking soonest on both, at the same overall speed (set `ULTRON_KOKORO_DTYPE=fp16` for the smaller download).
 Override with `ULTRON_KOKORO_DTYPE`. The owner's PC will differ; measure there.
 
 ## Not done yet

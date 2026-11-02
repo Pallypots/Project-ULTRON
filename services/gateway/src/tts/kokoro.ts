@@ -25,13 +25,14 @@ export class KokoroEngine implements TtsEngine {
   readonly voices = KOKORO_VOICES;
   private loaded = false;
   private loading: Promise<void> | null = null;
-  private state: TtsStatus = { state: "not_loaded", detail: "The voice downloads the first time ULTRON speaks (about 165 MB, one time)." };
+  private state: TtsStatus = { state: "not_loaded", detail: "The voice downloads the first time ULTRON speaks (about 330 MB, one time)." };
   readonly host = new ModelProcess("voice");
 
   constructor(
     private cacheDir: string,
-    // fp16 benchmarked fastest-for-size on CPU in CI (RTF ~0.8 on Windows and Linux vs ~1.4–2.0 for q8); see docs/VOICE.md.
-    readonly dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16" = (process.env.ULTRON_KOKORO_DTYPE as "fp16") ?? "fp16",
+    // fp32: in CI it started a short opener soonest (1.4–1.55 s vs 1.6–2.0 s for fp16, 3.6–3.8 s for q8, Windows and Linux)
+    // at the same overall speed as fp16; many PC processors have no fast 16-bit maths. See docs/VOICE.md.
+    readonly dtype: "fp32" | "fp16" | "q8" | "q4" | "q4f16" = (process.env.ULTRON_KOKORO_DTYPE as "fp32") ?? "fp32",
   ) {
     this.host.onProgress = (pct) => (this.state = { state: "loading", detail: "Downloading the voice (one time only)…", progress: pct });
     this.host.onCrash = () => {

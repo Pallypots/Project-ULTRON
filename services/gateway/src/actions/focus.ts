@@ -36,6 +36,17 @@ const GROUPS: { when: RegExp; tools: string[] }[] = [
   { when: /\b(birthday|anniversary|allergic|allergy|my (?:wife|husband|partner|girlfriend|boyfriend|sister|brother|mum|mom|dad|father|mother|son|daughter|kids?|dog|cat)\b|i (?:always|never|prefer|hate|love) )/i, tools: ["save_memory"] },
 ];
 
+/**
+ * "core" mode (experiment, ULTRON_LOCAL_TOOLS=core): the same short list of the most useful tools with every message, so
+ * the start of the prompt never changes and the brain never has to re-read its instructions because the tools changed.
+ */
+export const CORE_TOOLS = ["calculate", "get_weather", "create_reminder", "lookup_wikipedia", "web_search", "open_website", "save_memory", "get_calendar", "add_todo", "search_conversations"];
+export const localToolMode = (): "core" | "focused" => (process.env.ULTRON_LOCAL_TOOLS === "core" ? "core" : "focused");
+export function localTools(recentUserTexts: string[], all: ToolDef[]): ToolDef[] {
+  if (localToolMode() === "core") return CORE_TOOLS.map((n) => all.find((t) => t.name === n)).filter((t): t is ToolDef => Boolean(t));
+  return focusTools(recentUserTexts, all);
+}
+
 export function focusTools(recentUserTexts: string[], all: ToolDef[]): ToolDef[] {
   const text = recentUserTexts.join("\n");
   const wanted = new Set<string>();

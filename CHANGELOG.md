@@ -29,6 +29,9 @@
 - **No more stutter from status checks:** with a big history (thousands of conversations and memories), the status
   the app checks every few seconds took 29 ms of the service's time; now 1 ms. Settings → Performance now also shows
   whether the service ever froze, and for how long.
+- **ULTRON starts speaking sooner:** the voice now uses its full-precision model, which in side-by-side tests began
+  a short reply 0.2–0.5 s sooner than before on Windows and Linux. One-time download of about 330 MB the first time
+  he speaks after this update.
 - **Push-to-talk sends sooner:** your audio is handed over 17 ms after you let go (it used to wait a fixed 120 ms),
   and the audio engine stays ready between presses instead of being rebuilt every time.
 

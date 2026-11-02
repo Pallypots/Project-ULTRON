@@ -30,10 +30,14 @@ describe.skipIf(!enabled)("local brain candidates through ULTRON's real pipeline
     const g = await startGateway();
     const lines: string[] = [];
     try {
-      for (const model of MODELS) {
+      for (const spec of MODELS) {
+        // "model@core": the same fixed tool list with every message (see localTools), instead of tools picked per message.
+        const [model, mode] = spec.split("@") as [string, string | undefined];
+        if (mode === "core") process.env.ULTRON_LOCAL_TOOLS = "core";
+        else delete process.env.ULTRON_LOCAL_TOOLS;
         const failed = await pull(model);
         if (failed) {
-          lines.push(`${model}: not available (${failed})`);
+          lines.push(`${spec}: not available (${failed})`);
           continue;
         }
         g.gw.stores.preferences.set("provider", { provider: "ollama", model, baseUrl: OLLAMA });
@@ -54,11 +58,12 @@ describe.skipIf(!enabled)("local brain candidates through ULTRON's real pipeline
           else misses.push(`${c.what} ("${text.slice(0, 70)}" ${JSON.stringify(tools)})`);
         }
         const med = (a: number[]) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : "–");
-        lines.push(`${model}: ${passed}/${CASES.length} right | first word median ${med(firstWords)} ms | whole reply median ${med(wholes)} ms | missed: ${misses.join("; ") || "none"}`);
+        lines.push(`${spec}: ${passed}/${CASES.length} right | first word median ${med(firstWords)} ms | whole reply median ${med(wholes)} ms | missed: ${misses.join("; ") || "none"}`);
         await fetch(`${OLLAMA}/api/generate`, { method: "POST", body: JSON.stringify({ model, keep_alive: 0 }) }).catch(() => {}); // free the memory
       }
     } finally {
       await g.close();
+      delete process.env.ULTRON_LOCAL_TOOLS;
     }
     ciNote("Local brain candidates", lines.join(" || "));
     expect(lines.length).toBe(MODELS.length);
