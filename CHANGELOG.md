@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased · Phase 2: better ears
+## 0.28.0 · 2026-11-02 · Faster ears, instant answers, a cleaner look
 - **No more emoji anywhere:** every button, menu item, notification and status uses one consistent set of thin line
   icons that glow with the HUD (bundled with ULTRON, nothing loads from the internet). ULTRON's own replies are
   emoji-free too: he's told not to use them, and any that slip through are removed before you see them.
