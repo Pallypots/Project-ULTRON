@@ -8,7 +8,8 @@ import { ciNote } from "./helpers.ts";
 const enabled = process.env.ULTRON_TEST_WEB === "1";
 const note = (title: string, msg: string) => ciNote(title, msg);
 
-describe.skipIf(!enabled)("knowledge tools against the real services", () => {
+// Outside services (weather, Wikipedia, news) hiccup now and then: each test gets one retry before it counts as failed.
+describe.skipIf(!enabled)("knowledge tools against the real services", { retry: 1 }, () => {
   it("looks up Wikipedia", async () => {
     const out = JSON.parse(await toolByName("lookup_wikipedia")!.run({ topic: "Ada Lovelace" }, {} as never));
     note("Real Wikipedia lookup", `${out.title}: ${String(out.untrusted_summary).slice(0, 140)}`);
