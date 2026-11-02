@@ -27,6 +27,12 @@
   "how's my PC doing?", "cancel all my reminders", "that's all", and "Good morning, brief me" (your weather, calendar,
   reminders, list, email and headlines, read out straight away). 39 of 40, up from 27. A test checks that open-ended
   questions ("tell me a joke", "should I learn guitar or piano?") always still go to the brain.
+- **The local brain gets things right more often, and answers sooner:** it now gets the same short list of core
+  actions (calculator, weather, reminders, look-ups, opening sites, memory, calendar, list) with every message. Its
+  instructions never change, so it never has to re-read them. In side-by-side tests on the same requests: gemma4
+  went from 3/6 to 4/6 right, with the first word 2.5 s instead of 4.2 s; qwen3 1.7B from 5/6 to 6/6 (2.0 s
+  instead of 3.5 s). Each message also names the actions it can use, and an action the brain writes out as text is
+  carried out instead of shown.
 - **No more stutter from status checks:** with a big history (thousands of conversations and memories), the status
   the app checks every few seconds took 29 ms of the service's time; now 1 ms. Settings → Performance now also shows
   whether the service ever froze, and for how long.

@@ -141,25 +141,35 @@ describe("Phase 1.1 safety net: a copied [Context …] block is never shown or s
   });
 });
 
-describe("Phase 1.1 (revised): tools only when a message needs them", () => {
-  it("ordinary conversation goes with no tools and identical instructions; maths and personal facts still get theirs", async () => {
+describe("Phase 1.1 (re-revised, from CI evidence): the same core tools with every message", () => {
+  const names = (b: { tools?: { function: { name: string } }[] }) => (b.tools ?? []).map((t) => t.function.name);
+  it("plain chat and tool requests share identical instructions and core tools; a rarer tool is only appended", async () => {
     const g = await localGateway();
     const id = await g.newConversation();
     const last = () => fake!.requests.filter((r) => r.path === "/api/chat").at(-1)!.body;
     await g.chat(id, "Hey Ultron, how's it going?");
     const a = last();
-    await g.chat(id, "I'm thinking of learning the guitar. What do you reckon?");
-    const b = last();
-    // Positive control: plain chat, no tools, same instructions → the brain reuses what it read.
-    expect(a.tools).toBeUndefined();
-    expect(b.tools).toBeUndefined();
-    expect(b.messages[0]).toEqual(a.messages[0]);
-    expect(b.messages[0].content).not.toMatch(/calculate|lookup_wikipedia|save_memory/);
-    // Negative controls: messages that need a tool still get exactly that.
     await g.chat(id, "What is 1299 times 0.85 plus 4.99 with a 15% discount on top?");
-    expect(last().tools.map((t: { function: { name: string } }) => t.function.name)).toContain("calculate");
-    await g.chat(id, "My sister's birthday is March 3rd");
-    expect(last().tools.map((t: { function: { name: string } }) => t.function.name)).toContain("save_memory");
+    const b = last();
+    await g.chat(id, "Can you check if my inbox has anything from the bank?");
+    const c = last();
+    // Positive control: same instructions and the same core tools, in the same order, every time → nothing re-read.
+    expect(b.messages[0]).toEqual(a.messages[0]);
+    expect(names(a)).toEqual(names(b));
+    expect(names(a)).toEqual(expect.arrayContaining(["calculate", "get_weather", "save_memory", "open_website"]));
+    // A rarer tool the message clearly needs comes after the core ones (so everything before it is still reused).
+    expect(names(c).slice(0, names(a).length)).toEqual(names(a));
+    expect(names(c).slice(names(a).length)).toContain("check_email");
+  });
+  it("negative control: the old per-message mode still sends no tools for plain chat", async () => {
+    process.env.ULTRON_LOCAL_TOOLS = "focused";
+    try {
+      const g = await localGateway();
+      await g.chat(await g.newConversation(), "Hey Ultron, how's it going?");
+      expect(fake!.requests.filter((r) => r.path === "/api/chat").at(-1)!.body.tools).toBeUndefined();
+    } finally {
+      delete process.env.ULTRON_LOCAL_TOOLS;
+    }
   });
 });
 

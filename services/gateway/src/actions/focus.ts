@@ -37,14 +37,19 @@ const GROUPS: { when: RegExp; tools: string[] }[] = [
 ];
 
 /**
- * "core" mode (experiment, ULTRON_LOCAL_TOOLS=core): the same short list of the most useful tools with every message, so
- * the start of the prompt never changes and the brain never has to re-read its instructions because the tools changed.
+ * The same short list of the most useful tools with every message (the default for local brains), so the start of the
+ * prompt never changes and the brain never re-reads its instructions because the tools changed. In CI this beat
+ * per-message tools on both small models tried: gemma4:e2b 4/6 right vs 3/6 and first word 2.5 s vs 4.2 s; qwen3:1.7b
+ * 6/6 vs 5/6 and 2.0 s vs 3.5 s. A rarer tool the message clearly needs is added after these (ULTRON_LOCAL_TOOLS=focused
+ * restores the old per-message choice).
  */
 export const CORE_TOOLS = ["calculate", "get_weather", "create_reminder", "lookup_wikipedia", "web_search", "open_website", "save_memory", "get_calendar", "add_todo", "search_conversations"];
-export const localToolMode = (): "core" | "focused" => (process.env.ULTRON_LOCAL_TOOLS === "core" ? "core" : "focused");
+export const localToolMode = (): "core" | "focused" => (process.env.ULTRON_LOCAL_TOOLS === "focused" ? "focused" : "core");
 export function localTools(recentUserTexts: string[], all: ToolDef[]): ToolDef[] {
-  if (localToolMode() === "core") return CORE_TOOLS.map((n) => all.find((t) => t.name === n)).filter((t): t is ToolDef => Boolean(t));
-  return focusTools(recentUserTexts, all);
+  if (localToolMode() === "focused") return focusTools(recentUserTexts, all);
+  const core = CORE_TOOLS.map((n) => all.find((t) => t.name === n)).filter((t): t is ToolDef => Boolean(t));
+  const extra = focusTools(recentUserTexts, all).filter((t) => !CORE_TOOLS.includes(t.name));
+  return [...core, ...extra];
 }
 
 export function focusTools(recentUserTexts: string[], all: ToolDef[]): ToolDef[] {

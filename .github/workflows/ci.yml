@@ -52,7 +52,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           ULTRON_TEST_BRAIN_AB: "1"
-          ULTRON_BRAIN_AB_MODELS: "gemma4:e2b,gemma4:e2b@core,qwen3:1.7b,qwen3:1.7b@core"
+          ULTRON_BRAIN_AB_MODELS: "gemma4:e2b,qwen3:1.7b,qwen3:4b,llama3.2:3b,granite4:micro"
         run: npx vitest run services/gateway/test/brain-ab.real.test.ts
       - name: Voice precision benchmark (alone, so nothing else competes for the CPU)
         env:

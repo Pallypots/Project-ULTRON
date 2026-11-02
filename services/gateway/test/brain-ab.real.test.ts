@@ -31,10 +31,9 @@ describe.skipIf(!enabled)("local brain candidates through ULTRON's real pipeline
     const lines: string[] = [];
     try {
       for (const spec of MODELS) {
-        // "model@core": the same fixed tool list with every message (see localTools), instead of tools picked per message.
+        // "model@focused": tools picked per message (the old way) instead of the fixed core list (see localTools).
         const [model, mode] = spec.split("@") as [string, string | undefined];
-        if (mode === "core") process.env.ULTRON_LOCAL_TOOLS = "core";
-        else delete process.env.ULTRON_LOCAL_TOOLS;
+        process.env.ULTRON_LOCAL_TOOLS = mode === "focused" ? "focused" : "core";
         const failed = await pull(model);
         if (failed) {
           lines.push(`${spec}: not available (${failed})`);

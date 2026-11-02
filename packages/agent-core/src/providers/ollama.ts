@@ -243,8 +243,37 @@ export class LeakedToolCalls {
       if (call) calls.push(call);
       s = s.slice(end + close.length);
     }
-    // A marker might be arriving split across chunks: hold a possible start back.
+    // Gemma sometimes drops the markers and writes just `get_weather{place:<|"|>Paris<|"|>}`: same treatment.
+    for (;;) {
+      if (!this.names.length) break;
+      const bare = new RegExp(`(?:call:)?\\b(?:${this.names.map((n) => n.replace(/[^\w]/g, "")).join("|")})\\s*\\{`).exec(s);
+      if (!bare) break;
+      let depth = 0;
+      let end = -1;
+      for (let i = bare.index + bare[0].length - 1; i < s.length; i++) {
+        if (s[i] === "{") depth++;
+        else if (s[i] === "}" && --depth === 0) {
+          end = i;
+          break;
+        }
+      }
+      out += s.slice(0, bare.index);
+      if (end < 0) {
+        if (!done) this.held = s.slice(bare.index);
+        return { text: out, calls };
+      }
+      const call = this.parse(s.slice(bare.index, end + 1));
+      if (call) calls.push(call);
+      else out += s.slice(bare.index, end + 1); // not a real call after all: show it as written
+      s = s.slice(end + 1);
+    }
+    // A marker or a tool name might be arriving split across chunks: hold a possible start back.
     if (!done) {
+      const word = /[A-Za-z_]{3,}$/.exec(s);
+      if (word && this.names.some((n) => n.startsWith(word[0]) && n !== word[0])) {
+        this.held = word[0] + this.held;
+        s = s.slice(0, word.index);
+      }
       const lt = s.lastIndexOf("<");
       const tail = lt >= 0 ? s.slice(lt) : "";
       if (tail && MARKERS.some((m) => m.startsWith(tail))) {

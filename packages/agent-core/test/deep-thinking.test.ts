@@ -118,3 +118,18 @@ describe("a made-up tool answer after a written-out call", async () => {
     expect(a.text + b.text).toBe("");
   });
 });
+
+describe("a tool call written out with no markers at all", async () => {
+  const { LeakedToolCalls } = await import("../src/providers/ollama.ts");
+  it("becomes a real call, even split across chunks; ordinary words and braces stay", () => {
+    const l = new LeakedToolCalls(["get_weather", "calculate"]);
+    const a = l.push("Let me check. get_wea", false);
+    const b = l.push('ther{place:<|"|>Paris<|"|>, when:<|"|>tomorrow<|"|>}', false);
+    const c = l.push(" Done.", true);
+    expect([...a.calls, ...b.calls, ...c.calls]).toEqual([{ name: "get_weather", args: { place: "Paris", when: "tomorrow" } }]);
+    expect(a.text + b.text + c.text).toBe("Let me check.  Done.");
+    // Negative controls: a word that only starts like a tool name, and braces in prose, pass through.
+    const n = new LeakedToolCalls(["get_weather", "calculate"]);
+    expect([n.push("I can calc", false), n.push("ulate that in {my head}.", true)].map((r) => r.text).join("")).toBe("I can calculate that in {my head}.");
+  });
+});
