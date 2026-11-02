@@ -34,6 +34,7 @@ export function PerformancePanel() {
         <>
           <ul className="perf-findings">
             {r.diagnosis.map((d, i) => <li key={i}>{d}</li>)}
+            {r.wake?.available && <li>{wakeLine(r.wake)}</li>}
           </ul>
           <table className="perf-table">
             <thead><tr><th>Stage</th><th>Typical</th><th>Slow</th></tr></thead>
@@ -55,4 +56,11 @@ export function PerformancePanel() {
       <button type="button" className="btn btn--small" onClick={load} disabled={busy}>{busy ? "Measuring…" : "Refresh"}</button>
     </section>
   );
+}
+
+/** Plain-English state of the hands-free wake-word detector's trial. */
+function wakeLine(w: NonNullable<PerfReport["wake"]>): string {
+  if (w.trusted)
+    return `Wake-word detector: on. It caught your wake name ${w.caught} of ${w.named} times in its trial, so phrases without the name are now dropped straight away (${w.skipped} so far), saving full speech recognition each time.`;
+  return `Wake-word detector: learning your voice (${w.named} of ${w.needed} wake words heard, ${w.caught} caught by the detector). Until it's proved itself, hands-free works exactly as before.`;
 }

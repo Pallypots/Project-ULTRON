@@ -123,3 +123,61 @@ export class WakeSpotter {
     }
   }
 }
+
+export interface WakeTrialStats {
+  /** Which wake names these numbers are for (changing them starts the trial again). */
+  names: string;
+  /** Phrases where full recognition heard the wake name… */
+  named: number;
+  /** …and how many of those the detector had caught too. */
+  caught: number;
+  /** The detector fired but the words had no wake name (harmless: full recognition double-checks). */
+  extra: number;
+  /** Phrases dropped by the detector without full recognition (once trusted). */
+  skipped: number;
+}
+
+/**
+ * The detector earns its place on the owner's own voice and microphone: at first it only listens alongside full
+ * recognition and keeps score. Once it has caught the wake name at least TRIAL_NEEDED times with at least 90% caught,
+ * it's trusted to drop phrases without the name. Until then nothing changes for the owner.
+ */
+export const TRIAL_NEEDED = 8;
+export class WakeTrial {
+  constructor(
+    private load: () => WakeTrialStats | null,
+    private save: (s: WakeTrialStats) => void,
+  ) {}
+
+  stats(names: string[]): WakeTrialStats {
+    const key = names.join(",").toLowerCase();
+    const s = this.load();
+    return s && s.names === key ? s : { names: key, named: 0, caught: 0, extra: 0, skipped: 0 };
+  }
+
+  trusted(names: string[]): boolean {
+    const s = this.stats(names);
+    return s.named >= TRIAL_NEEDED && s.caught / s.named >= 0.9;
+  }
+
+  /** After full recognition: did the detector agree with what the words said? */
+  record(names: string[], detectorHit: boolean, wordsHadName: boolean) {
+    const s = this.stats(names);
+    if (wordsHadName) {
+      s.named++;
+      if (detectorHit) s.caught++;
+    } else if (detectorHit) s.extra++;
+    this.save(s);
+  }
+
+  skipped(names: string[]) {
+    const s = this.stats(names);
+    s.skipped++;
+    this.save(s);
+  }
+
+  status(names: string[]) {
+    const s = this.stats(names);
+    return { trusted: this.trusted(names), needed: TRIAL_NEEDED, ...s };
+  }
+}

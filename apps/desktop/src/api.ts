@@ -517,4 +517,6 @@ export interface PerfReport {
   hardware: { ramBytes: number; cpuThreads: number; gpus: { name: string; vramBytes: number; vendor: string }[]; usableGpu: { name: string } | null } | null;
   ollama: { name: string; size: number; sizeVram: number }[] | null;
   diagnosis: string[];
+  /** The hands-free wake-word detector's trial on this PC (see the gateway's WakeTrial). */
+  wake?: { available: boolean; trusted: boolean; needed: number; named: number; caught: number; extra: number; skipped: number };
 }

@@ -11,7 +11,7 @@ import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, TtsSett
 import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { RemoteAccess } from "./remote.ts";
-import { WakeSpotter } from "./voice/kws.ts";
+import { WakeSpotter, WakeTrial, type WakeTrialStats } from "./voice/kws.ts";
 import { RoomContext } from "./voice/room.ts";
 import { WatcherService } from "./watchers.ts";
 import { CalendarError, CalendarService } from "./calendar/service.ts";
@@ -61,6 +61,9 @@ export interface Gateway {
   summarizer: Summarizer;
   room: RoomContext;
   watchers: WatcherService;
+  /** Speech recognition and the wake-word detector (exposed for tests). */
+  stt: SttManager;
+  wake: WakeSpotter;
 }
 
 export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Promise<Gateway> {
@@ -106,6 +109,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
   const remote = new RemoteAccess(stores);
   const room = new RoomContext();
   const wake = new WakeSpotter();
+  const wakeTrial = new WakeTrial(() => stores.preferences.get<WakeTrialStats | null>("wake_trial", null), (v) => stores.preferences.set("wake_trial", v));
   room.setEnabled(stores.preferences.get<boolean>("room_context", false));
   registerAuth(app, token, remote);
   if (recovered) stores.audit.record("recovery.interrupted_messages", "system", null, { count: recovered });
@@ -322,7 +326,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     const s = settings();
     const model = s.provider === "ollama" ? s.model : "";
     const [hw, ps] = await Promise.all([detectHardware().catch(() => null), s.provider === "ollama" ? ollamaPs(ollama.url) : Promise.resolve(null)]);
-    return { summary, recent: perf.recent(20), hardware: hw, ollama: ps, diagnosis: s.provider === "ollama" ? diagnose(summary, hw, ps, model) : ["Measurements are most useful with the local brain."] };
+    return { summary, recent: perf.recent(20), hardware: hw, ollama: ps, wake: { ...wakeTrial.status(persona.wakeNames), available: wake.available() }, diagnosis: s.provider === "ollama" ? diagnose(summary, hw, ps, model) : ["Measurements are most useful with the local brain."] };
   });
 
   // ---- smart home (Home Assistant) ----
@@ -614,9 +618,11 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     // The wake-word detector first: a phrase without "Ultron" in it is dropped here in a few tens of milliseconds,
     // without full speech recognition (which costs ~2 s of CPU per phrase, TV included). Room awareness needs the words
     // of everything overheard, so it keeps the old way.
-    if (wakeMode && engine.id === "local" && !room.enabled) {
-      const spotted = await wake.spot(decoded.samples, persona.wakeNames);
-      if (spotted && !spotted.hit) return { addressed: false };
+    // (Only once it has proved itself on the owner's own voice: see WakeTrial.)
+    const spotted = wakeMode && engine.id === "local" && !room.enabled ? await wake.spot(decoded.samples, persona.wakeNames) : null;
+    if (spotted && !spotted.hit && wakeTrial.trusted(persona.wakeNames)) {
+      wakeTrial.skipped(persona.wakeNames);
+      return { addressed: false };
     }
     try {
       const text = await engine.transcribe(decoded.samples, new Uint8Array(req.body));
@@ -625,6 +631,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
         // Speech not addressed to ULTRON is dropped right here: not logged, not returned, not kept
         // (unless room awareness is on, which keeps the last few minutes in memory only).
         const command = matchWake(text, persona.wakeNames);
+        if (spotted) wakeTrial.record(persona.wakeNames, spotted.hit, command !== null);
         if (command === null) {
           room.add(text);
           return { addressed: false };
@@ -1021,7 +1028,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     stores.close();
   });
 
-  return { app, stores, token, config, logLines, summarizer, room, watchers };
+  return { app, stores, token, config, logLines, summarizer, room, watchers, stt, wake };
 }
 
 function cmpVersion(a: string, b: string): number {

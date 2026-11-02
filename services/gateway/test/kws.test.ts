@@ -26,3 +26,61 @@ describe("wake-word detector (2.1)", () => {
     expect(spotter.counts).toMatchObject({ checked: 4, spotted: 1 });
   }, 60_000);
 });
+
+describe("the detector proves itself on the owner's voice before it drops anything", async () => {
+  const { WakeTrial, TRIAL_NEEDED } = await import("../src/voice/kws.ts");
+  const fresh = () => {
+    let saved: any = null;
+    return new WakeTrial(() => saved, (s) => (saved = s));
+  };
+  it("is trusted only after catching the name at least 8 times, 90%+ of the time", () => {
+    const t = fresh();
+    expect(t.trusted(["Ultron"])).toBe(false);
+    for (let i = 0; i < TRIAL_NEEDED - 1; i++) t.record(["Ultron"], true, true);
+    expect(t.trusted(["Ultron"])).toBe(false); // not enough evidence yet
+    t.record(["Ultron"], true, true);
+    t.record(["Ultron"], true, false); // fired on a phrase without the name: harmless, counted
+    expect(t.status(["Ultron"])).toMatchObject({ trusted: true, named: 8, caught: 8, extra: 1 });
+    // A different wake name starts over.
+    expect(t.trusted(["Jarvis"])).toBe(false);
+  });
+  it("negative control: a detector that misses the name too often is never trusted", () => {
+    const t = fresh();
+    for (let i = 0; i < 20; i++) t.record(["Ultron"], i % 4 !== 0, true); // catches 75%
+    expect(t.trusted(["Ultron"])).toBe(false);
+  });
+});
+
+describe("hands-free with the detector, through the real service route", async () => {
+  const { startGateway } = await import("./helpers.ts");
+  const { encodeWav } = await import("@ultron/audio");
+  it("while learning, every phrase is still recognised; once trusted, phrases without the name skip recognition", async () => {
+    const g = await startGateway();
+    try {
+      // A stand-in for on-PC Whisper that says what it "heard" and counts how often it was asked.
+      let heard = "";
+      let calls = 0;
+      (g.gw.stt as any).current = () => ({ id: "local", model: "fake", privacy: "", status: () => ({ state: "ready", detail: "" }), prepare: async () => {}, transcribe: async () => (calls++, heard) });
+      const send = async (file: string, text: string) => {
+        heard = text;
+        const res = await g.gw.app.inject({ method: "POST", url: "/api/voice/transcribe?mode=wake", headers: { authorization: `Bearer ${g.gw.token}`, host: "localhost:7477", "content-type": "audio/wav" }, payload: Buffer.from(encodeWav(wav(file))) });
+        return res.json();
+      };
+      // Learning: the detector hears no "Ultron" in this speech, yet full recognition still runs (nothing is lost).
+      expect(await send("jfk.wav", "Ultron, what's the time?")).toMatchObject({ addressed: true, text: "what's the time?" });
+      expect(calls).toBe(1);
+      expect(g.gw.stores.preferences.get<any>("wake_trial", null)).toMatchObject({ named: 1, caught: 0 });
+      // Pretend it has proved itself on the owner's voice.
+      g.gw.stores.preferences.set("wake_trial", { names: "ultron", named: 9, caught: 9, extra: 0, skipped: 0 });
+      expect(await send("jfk.wav", "my fellow Americans")).toEqual({ addressed: false });
+      expect(calls).toBe(1); // dropped by the detector: no full recognition
+      // Negative control: with room awareness on, everything is still recognised (it needs the words).
+      g.gw.room.setEnabled(true);
+      expect(await send("jfk.wav", "my fellow Americans")).toEqual({ addressed: false });
+      expect(calls).toBe(2);
+    } finally {
+      g.gw.wake.host.stop();
+      await g.close();
+    }
+  }, 60_000);
+});
