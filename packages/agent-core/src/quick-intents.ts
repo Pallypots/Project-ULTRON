@@ -6,7 +6,10 @@ export type QuickCommand =
   | { type: "open_url"; url: string }
   | { type: "add_todo"; items: string[] }
   | { type: "list_todos" }
-  | { type: "weather"; place: string | null }
+  | { type: "weather"; place: string | null; when?: "today" | "tomorrow"; rain?: boolean }
+  | { type: "clock"; what: "time" | "date" | "day" }
+  | { type: "pc_status" }
+  | { type: "goodbye" }
   | { type: "calculate"; expression: string }
   | { type: "media"; action: "play_pause" | "next" | "previous" | "mute" | "volume_up" | "volume_down"; steps?: number }
   | { type: "open_app"; name: string }
@@ -106,8 +109,21 @@ export function detectQuickCommand(message: string): QuickCommand | null {
 
   if (/^(?:what(?:'s| is)|what do i have) on my (?:to-?do )?list|^(?:show|read)(?: me)? my (?:to-?do )?list$|^(?:what(?:'s| is)|show(?: me)?) my to-?do(?: list)?$/i.test(m)) return { type: "list_todos" };
 
-  const weather = /^(?:what(?:'s| is) the |how(?:'s| is) the )?weather(?: like)?(?:\s+(?:in|for|at)\s+([\p{L}][\p{L} ,.'-]{1,60}?))?(?:\s+(?:today|now|right now))?$/iu.exec(m);
-  if (weather) return { type: "weather", place: weather[1]?.trim() || null };
+  const weather = /^(?:what(?:'s| is) the |how(?:'s| is) the |what will the )?weather(?: be)?(?: like)?(?:\s+(?:in|for|at)\s+([\p{L}][\p{L} ,.'-]{1,60}?))?(?:\s+(today|now|right now|tomorrow))?$/iu.exec(m);
+  if (weather && !/\b(?:today|now|tomorrow)$/i.test(weather[1] ?? "")) return { type: "weather", place: weather[1]?.trim() || null, when: weather[2]?.toLowerCase() === "tomorrow" ? "tomorrow" : "today" };
+  // "Will it rain today?", "Is it going to rain tomorrow?", "Do I need an umbrella?"
+  const rain = /^(?:will it|is it going to|is it gonna|does it look like it(?:'s| is) going to) (?:rain|snow)(?: (today|tomorrow))?$|^do i need (?:an umbrella|a coat|a jacket)(?: (today|tomorrow))?$/i.exec(m);
+  if (rain) return { type: "weather", place: null, when: (rain[1] ?? rain[2])?.toLowerCase() === "tomorrow" ? "tomorrow" : "today", rain: true };
+
+  // The clock: the most common question of all. ("What time is it in Tokyo?" is world_time, further down.)
+  if (/^(?:what(?:'s| is) the time|what time is it|(?:do you know |have you got )?the time|tell me the time)(?: now| right now)?$/i.test(m)) return { type: "clock", what: "time" };
+  if (/^(?:what(?:'s| is) (?:the date|today's date)(?: today)?|what(?:'s| is) the date today|what date is it(?: today)?)$/i.test(m)) return { type: "clock", what: "date" };
+  if (/^(?:what day is it(?: today)?|what(?:'s| is) today|what day of the week is it)$/i.test(m)) return { type: "clock", what: "day" };
+
+  if (/^(?:how(?:'s| is) my (?:pc|computer|laptop|system)(?: doing| running)?|(?:pc|computer|system) (?:status|health)|check (?:my )?(?:pc|computer|system))$/i.test(m)) return { type: "pc_status" };
+
+  // Ending the conversation: answered at once (the app stops listening for a reply).
+  if (/^(?:(?:ok(?:ay)?|thanks|thank you|cheers)[, ]*)?(?:that(?:'s| is| will be| ?ll be) (?:all|it|everything)(?: for now)?|never ?mind|nothing(?: else)?|stop|cancel|forget it|that's enough)(?:[, ]+(?:thanks|thank you|cheers))?$/i.test(m)) return { type: "goodbye" };
 
   const calc = /^(?:what(?:'s| is)|calculate|compute|how much is)\s+(.+)$/i.exec(m);
   if (calc) {

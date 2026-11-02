@@ -22,6 +22,13 @@
   0.1–0.2 s per phrase instead of about 2.5 s. It also doesn't invent words from background noise (Whisper turned fan
   noise into "you"). It's a one-time ~30 MB download. Long voice messages are recognised in pieces cut at pauses.
   Whisper is still available in Settings → Voice.
+- **Everyday commands answer instantly:** 38 of 40 common requests are now answered by ULTRON himself in a moment,
+  without waiting for the brain. That includes the time and date, "will it rain tomorrow?", "do I need an umbrella?",
+  "how's my PC doing?", "cancel all my reminders" and "that's all". Up from 27 of 40. A test checks that open-ended
+  questions ("tell me a joke", "should I learn guitar or piano?") always still go to the brain.
+- **No more stutter from status checks:** with a big history (thousands of conversations and memories), the status
+  the app checks every few seconds took 29 ms of the service's time; now 1 ms. Settings → Performance now also shows
+  whether the service ever froze, and for how long.
 - **Push-to-talk sends sooner:** your audio is handed over 17 ms after you let go (it used to wait a fixed 120 ms),
   and the audio engine stays ready between presses instead of being rebuilt every time.
 

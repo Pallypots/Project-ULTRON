@@ -265,6 +265,15 @@ export async function handleUserMessage(
         ? `You have ${items.length} reminder${items.length > 1 ? "s" : ""}:\n` +
           items.map((r) => `• ${r.text}, ${new Date(r.dueAt).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}${r.status === "missed" ? " (missed while I was off)" : ""}`).join("\n")
         : "You have no upcoming reminders.";
+    } else if (timeIntent.all) {
+      const upcoming = stores.reminders.upcoming();
+      let cancelled = 0;
+      for (const r of upcoming) {
+        const { execution } = await deps.actions.propose("cancel_reminder", { reminder_id: r.id }, { conversationId, requestedBy: "command" });
+        if (execution) recordTool(toEvent(execution));
+        if (execution?.status === "succeeded") cancelled++;
+      }
+      text = !upcoming.length ? "You have no upcoming reminders to cancel." : cancelled === upcoming.length ? `Cancelled all ${cancelled} reminder${cancelled > 1 ? "s" : ""}.` : `Cancelled ${cancelled} of ${upcoming.length}; the rest need your approval in the app.`;
     } else {
       const upcoming = stores.reminders.upcoming();
       const target = matchReminder(upcoming, timeIntent.query);
@@ -811,6 +820,18 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       if (!w?.found) return w?.note?.includes("home city") ? "I don't know where you are yet. Set your home city in Settings → Personality, or ask \"weather in <city>\"." : (w?.note ?? "I couldn't get the weather.");
       const today = w.next_days?.[0];
       const tomorrow = w.next_days?.[1];
+      // "Will it rain tomorrow?" / "Do I need an umbrella?": answer that, not a full forecast.
+      if (q.rain) {
+        const day = q.when === "tomorrow" ? tomorrow : today;
+        const chance = parseInt(day?.chance_of_rain ?? "0") || 0;
+        const label = q.when === "tomorrow" ? "tomorrow" : "today";
+        return chance >= 50
+          ? `Yes, likely: ${chance}% chance of rain ${label} in ${w.place}. Take an umbrella.`
+          : chance >= 25
+            ? `Maybe: ${chance}% chance of rain ${label} in ${w.place}. A small umbrella wouldn't hurt.`
+            : `Unlikely: ${chance}% chance of rain ${label} in ${w.place}${day ? `, ${day.low} to ${day.high}` : ""}.`;
+      }
+      if (q.when === "tomorrow" && tomorrow) return `Tomorrow in ${w.place}: ${tomorrow.conditions}, ${tomorrow.low} to ${tomorrow.high}${tomorrow.chance_of_rain ? `, ${tomorrow.chance_of_rain} chance of rain` : ""}.`;
       const lines = [`Right now in ${w.place}: ${w.now.conditions}, ${w.now.temperature} (feels like ${w.now.feels_like}), wind ${w.now.wind}.`];
       if (today) lines.push(`Today: ${today.low} to ${today.high}${today.chance_of_rain ? `, ${today.chance_of_rain} chance of rain` : ""}.`);
       if (tomorrow) lines.push(`Tomorrow: ${tomorrow.conditions}, ${tomorrow.low} to ${tomorrow.high}.`);
@@ -905,11 +926,28 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
       if (r.status === "awaiting_approval") return "That needs your OK: click Approve on the card below.";
       if (r.status !== "succeeded" || r.data?.error) return r.data?.error ? `I couldn't: ${r.data.error}` : failed(r);
       const names: string[] = r.data?.done ?? [];
+      if (!names.length) return "Your smart home isn't connected yet. Connect Home Assistant in Connections → Smart home, and I'll do that instantly.";
       const who = names.length > 3 ? `${names.length} devices` : names.join(" and ");
       const what = q.action === "color" ? `now ${q.color === "red" ? "red. Much better" : q.color}` : q.action === "brightness" ? `set to ${q.value}%` : q.action === "set_temperature" ? `set to ${q.value}°` : q.action;
       const extra = r.data?.problems ? ` (${r.data.problems.join("; ")})` : "";
       return `Done: ${who} ${what}.${extra}`;
     }
+    case "clock": {
+      const now = new Date();
+      if (q.what === "time") return `It's ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
+      if (q.what === "day") return `It's ${now.toLocaleDateString(undefined, { weekday: "long" })}.`;
+      return `It's ${now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.`;
+    }
+    case "pc_status": {
+      const r = await run("pc_status", {});
+      if (r.status !== "succeeded") return failed(r);
+      const d = r.data ?? {};
+      const bat = typeof d.battery === "object" && d.battery ? `, battery ${d.battery.percent}%${d.battery.charging ? " (charging)" : ""}` : "";
+      const tight = (d.memory?.used_percent ?? 0) >= 90 ? " Memory is tight: closing a few apps would help." : (d.disk?.used_percent ?? 0) >= 90 ? " The disk is nearly full." : " All looks healthy.";
+      return `Your PC: memory ${d.memory?.used ?? "?"} of ${d.memory?.total ?? "?"} used (${d.memory?.used_percent ?? "?"}%)${d.disk ? `, ${d.disk.free} free on ${d.disk.drive}` : ""}${bat}, up for ${d.up_for ?? "?"}.${tight}`;
+    }
+    case "goodbye":
+      return "Standing by.";
     case "lock_pc": {
       const r = await run("lock_pc", {});
       return r.status === "succeeded" ? "Locking your PC. See you on the other side of the password." : failed(r);
@@ -983,7 +1021,8 @@ export function conversionFor(text: string): { kind: "units"; value: number; fro
 export function validQuick(content: string, home?: Pick<HomeService, "connected" | "cached">) {
   const quick = detectQuickCommand(content);
   // Smart-home phrases are instant commands only if they name devices Home Assistant really has.
-  if (quick?.type === "home" && !(home?.connected && matchEntities(home.cached(), quick.target).some((e) => EVERYDAY.has(e.domain) && !securityLike(e)))) return null;
+  // (Not connected at all: still instant, the handler says how to connect it.)
+  if (quick?.type === "home" && home?.connected && !(matchEntities(home.cached(), quick.target).some((e) => EVERYDAY.has(e.domain) && !securityLike(e)))) return null;
   // Conversions are quick commands only if the units or currencies are real; otherwise the brain decides.
   if (quick?.type === "convert" && !conversionFor(quick.text)) return null;
   // "open X" is only a quick command if X really is an installed app; otherwise the brain decides what was meant.

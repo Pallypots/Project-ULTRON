@@ -62,8 +62,10 @@ describe("smart home (Home Assistant)", () => {
     const g = await startGateway();
     cleanup.push(g.close);
     const id = await g.newConversation();
-    // Not connected: "lights off" isn't an instant command (the brain answers instead).
-    expect(replyText(await g.chat(id, "lights off"))).not.toMatch(/^Done:/);
+    // Not connected: answered at once with how to connect it (never a pretend "Done").
+    const offline = replyText(await g.chat(id, "lights off"));
+    expect(offline).not.toMatch(/^Done:/);
+    expect(offline).toMatch(/isn't connected/);
     expect((await g.api("PUT", "/api/home", { url: base, token: "wrong-token-000000000000" })).body.message).toMatch(/refused the token/);
     const ok = await g.api("PUT", "/api/home", { url: `${base}/api/`, token: TOKEN });
     expect(ok.body).toMatchObject({ home: { connected: true, url: base }, devices: 7 });

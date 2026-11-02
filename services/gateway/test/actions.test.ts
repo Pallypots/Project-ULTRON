@@ -35,7 +35,7 @@ describe("policy engine", () => {
 describe("model-driven actions", () => {
   it("runs a read-only tool and feeds the result back to the model", async () => {
     const g = await gateway();
-    const events = await g.chat(await g.newConversation(), "what time is it?");
+    const events = await g.chat(await g.newConversation(), "what time is it over here?") // (plain "what time is it" is answered instantly by code);
     expect(toolEvents(events)).toMatchObject([{ tool: "get_current_time", status: "succeeded", risk: 0 }]);
     expect(replyText(events)).toMatch(/The get_current_time tool reported: \{"local"/);
   });

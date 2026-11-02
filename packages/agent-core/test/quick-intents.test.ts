@@ -8,8 +8,14 @@ describe("quick commands (answered by code, no model)", () => {
     expect(d("add milk, eggs and bread to my list")).toEqual({ type: "add_todo", items: ["milk", "eggs", "bread"] });
     expect(d("put call mum on my to-do list")).toEqual({ type: "add_todo", items: ["call mum"] });
     expect(d("what's on my list?")).toEqual({ type: "list_todos" });
-    expect(d("what's the weather like in Leeds, UK today?")).toEqual({ type: "weather", place: "Leeds, UK" });
-    expect(d("what's the weather?")).toEqual({ type: "weather", place: null });
+    expect(d("what's the weather like in Leeds, UK today?")).toEqual({ type: "weather", place: "Leeds, UK", when: "today" });
+    expect(d("what will the weather be like tomorrow?")).toEqual({ type: "weather", place: null, when: "tomorrow" });
+    expect(d("will it rain tomorrow?")).toEqual({ type: "weather", place: null, when: "tomorrow", rain: true });
+    expect(d("what time is it?")).toEqual({ type: "clock", what: "time" });
+    expect(d("Ultron, what's the date today?")).toEqual({ type: "clock", what: "date" });
+    expect(d("how's my PC doing?")).toEqual({ type: "pc_status" });
+    expect(d("ok, that's all, thanks")).toEqual({ type: "goodbye" });
+    expect(d("what's the weather?")).toEqual({ type: "weather", place: null, when: "today" });
     expect(d("what's 15% of 80?")).toEqual({ type: "calculate", expression: "15% * (80)" });
     expect(d("calculate 12 x 7")).toEqual({ type: "calculate", expression: "12*7" });
     expect(d("what's 3 times 4")).toEqual({ type: "calculate", expression: "3 * 4" });
@@ -26,6 +32,9 @@ describe("quick commands (answered by code, no model)", () => {
       "what is the meaning of life",
       "what's the weather going to do tomorrow",
       "will it rain later?",
+      "stop being so dramatic",
+      "how's my PC doing compared to a Mac?",
+      "what's today's plan, any ideas?",
       "I'd like you to open https://example.com",
       "add a reminder to the list to check",
       "open https://example.com\nand also tell me a joke",

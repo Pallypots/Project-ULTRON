@@ -89,6 +89,6 @@ describe("currency, definitions and world time", () => {
     expect(detectQuickCommand("what does ephemeral mean?")).toEqual({ type: "define", word: "ephemeral" });
     expect(detectQuickCommand("Ultron, what time is it in New York")).toEqual({ type: "world_time", place: "New York" });
     expect(detectQuickCommand("convert 30 cm to inches")).toEqual({ type: "convert", text: "convert 30 cm to inches" });
-    expect(detectQuickCommand("what time is it")).toBeNull();
+    expect(detectQuickCommand("what time is it")).toEqual({ type: "clock", what: "time" }); // the local clock, answered at once
   });
 });

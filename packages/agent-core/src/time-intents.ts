@@ -3,7 +3,7 @@
 export type TimeIntent =
   | { type: "reminder"; text: string; due: Date; label: string }
   | { type: "list_reminders" }
-  | { type: "cancel_reminder"; query: string };
+  | { type: "cancel_reminder"; query: string; all?: boolean };
 
 const NUM: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, fifteen: 15, twenty: 20, thirty: 30, "forty five": 45, "forty-five": 45, sixty: 60 };
 const UNIT_MS: [RegExp, number][] = [
@@ -90,6 +90,9 @@ export function detectTimeIntent(message: string, now = new Date()): TimeIntent 
       new RegExp(PREFIX + String.raw`(?:do i have|are there) any (?:reminders|timers)[?.!\s]*$`, "i").test(msg))
     return { type: "list_reminders" };
 
+  // "Cancel all my reminders" / "cancel my timers": every upcoming one.
+  if (new RegExp(PREFIX + String.raw`(?:cancel|delete|remove|stop|clear)\s+(?:all\s+)?(?:of\s+)?(?:my\s+|the\s+)?(?:reminders|timers)[.!?\s]*$`, "i").test(msg))
+    return { type: "cancel_reminder", query: "", all: true };
   if ((m = new RegExp(PREFIX + String.raw`(?:cancel|delete|remove|stop)\s+(?:my\s+|the\s+)?(?:reminder|timer)(?:\s+(?:to|about|for)\s+(.+?))?[.!?\s]*$`, "i").exec(msg)))
     return { type: "cancel_reminder", query: (m[1] ?? "").trim() };
 
