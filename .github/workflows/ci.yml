@@ -20,7 +20,6 @@ jobs:
       # Runs the real local Whisper speech-recognition test (downloads the model once, then cached).
       ULTRON_TEST_WHISPER: "1"
       ULTRON_TEST_TTS: "1"
-      ULTRON_TEST_TTS_BENCH: "1"
       ULTRON_TEST_EMBED: "1"
       ULTRON_TEST_GITHUB: "1"
       ULTRON_TEST_WEB: "1"
@@ -55,6 +54,10 @@ jobs:
           ULTRON_TEST_BRAIN_AB: "1"
           ULTRON_BRAIN_AB_MODELS: "gemma4:e2b,gemma4:e2b@core,qwen3:1.7b,qwen3:1.7b@core"
         run: npx vitest run services/gateway/test/brain-ab.real.test.ts
+      - name: Voice precision benchmark (alone, so nothing else competes for the CPU)
+        env:
+          ULTRON_TEST_TTS_BENCH: "1"
+        run: npx vitest run services/gateway/test/tts-bench.real.test.ts
       - name: Report real-world results recorded by the tests
         if: always()
         run: node scripts/ci-notes.mjs

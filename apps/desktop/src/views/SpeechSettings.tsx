@@ -6,7 +6,7 @@ import { Speaker } from "../voice/speaker.ts";
 import { loadVoicePrefs, saveVoicePrefs, type VoicePrefs } from "../voice/prefs.ts";
 
 const ENGINES = [
-  { id: "local", name: "Natural voice on this PC (Kokoro), recommended", help: "Runs on this computer. Downloads about 330 MB the first time, then works offline." },
+  { id: "local", name: "Natural voice on this PC (Kokoro), recommended", help: "Runs on this computer. Downloads about 165 MB the first time, then works offline." },
   { id: "browser", name: "Windows built-in voices", help: "No download; more robotic. Only voices installed on this computer are offered (online voices are hidden for privacy)." },
   { id: "mock", name: "Test tone", help: "For testing only." },
 ] as const;

@@ -455,6 +455,13 @@ export async function handleUserMessage(
       room: roomInPrompt },
   });
   let turnContext = baseContext;
+  // Small local brains often answer from memory (and get sums wrong) even when the right tool is right there; a direct
+  // nudge naming this message's tools fixes most of that. (Per message, so it costs nothing in re-reading.)
+  if (provider.id === "ollama" && useTools) {
+    const hint: Record<string, string> = { calculate: "any arithmetic", get_weather: "weather", open_website: "opening a website", create_reminder: "reminders and timers", lookup_wikipedia: "facts you're not sure of", web_search: "anything current", get_calendar: "the owner's schedule" };
+    const named = toolSpecs.map((t) => (hint[t.name] ? `${t.name} (${hint[t.name]})` : t.name));
+    turnContext += `\nTools for this message: ${named.join(", ")}. If one fits, call it instead of answering from memory; never work out sums yourself.`;
+  }
   // Small local brains refuse ("I can't see your screen") unless told the picture is right there.
   const seeingNote = (what: string) => (turnContext = `${turnContext}\n- ${what} is attached to the owner's message below as an image. You CAN see it: look at it and answer from what you see. Never say you can't see it.`);
   const turns: ChatTurn[] = turnsSoFar;
