@@ -11,6 +11,7 @@ type Req =
   | { id: number; kind: "tts.load"; dtype: string; model: string; cacheDir: string }
   | { id: number; kind: "tts.run"; text: string; voice: string; speed: number }
   | { id: number; kind: "kws.run"; samples: Float32Array; dir: string; keywords: string }
+  | { id: number; kind: "turn.run"; samples: Float32Array; cacheDir: string; padLeft?: boolean }
   | { id: number; kind: "test.wait"; ms: number }; // stands in for slow model work in tests
 
 let sttModel = "";
@@ -25,6 +26,67 @@ type Spotter = {
   reset(s: unknown): void;
 };
 let kws: { spotter: Spotter; key: string } | null = null;
+
+/**
+ * Smart Turn v3 (pipecat-ai, BSD-2): from the sound of the last 8 s of speech (Whisper-style log-mel features), the
+ * probability that the speaker has finished their turn. Downloaded once (~8 MB) from Hugging Face.
+ */
+const TURN_FILES = ["smart-turn-v3.2-cpu.onnx", "smart-turn-v3.1-cpu.onnx", "smart-turn-v3.0.onnx"];
+let turn: { run(features: Float32Array): Promise<number>; file: string; inputs: string[] } | null = null;
+async function loadTurn(cacheDir: string) {
+  if (turn) return turn;
+  const { existsSync, mkdirSync: mk, writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const dir = join(cacheDir, "smart-turn");
+  mk(dir, { recursive: true });
+  let file = TURN_FILES.map((f) => join(dir, f)).find((f) => existsSync(f));
+  if (!file) {
+    for (const name of TURN_FILES) {
+      const res = await fetch(`https://huggingface.co/pipecat-ai/smart-turn-v3/resolve/main/${name}`);
+      if (!res.ok) continue;
+      file = join(dir, name);
+      writeFileSync(file, new Uint8Array(await res.arrayBuffer()));
+      break;
+    }
+  }
+  if (!file) throw new Error("couldn't download the turn detector");
+  const { createRequire } = await import("node:module");
+  const ort = createRequire(import.meta.url)("onnxruntime-node") as {
+    InferenceSession: { create(p: string, o?: unknown): Promise<{ inputNames: string[]; outputNames: string[]; run(f: Record<string, unknown>): Promise<Record<string, { data: ArrayLike<number> }>> }> };
+    Tensor: new (t: string, d: Float32Array, dims: number[]) => unknown;
+  };
+  const session = await ort.InferenceSession.create(file, { intraOpNumThreads: 1 });
+  turn = {
+    file,
+    inputs: session.inputNames,
+    async run(features) {
+      const out = await session.run({ [session.inputNames[0]!]: new ort.Tensor("float32", features, [1, 80, features.length / 80]) });
+      const v = Number(out[session.outputNames[0]!]!.data[0]);
+      return v < 0 || v > 1 ? 1 / (1 + Math.exp(-v)) : v; // a logit from some exports: squash to a probability
+    },
+  };
+  return turn;
+}
+
+let turnFeatures: { _call(a: Float32Array, o?: unknown): Promise<{ input_features: { data: Float32Array } }> } | null = null;
+/** Last 8 s, normalised to zero mean / unit variance, padded to 8 s, then 80-bin log-mel (800 frames). */
+async function turnInput(samples: Float32Array, padLeft: boolean): Promise<Float32Array> {
+  const N = 8 * 16000;
+  const tail = samples.length > N ? samples.subarray(samples.length - N) : samples;
+  let mean = 0;
+  for (const x of tail) mean += x;
+  mean /= tail.length || 1;
+  let v = 0;
+  for (const x of tail) v += (x - mean) ** 2;
+  const sd = Math.sqrt(v / (tail.length || 1) + 1e-7);
+  const padded = new Float32Array(N);
+  padded.set(Array.from(tail, (x) => (x - mean) / sd), padLeft ? N - tail.length : 0);
+  if (!turnFeatures) {
+    const { WhisperFeatureExtractor } = await import("@huggingface/transformers");
+    turnFeatures = new WhisperFeatureExtractor({ feature_size: 80, sampling_rate: 16000, hop_length: 160, n_fft: 400, chunk_length: 8, n_samples: N, nb_max_frames: 800, padding_value: 0 }) as never;
+  }
+  return (await turnFeatures!._call(padded)).input_features.data;
+}
 
 const progress = (target: "stt" | "tts") => {
   const files = new Map<string, { loaded: number; total: number }>();
@@ -111,6 +173,11 @@ async function handle(m: Req): Promise<unknown> {
         }
       }
       return { keyword };
+    }
+    case "turn.run": {
+      const t = await loadTurn(m.cacheDir);
+      const complete = await t.run(await turnInput(m.samples, m.padLeft ?? true));
+      return { complete, file: t.file.split(/[\\/]/).pop(), inputs: t.inputs };
     }
     case "test.wait":
       await new Promise((r) => setTimeout(r, m.ms));
