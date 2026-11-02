@@ -270,7 +270,8 @@ export class LeakedToolCalls {
     // A marker or a tool name might be arriving split across chunks: hold a possible start back.
     if (!done) {
       const word = /[A-Za-z_]{3,}$/.exec(s);
-      if (word && this.names.some((n) => n.startsWith(word[0]) && n !== word[0])) {
+      // (A whole tool name is held too: its "{" may be in the next piece.)
+      if (word && this.names.some((n) => n.startsWith(word[0]))) {
         this.held = word[0] + this.held;
         s = s.slice(0, word.index);
       }

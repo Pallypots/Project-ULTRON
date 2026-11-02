@@ -134,6 +134,8 @@ describe("Phase 1.1 safety net: a copied [Context …] block is never shown or s
     // Negative controls: ordinary brackets and words pass through untouched.
     expect(run(["See [1] and [note]: the ", "context matters."])).toBe("See [1] and [note]: the context matters.");
     expect(run(["Done", " [", "C"])).toBe("Done [C");
+    // Seen in CI: a copied "[SPOKEN]" label, then the same reply again.
+    expect(run(["Why did the programmer quit? He didn't get arrays. [SPO", "KEN] Why did the programmer quit?"]).trimEnd()).toBe("Why did the programmer quit? He didn't get arrays.");
     // A label copied from the instructions at the very start goes; the same word inside a sentence stays.
     expect(run(["Spoken", " I was going to tell you a joke."])).toBe("I was going to tell you a joke.");
     expect(run(["Spoken: Sure."])).toBe("Sure.");

@@ -753,7 +753,8 @@ export function stripEmoji(text: string): string {
 }
 
 export function contextEchoGuard() {
-  const MARKERS = ["[Context", "[End of context"];
+  // A copied label like "[SPOKEN]" is followed by the model repeating itself, so it ends the reply too.
+  const MARKERS = ["[Context", "[End of context", "[SPOKEN", "[Spoken", "[TYPED"];
   let held = "";
   let stopped = false;
   // A small brain sometimes opens with a label it saw in its instructions ("Spoken I was going to…"): drop it.
