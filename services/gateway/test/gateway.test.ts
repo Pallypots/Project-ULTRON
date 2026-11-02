@@ -96,7 +96,7 @@ describe("chat", () => {
       expect(events.at(-1)!.type).toBe("done");
     }
     expect((await api("GET", `/api/conversations/${id}`)).body.messages).toHaveLength(200);
-  });
+  }, 90_000); // ~2 s on a quiet machine; CI runs the heavy model tests alongside
 
   it("validates input", async () => {
     const { api, newConversation } = await gateway();

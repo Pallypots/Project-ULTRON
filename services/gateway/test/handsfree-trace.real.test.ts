@@ -131,7 +131,13 @@ describe.skipIf(!enabled)("hands-free conversation, traced end to end (real serv
       const helpers = childPids(server.pid!);
       log(`model processes: ${helpers.join(",")}`);
       expect(helpers.length).toBeGreaterThanOrEqual(1);
-      for (const p of helpers) process.kill(p, "SIGKILL");
+      for (const p of helpers) {
+        try {
+          process.kill(p, "SIGKILL");
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== "ESRCH") throw err; // already gone (a short-lived helper): fine
+        }
+      }
       const afterCrash = await hear(addressed, true);
       log(`after model crash → ${JSON.stringify(afterCrash.body)}`);
       expect(afterCrash.body.addressed).toBe(true);
