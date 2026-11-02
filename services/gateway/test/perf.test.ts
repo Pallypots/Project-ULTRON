@@ -214,3 +214,18 @@ describe("spoken replies from a local brain are capped in length", () => {
     expect(opts().num_ctx).toBe(8192); // the cap never changes the context size (that would reload the model)
   });
 });
+
+describe("a reply that starts by repeating the question", () => {
+  it("has the repeat removed; a reply that merely mentions the same words keeps them", async () => {
+    const { contextEchoGuard } = await import("../src/chat.ts");
+    const run = (q: string, pieces: string[]) => {
+      const g = contextEchoGuard(q);
+      return pieces.map((p) => g.push(p)).join("") + g.flush();
+    };
+    expect(run("Who painted the Mona Lisa?", ["Who painted the", " Mona Lisa? Leonardo da Vinci, around 1503."])).toBe("Leonardo da Vinci, around 1503.");
+    expect(run("Look at my screen.", ["Look at my screen. Red."])).toBe("Red.");
+    // Negative controls.
+    expect(run("Who painted the Mona Lisa?", ["Leonardo da Vinci painted the Mona Lisa."])).toBe("Leonardo da Vinci painted the Mona Lisa.");
+    expect(run("hi", ["hi there, owner."])).toBe("hi there, owner.");
+  });
+});

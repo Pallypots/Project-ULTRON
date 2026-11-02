@@ -55,27 +55,9 @@ const MAX_TOOL_ROUNDS = 4;
 // Owner-only tools (e.g. locking the PC) are never offered to a model: only the owner's direct commands run them.
 const specsFor = (tools: typeof TOOLS) => tools.filter((t) => !t.ownerOnly).map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
 
-/**
- * One-line tool descriptions for the local brain: it reads every word of them whenever it reads its instructions from
- * scratch (start-up, after a background job), and on a CPU that's seconds. The full descriptions go to cloud brains.
- */
 /** About 120 words: room for a full spoken answer, not for an essay read aloud. */
 const SPOKEN_MAX_TOKENS = 180;
 
-const SHORT: Record<string, string> = {
-  calculate: "Exact arithmetic. Use for any sum, percentage or price; never work maths out yourself.",
-  get_weather: "Current weather and 3-day forecast for a place (or the owner's home).",
-  create_reminder: "Remind the owner at a time or after a delay.",
-  lookup_wikipedia: "Short Wikipedia summary of a person, place, thing or event.",
-  web_search: "Search the web for anything current (news, prices, hours, recent events).",
-  open_website: "Open a web page in the owner's browser (they approve it first).",
-  save_memory: "Offer to remember a lasting fact the owner told you about themselves (they approve it).",
-  get_calendar: "The owner's calendar events for a day or the next 7 days.",
-  add_todo: "Add items to the owner's to-do list.",
-  search_conversations: "Search what you and the owner said in earlier conversations.",
-};
-const localSpecsFor = (tools: typeof TOOLS) =>
-  specsFor(tools).map((t) => ({ ...t, description: SHORT[t.name] ?? t.description.split(/(?<=[a-z0-9)][.!?])\s(?=[A-Z])/)[0]! }));
 
 async function* textOnly(it: AsyncIterable<string>): AsyncIterable<ProviderEvent> {
   for await (const text of it) yield { type: "text", text };
@@ -456,7 +438,8 @@ export async function handleUserMessage(
   // email, news, weather…) are answered instantly without the brain.
   const recentUser = turnsSoFar.filter((t) => t.role === "user").slice(-1).map((t) => t.content);
   const toolSet = provider.id === "ollama" ? localTools(recentUser, TOOLS) : TOOLS;
-  const toolSpecs = provider.id === "ollama" ? localSpecsFor(toolSet) : specsFor(toolSet);
+  // (Short descriptions were tried for local brains: gemma4 then picked the wrong tool, 2/6 right vs 5/6. Full ones stay.)
+  const toolSpecs = specsFor(toolSet);
   // Whether actions exist at all for this brain (fixed, so the instructions' wording never changes turn to turn)…
   const actionsPossible = Boolean(provider.streamWithTools && deps.actions);
   // …and whether this particular message gets any tools.
@@ -635,7 +618,7 @@ export async function handleUserMessage(
       const events = useTools && round < MAX_TOOL_ROUNDS ? provider.streamWithTools!({ ...req, tools: toolSpecs }) : textOnly(provider.stream(req));
       const calls: ToolCall[] = [];
       let roundText = "";
-      const guard = contextEchoGuard();
+      const guard = contextEchoGuard(round === 0 ? content : "");
       const take = (raw: string) => {
         // No emoji in ULTRON's replies, whatever the model writes (they cheapen the interface).
         const piece = stripEmoji(raw);
@@ -766,7 +749,7 @@ export function stablePrefix(deps: ChatDeps): { system: string; tools: ReturnTyp
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
   const { stable } = buildPromptParts(deps.persona(), { capabilities, toolsEnabled: actionsPossible, toolsSometimes: actionsPossible, memories: [], nowIso: "" });
   // Ordinary conversation has no tools (or, in core mode, always the same ones), so that's the prefix worth preparing.
-  return { system: stable, tools: localToolMode() === "core" ? localSpecsFor(localTools([], TOOLS)) : [] };
+  return { system: stable, tools: localToolMode() === "core" ? specsFor(localTools([], TOOLS)) : [] };
 }
 
 
@@ -779,7 +762,8 @@ export function stripEmoji(text: string): string {
   return text.replace(/\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F|[\u200D\uFE0F]|\p{Emoji_Modifier}/gu, "").replace(/ {2,}/g, " ");
 }
 
-export function contextEchoGuard() {
+/** `echoOf`: the owner's message; a reply that opens by repeating it word for word has that repeat removed. */
+export function contextEchoGuard(echoOf = "") {
   // A copied label like "[SPOKEN]" is followed by the model repeating itself, so it ends the reply too.
   const MARKERS = ["[Context", "[End of context", "[SPOKEN", "[Spoken", "[TYPED"];
   let held = "";
@@ -792,9 +776,12 @@ export function contextEchoGuard() {
       if (stopped) return "";
       held += chunk;
       if (!opened) {
-        if (held.trim().length < 12) return "";
+        const q = echoOf.trim().replace(/[\s?.!]+$/, "");
+        // Wait until there's enough to tell whether it starts by repeating the question.
+        if (held.trim().length < Math.max(12, Math.min(q.length + 2, 300))) return "";
         opened = true;
         held = held.replace(LABEL, "");
+        if (q.length >= 8 && held.trimStart().toLowerCase().startsWith(q.toLowerCase())) held = held.trimStart().slice(q.length).replace(/^[\s?.!,:;-]+/, "");
       }
       const hit = Math.min(...MARKERS.map((m) => held.indexOf(m)).filter((i) => i >= 0));
       if (Number.isFinite(hit)) {
@@ -810,7 +797,11 @@ export function contextEchoGuard() {
       return out;
     },
     flush(): string {
-      if (!opened) held = held.replace(LABEL, "");
+      if (!opened) {
+        held = held.replace(LABEL, "");
+        const q = echoOf.trim().replace(/[\s?.!]+$/, "");
+        if (q.length >= 8 && held.trimStart().toLowerCase().startsWith(q.toLowerCase())) held = held.trimStart().slice(q.length).replace(/^[\s?.!,:;-]+/, "");
+      }
       const out = stopped ? "" : held;
       held = "";
       return out;

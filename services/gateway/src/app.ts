@@ -49,7 +49,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.29.0";
+export const VERSION = "0.29.1";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {

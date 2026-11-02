@@ -146,3 +146,10 @@ describe("a tool call written out with no markers at all", async () => {
     expect([n.push("I can calc", false), n.push("ulate that in {my head}.", true)].map((r) => r.text).join("")).toBe("I can calculate that in {my head}.");
   });
 });
+
+describe("stray tool markers", async () => {
+  const { LeakedToolCalls } = await import("../src/providers/ollama.ts");
+  it("a closing marker with no opening one is removed", () => {
+    expect(new LeakedToolCalls(["calculate"]).push("<tool_call|> It's sunny in Paris.", true).text).toBe(" It's sunny in Paris.");
+  });
+});

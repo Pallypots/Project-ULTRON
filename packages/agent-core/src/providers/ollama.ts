@@ -243,6 +243,8 @@ export class LeakedToolCalls {
       if (call) calls.push(call);
       s = s.slice(end + close.length);
     }
+    // A closing marker with no opening one (seen in CI: "<tool_call|> ") is debris: drop it.
+    s = s.replace(/<tool_call\|>|<\/tool_call>|<tool_response\|>|<\/tool_response>/g, "");
     // Gemma sometimes drops the markers and writes just `get_weather{place:<|"|>Paris<|"|>}`: same treatment.
     for (;;) {
       if (!this.names.length) break;

@@ -1,14 +1,16 @@
 # Changelog
 
-## 0.29.0 · 2026-11-02 · He heard you, and he's quicker
+## 0.29.1 · 2026-11-02 · He heard you, and he's quicker
 - **"I heard you":** the moment ULTRON catches what you said, a short soft chime plays and your words appear, before
   any thinking. If the answer takes more than a second, he says "On it" (or similar) so there's never dead air.
 - **Reply within 8 seconds:** after ULTRON finishes speaking, just answer within 8 seconds, no "Ultron" needed. What
   you say goes to him marked as your direct reaction to what he just said, so "no, the other one" works. Only real
   speech counts (a cough or the TV doesn't).
-- **Quicker local brain:** the descriptions of his actions are a fraction of their old length for the local brain,
-  so there's much less to read whenever he starts fresh. Spoken answers are capped at about 120 words, so a rambling
-  reply can't keep you waiting.
+- **Shorter spoken answers from the local brain:** capped at about 120 words, so a rambling reply can't keep you
+  waiting. (Shorter action descriptions were also tried. They made gemma4 pick the wrong action in testing, so they
+  were taken back out.)
+- **Tidier replies:** the brain no longer opens by repeating your question back to you ("Who painted the Mona Lisa?
+  Leonardo…"), and stray action markers never show.
 
 ## 0.28.0 · 2026-11-02 · Faster ears, instant answers, a cleaner look
 - **No more emoji anywhere:** every button, menu item, notification and status uses one consistent set of thin line
