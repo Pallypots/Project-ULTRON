@@ -84,3 +84,11 @@ describe("hands-free with the detector, through the real service route", async (
     }
   }, 60_000);
 });
+
+describe("word error rate (used by the speech recogniser comparison)", async () => {
+  const { wer } = await import("./stt-ab.real.test.ts");
+  it("is 0 for a perfect transcript and counts substitutions, insertions and deletions", () => {
+    expect(wer("Set a timer for ten minutes.", "set a timer for ten minutes")).toBe(0);
+    expect(wer("set a timer for ten minutes", "set a time for minutes please")).toBeCloseTo(3 / 6);
+  });
+});
