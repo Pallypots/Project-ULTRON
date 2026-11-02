@@ -57,7 +57,9 @@ describe.skipIf(!enabled)("local brain candidates through ULTRON's real pipeline
           else misses.push(`${c.what} ("${text.slice(0, 70)}" ${JSON.stringify(tools)})`);
         }
         const med = (a: number[]) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : "–");
-        lines.push(`${spec}: ${passed}/${CASES.length} right | first word median ${med(firstWords)} ms | whole reply median ${med(wholes)} ms | missed: ${misses.join("; ") || "none"}`);
+        const line = `${spec}: ${passed}/${CASES.length} right | first word median ${med(firstWords)} ms | whole reply median ${med(wholes)} ms | missed: ${misses.join("; ") || "none"}`;
+        lines.push(line);
+        ciNote(`Local brain candidate ${spec}`, line); // as each finishes, so a slow model can't hide the others
         await fetch(`${OLLAMA}/api/generate`, { method: "POST", body: JSON.stringify({ model, keep_alive: 0 }) }).catch(() => {}); // free the memory
       }
     } finally {
