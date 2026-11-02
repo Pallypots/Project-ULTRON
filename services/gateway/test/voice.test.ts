@@ -69,7 +69,7 @@ describe("voice: push-to-talk transcription API", () => {
     const status = (await api("GET", "/api/voice/status")).body;
     expect(status).toMatchObject({ engine: "mock", state: "ready", maxSeconds: 120 });
     const local = (await api("PUT", "/api/voice/settings", { engine: "local" })).body;
-    expect(local).toMatchObject({ engine: "local", model: "Xenova/whisper-base.en", state: "not_loaded" });
+    expect(local).toMatchObject({ engine: "local", model: "onnx-community/moonshine-tiny-ONNX", state: "not_loaded" });
     expect(local.privacy).toMatch(/never leaves/);
     const openai = (await api("PUT", "/api/voice/settings", { engine: "openai", model: "some-model" })).body;
     expect(openai.state).toBe("not_configured");

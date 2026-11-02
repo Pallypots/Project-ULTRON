@@ -106,3 +106,28 @@ export function rms(samples: Float32Array): number {
   for (const s of samples) sum += s * s;
   return Math.sqrt(sum / samples.length);
 }
+
+/**
+ * Cuts long audio into pieces of at most `maxSec`, each cut at the quietest moment (a pause between words) after
+ * `minSec`, so no word is split. Short audio comes back as one piece. For recognisers built for short clips.
+ */
+export function splitAtPauses(samples: Float32Array, maxSec = 20, minSec = 8, rate = TARGET_SAMPLE_RATE): Float32Array[] {
+  const out: Float32Array[] = [];
+  const win = Math.round(rate * 0.1);
+  let start = 0;
+  while (samples.length - start > maxSec * rate) {
+    let best = start + maxSec * rate;
+    let bestLevel = Infinity;
+    for (let at = start + minSec * rate; at + win <= start + maxSec * rate; at += win / 2) {
+      const level = rms(samples.subarray(at, at + win));
+      if (level < bestLevel) {
+        bestLevel = level;
+        best = at + Math.floor(win / 2);
+      }
+    }
+    out.push(samples.subarray(start, best));
+    start = best;
+  }
+  out.push(samples.subarray(start));
+  return out;
+}

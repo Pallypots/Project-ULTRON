@@ -43,6 +43,11 @@ describe.skipIf(!enabled)("speech recogniser A/B (real models)", () => {
         clips.push({ said, samples: resample(samples, sampleRate) });
       }
     kokoro.host.stop();
+    // A long voice message (44 s): Moonshine recognises it in pieces cut at pauses; nothing may go missing.
+    const jfk = clips[0]!;
+    const long = new Float32Array(jfk.samples.length * 4);
+    for (let k = 0; k < 4; k++) long.set(jfk.samples, k * jfk.samples.length);
+    clips.push({ said: Array(4).fill(jfk.said).join(" "), samples: long });
     const lines: string[] = [];
     for (const model of MODELS) {
       const engine = new LocalWhisperEngine(modelDir, model);

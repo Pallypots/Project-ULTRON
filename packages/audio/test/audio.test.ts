@@ -48,3 +48,25 @@ describe("wav", () => {
     expect(rms(new Float32Array(1000))).toBe(0);
   });
 });
+
+describe("splitting long audio at pauses", async () => {
+  const { splitAtPauses } = await import("../src/index.ts");
+  const tone = (sec: number) => Float32Array.from({ length: 16000 * sec }, (_, i) => 0.3 * Math.sin(i / 5));
+  const join = (...parts: Float32Array[]) => {
+    const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+    let o = 0;
+    for (const p of parts) (out.set(p, o), (o += p.length));
+    return out;
+  };
+  it("keeps short audio whole and cuts long audio in the silence, never in a sound", () => {
+    expect(splitAtPauses(tone(12))).toHaveLength(1);
+    const long = join(tone(14), new Float32Array(16000 * 0.5), tone(14)); // a half-second pause at 14 s
+    const parts = splitAtPauses(long);
+    expect(parts).toHaveLength(2);
+    expect(parts[0]!.length / 16000).toBeGreaterThan(14);
+    expect(parts[0]!.length / 16000).toBeLessThan(14.5);
+    expect(parts.reduce((n, p) => n + p.length, 0)).toBe(long.length); // nothing lost
+    // Negative control: no pause anywhere still splits (at most 20 s each) rather than handing over a minute at once.
+    expect(splitAtPauses(tone(61)).every((p) => p.length <= 16000 * 20)).toBe(true);
+  });
+});

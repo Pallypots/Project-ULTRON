@@ -15,7 +15,7 @@ The audit log records engine, duration and character count, never audio or words
 ## Speech-to-text engines
 | Engine | Privacy | Cost | Setup | Verified |
 |---|---|---|---|---|
-| **Local Whisper** (default, `Xenova/whisper-base.en` via transformers.js / ONNX Runtime) | Audio never leaves the PC | Free | One-time model download (~150–300 MB) from Hugging Face, cached in `<data>/models` | Real-model test runs in CI on Windows + Linux with the JFK sample. (Hugging Face is blocked from the dev container, so it can't be run there.) |
+| **On this PC** (default: Moonshine tiny, `onnx-community/moonshine-tiny-ONNX`; any Whisper model also works, e.g. `Xenova/whisper-base.en`; via transformers.js / ONNX Runtime) | Audio never leaves the PC | Free | One-time model download (~30 MB for Moonshine tiny, ~150–300 MB for Whisper) from Hugging Face, cached in `<data>/models` | Real-model test runs in CI on Windows + Linux with the JFK sample. (Hugging Face is blocked from the dev container, so it can't be run there.) |
 | OpenAI transcription | Audio sent to OpenAI | Per-minute API pricing | OpenAI key + model name | Built; **not tested with a live key** |
 | Test engine | Local, no recognition | Free | none | Unit + browser tests |
 

@@ -30,7 +30,7 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
   useEffect(() => {
     refresh().then((s) => {
       setEngine(s.engine);
-      setModel(s.engine === "local" && s.model === "Xenova/whisper-base.en" ? "" : s.model);
+      setModel(s.engine === "local" && s.model === "onnx-community/moonshine-tiny-ONNX" ? "" : s.model);
     }).catch(() => {});
     const loadMics = () => listMicrophones().then(setMics).catch(() => {});
     loadMics();
@@ -117,8 +117,8 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
       <p className="muted small">{info.help}</p>
       {engine !== "mock" && (
         <label className="field">
-          <span>Model {engine === "local" ? "(leave blank for Xenova/whisper-base.en; Xenova/whisper-small.en is more accurate but slower)" : "(required)"}</span>
-          <input value={model} onChange={(e) => setModel(e.target.value)} placeholder={engine === "local" ? "Xenova/whisper-base.en" : "transcription model name"} />
+          <span>Model {engine === "local" ? "(leave blank for Moonshine, the fast default; Xenova/whisper-base.en or Xenova/whisper-small.en also work)" : "(required)"}</span>
+          <input value={model} onChange={(e) => setModel(e.target.value)} placeholder={engine === "local" ? "onnx-community/moonshine-tiny-ONNX" : "transcription model name"} />
         </label>
       )}
       <div className="row">

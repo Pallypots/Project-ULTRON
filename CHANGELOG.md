@@ -14,6 +14,11 @@
   itself on your own voice first: until it has caught your wake word 8 times (90%+ of the time), it only listens
   alongside and hands-free works exactly as before. Settings → Performance shows how it's doing. The name is still
   double-checked in the words before anything happens. With room awareness on, everything is still transcribed.
+- **Speech recognition is 15–20× faster:** the default on-PC recogniser is now Moonshine (tiny), built for short
+  spoken phrases. In side-by-side tests on the same recordings it made no mistakes, the same as Whisper, but took about
+  0.1–0.2 s per phrase instead of about 2.5 s. It also doesn't invent words from background noise (Whisper turned fan
+  noise into "you"). It's a one-time ~30 MB download. Long voice messages are recognised in pieces cut at pauses.
+  Whisper is still available in Settings → Voice.
 - **Push-to-talk sends sooner:** your audio is handed over 17 ms after you let go (it used to wait a fixed 120 ms),
   and the audio engine stays ready between presses instead of being rebuilt every time.
 

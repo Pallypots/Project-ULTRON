@@ -1,10 +1,14 @@
 import { ModelProcess } from "../models/process.ts";
 import { SttError, type SttEngine, type SttStatus } from "./types.ts";
 
-export const DEFAULT_LOCAL_MODEL = "Xenova/whisper-base.en";
+/**
+ * Moonshine tiny: in CI it matched Whisper base.en's accuracy (no errors on the test set) at 15-20x the speed
+ * (~0.1-0.2 s per phrase vs ~2.5 s) and, unlike Whisper, didn't invent words from background noise. ~30 MB download.
+ */
+export const DEFAULT_LOCAL_MODEL = "onnx-community/moonshine-tiny-ONNX";
 
 /**
- * Whisper running on this computer via transformers.js (ONNX Runtime). Audio never leaves the PC.
+ * Speech recognition running on this computer (Moonshine by default, or any Whisper model) via transformers.js (ONNX Runtime). Audio never leaves the PC.
  * The model (~150-300 MB) downloads from Hugging Face on first use into <data>/models, then works offline.
  */
 export class LocalWhisperEngine implements SttEngine {

@@ -13,6 +13,7 @@ type Req =
   | { id: number; kind: "kws.run"; samples: Float32Array; dir: string; keywords: string }
   | { id: number; kind: "test.wait"; ms: number }; // stands in for slow model work in tests
 
+let sttModel = "";
 let stt: ((a: Float32Array, o: Record<string, unknown>) => Promise<{ text: string } | { text: string }[]>) | null = null;
 let tts: { generate(text: string, o: { voice: string; speed: number }): Promise<{ audio: Float32Array; sampling_rate: number }> } | null = null;
 
@@ -42,12 +43,23 @@ async function handle(m: Req): Promise<unknown> {
       mkdirSync(m.cacheDir, { recursive: true });
       const lib = await import("@huggingface/transformers");
       lib.env.cacheDir = m.cacheDir;
+      sttModel = m.model;
       stt = (await lib.pipeline("automatic-speech-recognition", m.model, { cache_dir: m.cacheDir, progress_callback: progress("stt") })) as never;
       return { ok: true };
     }
     case "stt.run": {
       if (!stt) throw new Error("speech model not loaded");
-      // Long-audio chunking only for long recordings; a short phrase is recognised in one pass.
+      // Moonshine is built for short clips: a long recording is cut at pauses into ≤20 s pieces, each recognised in turn.
+      if (/moonshine/i.test(sttModel)) {
+        const { splitAtPauses } = await import("@ultron/audio");
+        const texts: string[] = [];
+        for (const piece of splitAtPauses(m.samples)) {
+          const out = await stt(piece, {});
+          texts.push((Array.isArray(out) ? out.map((o) => o.text).join(" ") : out.text).trim());
+        }
+        return { text: texts.filter(Boolean).join(" ").trim() };
+      }
+      // Whisper: long-audio chunking only for long recordings; a short phrase is recognised in one pass.
       const out = await stt(m.samples, m.samples.length > 16000 * 28 ? { chunk_length_s: 30, stride_length_s: 5 } : {});
       return { text: (Array.isArray(out) ? out.map((o) => o.text).join(" ") : out.text).trim() };
     }
