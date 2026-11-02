@@ -8,6 +8,11 @@
 - **Interrupt by voice is on:** in hands-free, just talk over ULTRON and it stops and listens. It only counts as you
   if it's clearly a voice and clearly louder than ULTRON's own voice coming back through the microphone. You can turn
   it off in Settings → Voice (it stays off if you do).
+- **A real wake-word detector:** in hands-free, a tiny on-PC model listens for "Ultron" (or whatever wake names you
+  set) in each phrase in a fraction of a second. Full speech recognition, about 2 s of CPU per phrase, now runs only
+  when you actually said the name, so the TV and conversations in the room no longer keep your PC busy. The name is
+  still double-checked in the words before anything happens. With room awareness on, everything is still transcribed
+  (that's what it's for).
 - **Push-to-talk sends sooner:** your audio is handed over 17 ms after you let go (it used to wait a fixed 120 ms),
   and the audio engine stays ready between presses instead of being rebuilt every time.
 

@@ -11,6 +11,7 @@ import { MemoryCreate, MemoryPatch, ProviderSettingsUpdate, SendMessage, TtsSett
 import { ZodError } from "zod";
 import { isLoopbackRequest, loadOrCreateToken, registerAuth } from "./auth.ts";
 import { RemoteAccess } from "./remote.ts";
+import { WakeSpotter } from "./voice/kws.ts";
 import { RoomContext } from "./voice/room.ts";
 import { WatcherService } from "./watchers.ts";
 import { CalendarError, CalendarService } from "./calendar/service.ts";
@@ -104,6 +105,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   const remote = new RemoteAccess(stores);
   const room = new RoomContext();
+  const wake = new WakeSpotter();
   room.setEnabled(stores.preferences.get<boolean>("room_context", false));
   registerAuth(app, token, remote);
   if (recovered) stores.audit.record("recovery.interrupted_messages", "system", null, { count: recovered });
@@ -609,6 +611,13 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       stores.audit.record("voice.transcribed", "owner", null, { engine: engine.id, seconds: +decoded.seconds.toFixed(1), result: "silent" });
       return reply.code(422).send({ error: "silent", message: "I didn't hear anything. Check that the right microphone is selected and not muted." });
     }
+    // The wake-word detector first: a phrase without "Ultron" in it is dropped here in a few tens of milliseconds,
+    // without full speech recognition (which costs ~2 s of CPU per phrase, TV included). Room awareness needs the words
+    // of everything overheard, so it keeps the old way.
+    if (wakeMode && engine.id === "local" && !room.enabled) {
+      const spotted = await wake.spot(decoded.samples, persona.wakeNames);
+      if (spotted && !spotted.hit) return { addressed: false };
+    }
     try {
       const text = await engine.transcribe(decoded.samples, new Uint8Array(req.body));
       const elapsedMs = Date.now() - started;
@@ -1002,6 +1011,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   app.addHook("onClose", async () => {
     scheduler.stop();
+    wake.host.stop();
     summarizer.stop();
     checkIn.stop();
     watchers.stop();
