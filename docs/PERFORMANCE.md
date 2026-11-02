@@ -49,3 +49,28 @@ Causes and fixes:
 A regression test (the browser test's "Responsiveness" step) enforces a budget with the positive control: under 400 ms
 of input blocking per 4 s in chat with hands-free, under 600 ms in Council, and at most 40 chat redraws per 4 s. The
 old code fails it (171 redraws).
+
+## Night of 2026-11-02: speech, voice, brain and the service (measured in CI)
+All on GitHub's free runners (4 CPU threads, no GPU), so the owner's PC will differ; the comparisons hold.
+
+| What | Before | After | How it was measured |
+|---|---|---|---|
+| Understanding a 2–3 s phrase | Whisper base.en ~2.5 s | **Moonshine tiny ~0.13–0.27 s**, same accuracy (0 errors on 11 clips incl. a 44 s message) | `stt-ab.real.test.ts`, word error rate, same audio for every model |
+| Hands-free "what time is it?" end to end (in the trace) | recognised in 1.2–2.6 s, then the brain | recognised in 0.2 s, **answered instantly** by code | `handsfree-trace.real.test.ts` |
+| Phrases without "Ultron" (TV, room) | full recognition every phrase | wake-word detector, ~60–110 ms per phrase; 19/20 "Ultron" caught in 4 voices, 0/20 false alarms | `kws.real.test.ts` |
+| Everyday commands without the brain | 27/40 | **39/40** (open-ended questions: 20/20 still reach the brain) | `instant.test.ts` |
+| Second reply in a conversation (brain reading) | ~14 s (re-read context) | **1.7–2.8 s** vs 13–39 s from scratch | `ollama.real.test.ts` with a cold control |
+| Status check with 4,000 conversations / 3,000 memories | 29 ms of the service's thread | **1 ms** | `status-load.test.ts` |
+| Voice: short opener ("Right away.") | fp16 / fp32 / q4 all ~0.3 s (Linux), ~0.6 s (Windows); q8 ~2× slower | kept fp16 (smaller); medians of 5 interleaved rounds, run alone | `tts-bench.real.test.ts` |
+
+**Local brain candidates** (`brain-ab.real.test.ts`, six everyday requests through ULTRON's real pipeline):
+the same core tools with every message beat tools chosen per message on both models tried
+(gemma4:e2b 4/6 vs 3/6, first word 2.5 s vs 4.2 s; qwen3:1.7b 6/6 vs 5/6, 2.0 s vs 3.5 s), so that is now the default.
+Bigger models (llama3.2:3b, granite4:micro) were more accurate but ~33 s to the first word on this CPU.
+
+**Smart Turn v3** (end-of-turn from intonation) was wired up and measured, but synthetic speech can't evaluate it: the
+on-PC voice makes cut-off phrases sound finished. It is not used to decide when to answer until it's tried on real
+recordings (`turn.real.test.ts`).
+
+**Measurement lessons:** single samples misled twice (the voice precision order flipped between runs; tests running in
+parallel slowed each other). Benchmarks now run in their own CI step, interleave the candidates, and report medians.
