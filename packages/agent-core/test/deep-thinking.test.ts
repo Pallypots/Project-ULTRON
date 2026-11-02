@@ -133,6 +133,14 @@ describe("a tool call written out with no markers at all", async () => {
     const parts = [w.push("calculate", false), w.push('{expression:<|"|>1299 * 0.85 + 4.99<|"|>} The total is', false), w.push(" $1109.14.", true)];
     expect(parts.flatMap((p) => p.calls)).toEqual([{ name: "calculate", args: { expression: "1299 * 0.85 + 4.99" } }]);
     expect(parts.map((p) => p.text).join("")).toBe(" The total is $1109.14.");
+    // The round-bracket form, also seen in CI.
+    const r = new LeakedToolCalls(["calculate"]);
+    const rr = r.push("calculate(expression: '$1299 * (1 - 0.15) + 4.99')", true);
+    expect(rr.calls).toEqual([{ name: "calculate", args: { expression: "$1299 * (1 - 0.15) + 4.99" } }]);
+    expect(rr.text).toBe("");
+    // Negative control: ordinary prose that mentions the word with brackets isn't a call to run.
+    const q = new LeakedToolCalls(["calculate"]);
+    expect(q.push("I can calculate (roughly) that for you.", true)).toEqual({ text: "I can calculate (roughly) that for you.", calls: [] });
     // Negative controls: a word that only starts like a tool name, and braces in prose, pass through.
     const n = new LeakedToolCalls(["get_weather", "calculate"]);
     expect([n.push("I can calc", false), n.push("ulate that in {my head}.", true)].map((r) => r.text).join("")).toBe("I can calculate that in {my head}.");

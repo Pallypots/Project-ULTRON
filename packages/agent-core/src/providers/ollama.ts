@@ -246,13 +246,15 @@ export class LeakedToolCalls {
     // Gemma sometimes drops the markers and writes just `get_weather{place:<|"|>Paris<|"|>}`: same treatment.
     for (;;) {
       if (!this.names.length) break;
-      const bare = new RegExp(`(?:call:)?\\b(?:${this.names.map((n) => n.replace(/[^\w]/g, "")).join("|")})\\s*\\{`).exec(s);
+      const bare = new RegExp(`(?:call:)?\\b(?:${this.names.map((n) => n.replace(/[^\w]/g, "")).join("|")})\\s*[{(]`).exec(s);
       if (!bare) break;
+      const open = bare[0].at(-1)!;
+      const shut = open === "{" ? "}" : ")";
       let depth = 0;
       let end = -1;
       for (let i = bare.index + bare[0].length - 1; i < s.length; i++) {
-        if (s[i] === "{") depth++;
-        else if (s[i] === "}" && --depth === 0) {
+        if (s[i] === open) depth++;
+        else if (s[i] === shut && --depth === 0) {
           end = i;
           break;
         }
@@ -292,13 +294,13 @@ export class LeakedToolCalls {
         const j = JSON.parse(body) as { name?: string; arguments?: Record<string, unknown> };
         return j.name && this.names.includes(j.name) ? { name: j.name, args: j.arguments ?? {} } : null;
       }
-      const m = /^(?:call:)?([\w.-]+)\s*(\{[\s\S]*\})?$/.exec(body);
+      const m = /^(?:call:)?([\w.-]+)\s*([{(][\s\S]*[})])?$/.exec(body);
       if (!m || !this.names.includes(m[1]!)) return null;
       if (!m[2]) return { name: m[1]!, args: {} };
-      // Gemma's form: unquoted keys, strings wrapped in <|"|>.
+      // Gemma's forms: name{key:<|"|>v<|"|>} or name(key: 'v') / name(key="v"): unquoted keys, odd string quotes.
       const strings: string[] = [];
-      let j = m[2].replace(/<\|"\|>([\s\S]*?)<\|"\|>/g, (_, v: string) => `\u0000${strings.push(v) - 1}\u0000`);
-      j = j.replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g, '$1"$2":');
+      let j = `{${m[2].slice(1, -1)}}`.replace(/<\|"\|>([\s\S]*?)<\|"\|>|'([^']*)'|"([^"]*)"/g, (_, a?: string, b?: string, c?: string) => `\u0000${strings.push(a ?? b ?? c ?? "") - 1}\u0000`);
+      j = j.replace(/([{,]\s*)([A-Za-z_]\w*)\s*[:=]/g, '$1"$2":');
       j = j.replace(/\u0000(\d+)\u0000/g, (_, i: string) => JSON.stringify(strings[Number(i)]));
       return { name: m[1]!, args: JSON.parse(j) as Record<string, unknown> };
     } catch {
