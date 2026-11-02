@@ -519,12 +519,13 @@ try {
   step("Personality editor: salutation saved and used on the Home screen");
   await page.getByRole("button", { name: "Good morning, brief me" }).click();
   await page.locator(".tool--succeeded", { hasText: "Put together your briefing" }).waitFor();
-  const briefMsg = page.locator(".msg--assistant.msg--complete", { hasText: "daily_briefing" }).last();
+  // Read out at once by ULTRON himself (no brain), from the same briefing data.
+  const briefMsg = page.locator(".msg--assistant.msg--complete", { hasText: "Not connected:" }).last();
   await briefMsg.waitFor();
   const brief = await briefMsg.locator(".msg__body").innerText();
-  if (!/not_connected/.test(brief)) throw new Error("briefing didn't report unconnected sources");
+  if (!/Not connected: .*email/.test(brief) || !/On your calendar: /.test(brief) || !/^Good (morning|afternoon|evening)\. It's /.test(brief)) throw new Error(`briefing didn't read out properly: ${brief}`);
   await page.screenshot({ path: join(shots, "16-morning-briefing.png") });
-  step("Good-morning briefing gathers reminders/approvals/feeds and admits what isn't connected");
+  step("Good-morning briefing is read out at once, from reminders/approvals/feeds, and admits what isn't connected");
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Reset to default" }).click();
   await page.getByText("Back to the default personality.").waitFor();

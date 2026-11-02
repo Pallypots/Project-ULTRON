@@ -59,3 +59,33 @@ describe("instant answers for everyday commands (3.6)", () => {
     expect(hijacked).toEqual([]);
   }, 120_000);
 });
+
+describe("the morning briefing, read out at once", async () => {
+  const { briefingText } = await import("../src/chat.ts");
+  it("says what's there in plain English and never invents what isn't connected", () => {
+    const morning = new Date(2026, 10, 2, 8, 30);
+    const full = briefingText(
+      {
+        weather: { found: true, place: "Leeds", now: { conditions: "Light rain", temperature: "9°C" }, next_days: [{ low: "6°C", high: "11°C", chance_of_rain: "70%" }] },
+        calendar_today: ["9:30 AM Dentist"],
+        reminders_today: [{ text: "call Mum", at: "6:00 PM" }],
+        todo_list: ["milk", "eggs"],
+        pending_approvals: [],
+        untrusted_top_news_bbc: ["Headline one", "Headline two"],
+        not_connected: ["YouTube"],
+      },
+      morning,
+    );
+    expect(full).toMatch(/^Good morning\. It's Monday, 2 November|^Good morning\. It's Monday, November 2/);
+    expect(full).toMatch(/In Leeds it's light rain, 9°C; today 6°C to 11°C, 70% chance of rain\./);
+    expect(full).toMatch(/On your calendar: 9:30 AM Dentist\./);
+    expect(full).toMatch(/Reminders: call Mum at 6:00 PM\./);
+    expect(full).toMatch(/On your list: milk, eggs\./);
+    expect(full).not.toMatch(/Not connected/);
+    // Negative control: nothing connected, nothing on → no invented calendar or email, and it says so.
+    const bare = briefingText({ weather: "no home city set", calendar_today: "not connected", not_connected: ["calendar", "email"] }, new Date(2026, 10, 2, 20, 0));
+    expect(bare).toMatch(/^Good evening/);
+    expect(bare).not.toMatch(/On your calendar|unread email/);
+    expect(bare).toMatch(/Not connected: calendar and email/);
+  });
+});

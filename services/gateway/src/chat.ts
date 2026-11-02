@@ -790,6 +790,32 @@ export function contextEchoGuard() {
   };
 }
 
+/** The morning briefing in plain spoken English, straight from the briefing data (instant; no brain needed). */
+export function briefingText(d: any, now = new Date()): string {
+  const h = now.getHours();
+  const lines: string[] = [`${h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"}. It's ${now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}.`];
+  const w = d.weather;
+  if (w && typeof w === "object" && w.found) {
+    const t = w.next_days?.[0];
+    lines.push(`In ${w.place} it's ${String(w.now?.conditions ?? "").toLowerCase()}, ${w.now?.temperature}${t ? `; today ${t.low} to ${t.high}${t.chance_of_rain && parseInt(t.chance_of_rain) >= 30 ? `, ${t.chance_of_rain} chance of rain` : ""}` : ""}.`);
+  }
+  if (Array.isArray(d.calendar_today)) lines.push(d.calendar_today.length ? `On your calendar: ${d.calendar_today.slice(0, 5).join("; ")}.` : "Nothing on your calendar today.");
+  const rem = d.reminders_today ?? [];
+  if (rem.length) lines.push(`Reminders: ${rem.map((x: { text: string; at: string }) => `${x.text} at ${x.at}`).join("; ")}.`);
+  if (d.missed_while_off?.length) lines.push(`Missed while I was off: ${d.missed_while_off.join("; ")}.`);
+  const todo: string[] = d.todo_list ?? [];
+  if (todo.length) lines.push(`On your list: ${todo.slice(0, 4).join(", ")}${todo.length > 4 ? ` and ${todo.length - 4} more` : ""}.`);
+  if (d.email && typeof d.email === "object") lines.push(d.email.unread_last_24h ? `${d.email.unread_last_24h} unread email${d.email.unread_last_24h > 1 ? "s" : ""} since yesterday${d.email.latest?.[0] ? `, the latest from ${d.email.latest[0].untrusted_from}: "${d.email.latest[0].untrusted_subject}"` : ""}.` : "No new email.");
+  if (d.pending_approvals?.length) lines.push(`Waiting for your OK: ${d.pending_approvals.join("; ")}.`);
+  if (Array.isArray(d.untrusted_top_news_bbc) && d.untrusted_top_news_bbc.length) lines.push(`Headlines: ${d.untrusted_top_news_bbc.slice(0, 3).join("; ")}.`);
+  if (d.not_connected?.length) {
+    const nc = (d.not_connected as string[]).filter((x) => ["calendar", "email"].includes(x));
+    if (nc.length) lines.push(`Not connected: ${nc.join(" and ")} (Connections, if you'd like them in here).`);
+  }
+  if (lines.length === 1 || (!rem.length && !todo.length && !(Array.isArray(d.calendar_today) && d.calendar_today.length))) lines.push("A clear day. Suspiciously clear.");
+  return lines.join("\n");
+}
+
 type QuickRun = (tool: string, args: Record<string, unknown>) => Promise<{ status: string; error: string | null; data: any }>;
 
 /** Plain, friendly replies for the quick commands, built only from what the tools actually returned. */
@@ -955,6 +981,11 @@ async function quickReply(q: NonNullable<ReturnType<typeof detectQuickCommand>>,
     }
     case "goodbye":
       return "Standing by.";
+    case "briefing": {
+      const r = await run("daily_briefing", {});
+      if (r.status !== "succeeded") return failed(r);
+      return briefingText(r.data ?? {});
+    }
     case "lock_pc": {
       const r = await run("lock_pc", {});
       return r.status === "succeeded" ? "Locking your PC. See you on the other side of the password." : failed(r);

@@ -10,6 +10,7 @@ export type QuickCommand =
   | { type: "clock"; what: "time" | "date" | "day" }
   | { type: "pc_status" }
   | { type: "goodbye" }
+  | { type: "briefing" }
   | { type: "calculate"; expression: string }
   | { type: "media"; action: "play_pause" | "next" | "previous" | "mute" | "volume_up" | "volume_down"; steps?: number }
   | { type: "open_app"; name: string }
@@ -119,6 +120,9 @@ export function detectQuickCommand(message: string): QuickCommand | null {
   if (/^(?:what(?:'s| is) the time|what time is it|(?:do you know |have you got )?the time|tell me the time)(?: now| right now)?$/i.test(m)) return { type: "clock", what: "time" };
   if (/^(?:what(?:'s| is) (?:the date|today's date)(?: today)?|what(?:'s| is) the date today|what date is it(?: today)?)$/i.test(m)) return { type: "clock", what: "date" };
   if (/^(?:what day is it(?: today)?|what(?:'s| is) today|what day of the week is it)$/i.test(m)) return { type: "clock", what: "day" };
+
+  // The morning briefing, read out at once from what ULTRON already knows (a plain "good morning" is just a greeting).
+  if (/^(?:good (?:morning|afternoon|evening)[, ]+(?:ultron[, ]+)?)?(?:brief me|give me (?:my|the|a) (?:briefing|rundown|run-down)|(?:my |the )?(?:morning |daily )?briefing|what(?:'s| is) my day (?:like|looking like)|how(?:'s| is) my day looking)(?: (?:today|please))?$/i.test(m)) return { type: "briefing" };
 
   if (/^(?:how(?:'s| is) my (?:pc|computer|laptop|system)(?: doing| running)?|(?:pc|computer|system) (?:status|health)|check (?:my )?(?:pc|computer|system))$/i.test(m)) return { type: "pc_status" };
 
