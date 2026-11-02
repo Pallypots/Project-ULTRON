@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import type { ToolEvent } from "@ultron/schemas";
 import { ToolChips } from "../ToolChips.tsx";
 import { Face } from "./Face.tsx";
@@ -72,7 +73,7 @@ export function Council({ mood, level, said, heard, brain, problem, activity, pe
         {tail && <p className="council__said">{tail}</p>}
         {activity && <p className="council__activity">{activity}</p>}
         {pending && pending.length > 0 && <div className="council__pending"><ToolChips events={pending} /></div>}
-        {photoReady && <p className="council__activity">📸 Photo ready: ask me about it</p>}
+        {photoReady && <p className="council__activity"><Icon name="camera" /> Photo ready: ask me about it</p>}
         <p className="council__status">{problem ?? STATUS[mood]}</p>
       </div>
       <footer className="council__bottom">
@@ -93,7 +94,7 @@ export function Council({ mood, level, said, heard, brain, problem, activity, pe
         ) : (
           <>
             <button type="button" className="link council__typelink" onClick={() => setTyping(true)}>Type instead</button>
-            {onCamera && <button type="button" className="link council__typelink" onClick={onCamera}>📷 Show him something</button>}
+            {onCamera && <button type="button" className="link council__typelink" onClick={onCamera}><Icon name="camera" /> Show him something</button>}
           </>
         )}
         <span className="council__hint">Esc or say “that's all” to leave</span>

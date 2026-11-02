@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import type { VoiceStatus } from "@ultron/schemas";
 import { api } from "../api.ts";
 import { listMicrophones, MicError, Recorder } from "../voice/recorder.ts";
@@ -101,7 +102,7 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
     <section className="panel form" aria-labelledby="voice-title">
       <h2 className="panel__title" id="voice-title">Voice</h2>
       <p className="muted small">
-        Push-to-talk: in Chat, hold the 🎙 Talk button (or hold Space) while you speak and let go to send. The microphone is only on while you hold it, and a red
+        Push-to-talk: in Chat, hold the Talk button (or hold Space) while you speak and let go to send. The microphone is only on while you hold it, and a red
         "Listening" bar is always shown. Recordings are never saved, only the text.
       </p>
 
@@ -149,7 +150,7 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
         </select>
       </label>
       <div className="row">
-        <button className={`btn ${testing ? "mic--on" : ""}`} type="button" onClick={toggleTest}>{testing ? "■ Stop test" : "🎙 Test microphone"}</button>
+        <button className={`btn ${testing ? "mic--on" : ""}`} type="button" onClick={toggleTest}>{testing ? <><Icon name="stop" /> Stop test</> : <><Icon name="mic" /> Test microphone</>}</button>
         <div className="meter" style={{ flex: 1, maxWidth: 320 }} aria-label="Microphone level"><i style={{ transform: `scaleX(${Math.max(0.01, level)})` }} /></div>
       </div>
       {testing && <p className="muted small">Speak normally. The bar should move. Nothing is recorded or sent during this test.</p>}

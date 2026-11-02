@@ -20,6 +20,7 @@ jobs:
       # Runs the real local Whisper speech-recognition test (downloads the model once, then cached).
       ULTRON_TEST_WHISPER: "1"
       ULTRON_TEST_TTS: "1"
+      ULTRON_TEST_TTS_BENCH: "1"
       ULTRON_TEST_EMBED: "1"
       ULTRON_TEST_GITHUB: "1"
       ULTRON_TEST_WEB: "1"

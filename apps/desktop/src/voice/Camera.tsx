@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 
 /** Shrinks a video frame to at most 1024 px and returns it as base64 JPEG (no "data:" prefix). */
 function grab(video: HTMLVideoElement): string {
@@ -47,7 +48,7 @@ export function CameraModal({ onPhoto, onClose }: { onPhoto: (jpegBase64: string
         {error ? <div className="banner banner--error" role="alert">{error}</div> : <video ref={video} autoPlay playsInline muted className="camera__video" />}
         <p className="small muted">One photo goes with your next message, then the camera turns off. Nothing is saved.</p>
         <div className="row">
-          <button type="button" className="btn btn--primary" disabled={Boolean(error)} onClick={() => video.current?.videoWidth && onPhoto(grab(video.current))}>📸 Take photo</button>
+          <button type="button" className="btn btn--primary" disabled={Boolean(error)} onClick={() => video.current?.videoWidth && onPhoto(grab(video.current))}><Icon name="camera" /> Take photo</button>
           <button type="button" className="btn" onClick={() => setFacing((f) => (f === "user" ? "environment" : "user"))}>Switch camera</button>
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
         </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import { api, type Todo } from "../api.ts";
 
 /** The to-do list ULTRON keeps for you. Chat ("add milk to my list", "I paid the bill") and this panel edit the same list. */
@@ -42,7 +43,7 @@ export function TodoPanel({ refreshKey }: { refreshKey: number }) {
               <span>{t.text}</span>
             </label>
             {t.dueDate && <span className={`tag ${t.dueDate < today ? "tag--warn" : ""}`}>{t.dueDate < today ? "overdue " : "due "}{t.dueDate}</span>}
-            <button type="button" className="btn btn--small" onClick={() => act(() => api.deleteTodo(t.id))} aria-label={`Delete ${t.text}`}>✕</button>
+            <button type="button" className="btn btn--small" onClick={() => act(() => api.deleteTodo(t.id))} aria-label={`Delete ${t.text}`}><Icon name="close" /></button>
           </li>
         ))}
         {done.map((t) => (

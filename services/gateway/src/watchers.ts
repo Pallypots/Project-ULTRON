@@ -76,6 +76,6 @@ export class WatcherService {
 
   private notify(w: Watcher, body: string) {
     this.stores.audit.record("watcher.triggered", "system", w.id, { url: w.url });
-    this.bus.emit({ type: "checkin", kind: "watch", title: "👁 Something changed", body: `${body} ${w.url}` });
+    this.bus.emit({ type: "checkin", kind: "watch", title: "Something changed", body: `${body} ${w.url}` });
   }
 }

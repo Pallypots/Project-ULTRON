@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { resample } from "@ultron/audio";
 import { KokoroEngine } from "../src/tts/kokoro.ts";
 import { LocalWhisperEngine } from "../src/stt/local-whisper.ts";
+import { ciNote } from "./helpers.ts";
 
 const enabled = process.env.ULTRON_TEST_TTS_BENCH === "1";
 const dir = process.env.ULTRON_TEST_MODEL_DIR ?? join(tmpdir(), "ultron-test-models");
@@ -26,14 +27,20 @@ describe.skipIf(!enabled)("Kokoro precision benchmark", () => {
         const rtf = (Date.now() - t) / 1000 / secs;
         const heard = (await stt.transcribe(resample(samples, sampleRate))).toLowerCase();
         const ok = ["systems", "locally", "reminder"].every((w) => heard.includes(w));
-        rows.push(`${dtype}: RTF ${rtf.toFixed(2)} ${ok ? "intelligible" : `UNCLEAR ("${heard}")`}`);
+        // What the owner waits for: the first short chunk of a reply ("Right away.").
+        const t2 = Date.now();
+        await tts.synthesize("Right away.", "bm_george", 1);
+        const first = Date.now() - t2;
+        rows.push(`${dtype}: RTF ${rtf.toFixed(2)}, short opener ${first} ms, ${ok ? "intelligible" : `UNCLEAR ("${heard}")`}`);
+        tts.host.stop();
       } catch (err) {
         rows.push(`${dtype}: failed (${(err as Error).message.slice(0, 80)})`);
       }
     }
+    stt.host.stop();
     const summary = rows.join(" | ");
     console.log(`[kokoro-bench] ${summary}`);
-    if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Kokoro precision benchmark (${process.platform})::${summary}`);
+    ciNote("Kokoro precision benchmark", summary);
     expect(rows.some((r) => r.includes("intelligible"))).toBe(true);
   }, 1_800_000);
 });

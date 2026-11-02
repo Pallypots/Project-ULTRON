@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import type { Hud, Status } from "../api.ts";
 import type { View } from "../App.tsx";
 
@@ -33,7 +34,7 @@ export function SetupCard({ status, hud, onNavigate, onTalk }: { status: Status 
       <ol className="setup__steps">
         {steps.map((s) => (
           <li key={s.label} className={s.done ? "is-done" : ""}>
-            <span className="setup__tick" aria-hidden="true">{s.done ? "✓" : ""}</span>
+            <span className="setup__tick">{s.done ? <Icon name="check" /> : null}</span>
             <span><strong>{s.label}</strong> <span className="muted small">{s.why}</span></span>
             {!s.done && <button type="button" className="btn btn--small" onClick={s.go}>{s.action}</button>}
             {s.done && <span className="sr-only">done</span>}

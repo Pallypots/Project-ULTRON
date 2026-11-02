@@ -57,7 +57,7 @@ describe("deep research", () => {
 
     const events = await g.chat(await g.newConversation(), "research solid-state battery");
     const text = replyText(events);
-    expect(text).toMatch(/^🔬 Researching "solid-state battery"…/);
+    expect(text).toMatch(/^Researching "solid-state battery"…/);
     expect(text).toMatch(/• Searched the web for "solid-state battery" \(1 results\)/);
     expect(text).toMatch(/• Read 127\.0\.0\.1/);
     expect(text).toMatch(/• Read your file battery-notes\.md/);

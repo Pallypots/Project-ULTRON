@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import { api, type WatchedPage } from "../api.ts";
 
 /** Pages ULTRON is keeping an eye on ("tell me when … changes / says …"). */
@@ -16,7 +17,7 @@ export function WatchersPanel({ refreshKey }: { refreshKey: number }) {
         {items.map((w) => (
           <li key={w.id} className="todo">
             <span style={{ flex: 1 }}>
-              👁 <strong>{w.label}</strong> · {w.lookFor ? `waiting for "${w.lookFor}"` : "any change"} · every {w.everyMinutes} min
+              <Icon name="eye" /> <strong>{w.label}</strong> · {w.lookFor ? `waiting for "${w.lookFor}"` : "any change"} · every {w.everyMinutes} min
               <span className="muted small"> {w.lastError ? `(couldn't check: ${w.lastError})` : w.lastCheckedAt ? `(checked ${new Date(w.lastCheckedAt).toLocaleTimeString()})` : "(not checked yet)"}</span>
             </span>
             <button type="button" className="btn btn--small" onClick={async () => { await api.stopWatcher(w.id); load(); }}>Stop</button>

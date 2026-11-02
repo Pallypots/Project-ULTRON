@@ -411,7 +411,7 @@ const githubCreateIssue: ToolDef<z.infer<typeof GithubIssue>> = {
   describe: (i) => `Post a GitHub issue to ${i.repo}: "${i.title}"`,
   preview: (i, ctx) => {
     const info = ctx.connectors?.watchedRepos().find((r) => r.name.toLowerCase() === i.repo.toLowerCase());
-    const where = !info ? "⚠ NOT a watched repo (will be refused)" : info.private === false ? "PUBLIC repo: anyone can see this" : info.private ? "private repo" : "visibility unknown";
+    const where = !info ? "NOT a watched repo (will be refused)" : info.private === false ? "PUBLIC repo: anyone can see this" : info.private ? "private repo" : "visibility unknown";
     return `Service: GitHub (your connected account)\nRepository: ${i.repo} (${where})\nTitle: ${i.title}\n\n${i.body}${AI_FOOTER}`;
   },
   run: async (i, ctx) => {

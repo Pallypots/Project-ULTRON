@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import { CalendarPanel } from "./CalendarPanel.tsx";
 import { HomePanel } from "./HomePanel.tsx";
 import { EmailPanel } from "./EmailPanel.tsx";
@@ -9,7 +10,7 @@ const ago = (iso: string | null) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
   return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : new Date(iso).toLocaleDateString();
 };
-const ICON: Record<string, string> = { commit: "⬤", pull_request: "⇄", issue: "!", workflow_run: "✖", release: "★" };
+const ICON: Record<string, IconName> = { commit: "commit", pull_request: "pullRequest", issue: "issue", workflow_run: "failed", release: "star" };
 
 export function ConnectionsView({ onAsk }: { onAsk: (q: string) => void }) {
   const [list, setList] = useState<ConnectorInfo[]>([]);
@@ -152,7 +153,7 @@ export function ConnectionsView({ onAsk }: { onAsk: (q: string) => void }) {
             {feed.map((e) => (
               <li key={e.id} className={`reminder feed feed--u${e.urgency} ${e.readState === "unread" ? "feed--unread" : ""}`}>
                 <span>
-                  <span className="feed__icon" aria-hidden="true">{ICON[e.resourceType] ?? "•"}</span> {e.title}
+                  <span className="feed__icon"><Icon name={ICON[e.resourceType] ?? "hexagon"} /></span> {e.title}
                   <div className="small muted">{e.summary} · {ago(e.occurredAt)} · <span title="Why ULTRON surfaced this">{e.why}</span></div>
                 </span>
                 <span className="row">

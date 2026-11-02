@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import { api, onThisPc } from "../api.ts";
 
 type Remote = Awaited<ReturnType<typeof api.remote>>;
@@ -86,7 +87,7 @@ export function PhoneAccess() {
         <ul className="devices">
           {active.map((d) => (
             <li key={d.id} className="device">
-              <span>📱 {d.name}</span>
+              <span><Icon name="phone" /> {d.name}</span>
               <span className="muted small">paired {new Date(d.createdAt).toLocaleDateString()} · {d.lastSeenAt ? `last used ${new Date(d.lastSeenAt).toLocaleString()}` : "not used yet"}</span>
               <button type="button" className="btn btn--small btn--danger" onClick={async () => { await api.revokeDevice(d.id); await load(); }}>Remove</button>
             </li>

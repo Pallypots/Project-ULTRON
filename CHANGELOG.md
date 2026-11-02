@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased · Phase 2: better ears
+- **No more emoji anywhere:** every button, menu item, notification and status uses one consistent set of thin line
+  icons that glow with the HUD (bundled with ULTRON, nothing loads from the internet). ULTRON's own replies are
+  emoji-free too: he's told not to use them, and any that slip through are removed before you see them.
 - **Hands-free hears voices, not just noise:** a small speech detector (Silero) now decides when you've started and
   stopped talking, instead of loudness alone. Fans, keyboard clicks, music and the hum of a room no longer start
   phrases, and it can tell you've stopped sooner (0.44 s instead of 0.7 s). It runs inside ULTRON's window from files on

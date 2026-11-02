@@ -156,18 +156,18 @@ try {
   await page.getByLabel("High contrast").uncheck();
   await page.getByLabel(/Reduce motion/).uncheck();
   await page.getByText("Ready").first().waitFor();
-  await page.getByRole("button", { name: "🎙 Test microphone" }).click();
+  await page.getByRole("button", { name: "Test microphone" }).click();
   await page.waitForFunction(() => {
     const el = document.querySelector(".meter i");
     return el && /scaleX\((0\.[1-9]|1)/.test(el.getAttribute("style") ?? "");
   }, null, { timeout: 8000 });
-  await page.getByRole("button", { name: "■ Stop test" }).click();
+  await page.getByRole("button", { name: "Stop test" }).click();
   step("Settings → Voice: microphone test meter responds to audio");
 
   await page.getByRole("button", { name: "Chat" }).click();
   await page.getByRole("button", { name: "+ New conversation" }).click();
   const talk = page.getByRole("button", { name: /Push to talk/ });
-  const userVoiceMsgs = page.locator(".msg--user", { hasText: "🎙 voice" });
+  const userVoiceMsgs = page.locator(".msg--user", { hasText: "· voice" });
   const lastVoiceText = async () => (await userVoiceMsgs.last().locator(".msg__body").innerText());
   const level = (t) => Number(/level ([\d.]+)/.exec(t)?.[1] ?? 0);
   const secs = (t) => Number(/of ([\d.]+) seconds/.exec(t)?.[1] ?? 0);
@@ -240,18 +240,18 @@ try {
   // 5) Review-before-send mode puts the transcript in the box.
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByText("Spoken replies").waitFor();
-  await page.getByRole("button", { name: "▶ Preview voice" }).click();
-  await page.getByRole("button", { name: "■ Stop", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Preview voice" }).click();
+  await page.getByRole("button", { name: "Stop", exact: true }).waitFor();
   await page.screenshot({ path: join(shots, "10-spoken-replies-settings.png") });
-  await page.getByRole("button", { name: "■ Stop", exact: true }).click();
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
   step("Settings → Spoken replies: preview plays and can be stopped");
   // The Ultron voice effect plays through its own audio chain: check it still produces sound, then switch it back off.
   const fxErrors = [];
   page.on("pageerror", (e) => fxErrors.push(e.message));
   await page.getByLabel(/Ultron voice effect/).check();
-  await page.getByRole("button", { name: "▶ Preview voice" }).click();
-  await page.getByRole("button", { name: "■ Stop", exact: true }).waitFor();
-  await page.getByRole("button", { name: "▶ Preview voice" }).waitFor({ timeout: 20000 }); // played to the end
+  await page.getByRole("button", { name: "Preview voice" }).click();
+  await page.getByRole("button", { name: "Stop", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Preview voice" }).waitFor({ timeout: 20000 }); // played to the end
   await page.getByLabel(/Ultron voice effect/).uncheck();
   if (fxErrors.length) throw new Error(`voice effect errors: ${fxErrors.join("; ")}`);
   step("Ultron voice effect: preview plays through the effect without errors");
@@ -362,7 +362,7 @@ try {
   await page.getByRole("button", { name: "Chat" }).click();
   await page.getByRole("button", { name: "+ New conversation" }).click();
   await page.getByText("Say hello, ask a question").waitFor();
-  await page.getByRole("button", { name: "🎧 Hands-free" }).click();
+  await page.getByRole("button", { name: "Hands-free", exact: true }).click();
   await page.locator(".listening--hands").waitFor();
   // Phase 2.2: the Silero speech detector loads in the real browser, from ULTRON itself (not the internet).
   await page.waitForFunction(() => window.__ultronVad, null, { timeout: 30000 });
@@ -370,7 +370,7 @@ try {
   if (vadKind !== "silero") throw new Error(`the speech detector didn't load (hands-free fell back to loudness: ${vadKind})`);
   step("Hands-free uses the Silero speech detector, loaded from ULTRON itself");
   await page.screenshot({ path: join(shots, "14-hands-free.png") });
-  await page.locator(".msg--user", { hasText: "🎙 voice" }).first().waitFor({ timeout: 30000 });
+  await page.locator(".msg--user", { hasText: "· voice" }).first().waitFor({ timeout: 30000 });
   const heard = await page.locator(".msg--user .msg__body").first().innerText();
   if (/^ultron/i.test(heard)) throw new Error(`wake word was not stripped: ${heard}`);
   await page.locator(".msg--assistant.msg--complete").first().waitFor();
@@ -382,7 +382,7 @@ try {
   // do from this nonstop fake microphone, so the proof is the follow-up itself: recognised without the wake word.)
   await page.locator(".listening--followup").waitFor({ timeout: 3000 }).then(() => page.screenshot({ path: join(shots, "20-conversation-mode.png") }), () => {});
   await followUp;
-  await page.locator(".msg--user", { hasText: "🎙 voice" }).nth(1).waitFor({ timeout: 30000 });
+  await page.locator(".msg--user", { hasText: "· voice" }).nth(1).waitFor({ timeout: 30000 });
   step("Conversation mode: after answering, ULTRON listens for a reply without the wake word");
   await page.getByRole("button", { name: "Hands-free on" }).click();
   await page.locator(".listening--hands").waitFor({ state: "detached" });
@@ -393,9 +393,9 @@ try {
   // One click from Home: a fresh conversation that's already listening (no wake word for the first sentence).
   await page.getByRole("button", { name: "Home", exact: true }).click();
   const firstWords = page.waitForRequest((r) => r.url().includes("/api/voice/transcribe") && !r.url().includes("mode=wake"), { timeout: 30000 });
-  await page.getByRole("button", { name: "🎙 Talk to ULTRON" }).click();
+  await page.locator("button.talk-btn").click();
   await firstWords;
-  await page.locator(".msg--user", { hasText: "🎙 voice" }).first().waitFor({ timeout: 30000 });
+  await page.locator(".msg--user", { hasText: "· voice" }).first().waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: "Hands-free on" }).click();
   step('"Talk to ULTRON" on Home opens a conversation that listens straight away');
 
@@ -406,9 +406,9 @@ try {
   });
   const interrupted = page.waitForEvent("console", { predicate: (m) => m.text().includes("[ultron] interrupted by voice"), timeout: 45000 });
   await page.getByRole("button", { name: "Home", exact: true }).click();
-  await page.getByRole("button", { name: "🎙 Talk to ULTRON" }).click();
+  await page.locator("button.talk-btn").click();
   await interrupted;
-  await page.locator(".msg--user", { hasText: "🎙 voice" }).nth(1).waitFor({ timeout: 30000 });
+  await page.locator(".msg--user", { hasText: "· voice" }).nth(1).waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: "Hands-free on" }).click();
   await page.evaluate(() => {
     const p = JSON.parse(localStorage.getItem("ultron.voice") ?? "{}");
@@ -430,7 +430,7 @@ try {
   await page.getByText(/System and credential folders can't be indexed|doesn't exist/).waitFor();
   await page.getByLabel("Folder path").fill(projects);
   await page.getByRole("button", { name: "Add folder" }).click();
-  await page.locator(".reminder", { hasText: "✓" }).waitFor({ timeout: 15000 });
+  await page.locator(".folder--ready").waitFor({ timeout: 15000 });
   await page.getByLabel("Search files").fill("workshops");
   await page.getByRole("button", { name: "Search" }).click();
   await page.locator(".file-hit", { hasText: "launch-plan.md" }).waitFor();
@@ -481,7 +481,7 @@ try {
   await draft.scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(shots, "17-github-issue-draft.png") });
   await draft.getByRole("button", { name: "Approve" }).click();
-  await page.locator(".tool--succeeded", { hasText: "✓ posted" }).waitFor();
+  await page.locator(".tool--succeeded", { hasText: "(posted)" }).waitFor();
   step("GitHub issue: drafted with full preview (repo, visibility, text), posted only after Approve");
 
   await page.getByRole("button", { name: "Connections" }).click();
@@ -588,12 +588,12 @@ try {
   await page.locator(".msg--assistant", { hasText: "On your list" }).waitFor();
   step('Routines: "Good night" added in Settings runs its steps from one phrase');
   const redone = page.waitForResponse((r) => r.url().includes("/messages") && r.request().method() === "POST");
-  await page.getByRole("button", { name: "↻ Try again" }).click();
+  await page.getByRole("button", { name: "Try again" }).click();
   await redone;
   await page.locator(".msg--assistant.msg--complete", { hasText: "Good night:" }).waitFor();
-  await page.getByRole("button", { name: "↻ Try again" }).waitFor(); // the new answer is in place
+  await page.getByRole("button", { name: "Try again" }).waitFor(); // the new answer is in place
   if ((await page.locator(".msg--user", { hasText: "good night" }).count()) !== 1) throw new Error("try again duplicated the question");
-  step("↻ Try again re-asks the last question without duplicating it");
+  step("Try again re-asks the last question without duplicating it");
 
   // ---- Reply formatting: Markdown shows as formatting (the test brain echoes what it's sent); the owner's own text stays as typed ----
   await page.getByLabel("Message ULTRON").fill("format test **bold red** and `a code bit` <b>not html</b>");
@@ -641,7 +641,7 @@ try {
   await page.getByRole("button", { name: "Show ULTRON something with the camera" }).click();
   await page.locator("video.camera__video").waitFor();
   await page.waitForFunction(() => (document.querySelector("video.camera__video")?.videoWidth ?? 0) > 0);
-  await page.getByRole("button", { name: "📸 Take photo" }).click();
+  await page.getByRole("button", { name: "Take photo" }).click();
   await page.getByText("Photo ready: it goes with your next message").waitFor();
   await page.getByLabel("Message ULTRON").fill("format test what is this");
   await page.getByLabel("Message ULTRON").press("Enter");
@@ -669,7 +669,7 @@ try {
   await page.locator(".msg--assistant", { hasText: /No notes yet|Your latest notes/ }).waitFor();
   step("Skills page: every ability with phrases to click; clicking one asks ULTRON");
   await page.getByRole("button", { name: "Home", exact: true }).click();
-  await page.getByRole("button", { name: "◉ Council mode" }).click();
+  await page.getByRole("button", { name: "Council mode", exact: true }).click();
   const council = page.getByRole("dialog", { name: /Council mode/ });
   await council.waitFor();
   await council.locator("canvas.council__face").waitFor();

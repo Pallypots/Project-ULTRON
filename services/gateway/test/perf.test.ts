@@ -162,3 +162,13 @@ describe("Phase 1.1 (revised): tools only when a message needs them", () => {
     expect(last().tools.map((t: { function: { name: string } }) => t.function.name)).toContain("save_memory");
   });
 });
+
+describe("no emoji in ULTRON's replies", () => {
+  it("strips emoji the model writes, keeps ordinary symbols and text", async () => {
+    const { stripEmoji } = await import("../src/chat.ts");
+    expect(stripEmoji("Done! 🎉 Your timer is set ⏰️ 👍🏽")).toBe("Done! Your timer is set ");
+    expect(stripEmoji("👨‍👩‍👧 family")).toBe(" family");
+    // Negative controls: these are not emoji and must stay.
+    expect(stripEmoji("Settings → Voice, 21°C, 15% off, © 2026, 5 × 3, café")).toBe("Settings → Voice, 21°C, 15% off, © 2026, 5 × 3, café");
+  });
+});

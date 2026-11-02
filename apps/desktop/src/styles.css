@@ -79,7 +79,12 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
 }
 .nav__item:hover { color: var(--text); background: rgba(239, 43, 43, 0.06); }
 .nav__item.is-active { color: var(--accent-strong); border-color: var(--line-strong); background: rgba(239, 43, 43, 0.1); box-shadow: inset 3px 0 0 var(--accent); }
-.nav__icon { width: 18px; text-align: center; }
+.nav__icon { width: 18px; display: inline-grid; place-items: center; }
+.nav__item:hover .nav__icon .icon, .nav__item[aria-current="page"] .nav__icon .icon { filter: drop-shadow(0 0 4px var(--accent)); }
+/* Line icons (Lucide) sit on the text baseline and take the text colour. */
+.icon { display: inline-block; vertical-align: -0.17em; flex-shrink: 0; }
+.btn .icon { margin-right: 0.15em; }
+.tool__icon { color: var(--accent); }
 .nav__footer { margin-top: auto; display: grid; gap: 10px; }
 .main { overflow: auto; padding: 28px clamp(16px, 3vw, 40px); position: relative; outline: none; display: flex; flex-direction: column; }
 .main > * { flex: 0 0 auto; }
@@ -365,3 +370,5 @@ body, .panel, .btn, .nav__item { transition: border-color 0.6s, box-shadow 0.6s,
 .tool__preview { flex-basis: 100%; }
 .tool__preview summary { cursor: pointer; color: var(--muted); font-size: 0.8rem; }
 .tool__preview pre { white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; padding: 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); font-family: var(--mono); font-size: 0.8rem; max-height: 280px; overflow: auto; }
+
+.toast__icon { color: var(--accent); margin-top: 2px; }

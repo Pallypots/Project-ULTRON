@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import { api, type Reminder } from "../api.ts";
 import { TodoPanel } from "./Todos.tsx";
 import { NotesPanel } from "./Notes.tsx";
@@ -85,7 +86,7 @@ export function RemindersView({ refreshKey }: { refreshKey: number }) {
           <ul className="reminders">
             {missed.map((r) => (
               <li key={r.id} className="reminder reminder--missed">
-                <span>⚠ {r.text}</span>
+                <span><Icon name="warning" /> {r.text}</span>
                 <span className="muted small">was due {when(r.dueAt)}</span>
                 <button type="button" className="btn btn--small" onClick={() => api.cancelReminder(r.id).then(load)}>Dismiss</button>
               </li>
@@ -102,7 +103,7 @@ export function RemindersView({ refreshKey }: { refreshKey: number }) {
           <ul className="reminders">
             {upcoming.map((r) => (
               <li key={r.id} className="reminder">
-                <span>⏰ {r.text}</span>
+                <span><Icon name="reminder" /> {r.text}</span>
                 <span className="muted small">{when(r.dueAt)} · {countdown(r.dueAt, now)}</span>
                 <button type="button" className="btn btn--small btn--danger" onClick={() => api.cancelReminder(r.id).then(load)}>Cancel</button>
               </li>
@@ -117,7 +118,7 @@ export function RemindersView({ refreshKey }: { refreshKey: number }) {
           <ul className="reminders">
             {past.map((r) => (
               <li key={r.id} className="reminder reminder--past">
-                <span>{r.status === "fired" ? "✓" : "✕"} {r.text}</span>
+                <span><Icon name={r.status === "fired" ? "check" : "close"} /> {r.text}</span>
                 <span className="muted small">{r.status === "fired" ? `fired ${when(r.firedAt ?? r.dueAt)}` : "cancelled"}</span>
               </li>
             ))}

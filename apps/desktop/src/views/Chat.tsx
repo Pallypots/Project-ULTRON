@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "../icons.tsx";
 import type { ChatEvent, Conversation, Message } from "@ultron/schemas";
 import { voiceTiming, api, sendMessage, type Status } from "../api.ts";
 import { Core, type CoreState } from "../Core.tsx";
@@ -298,7 +299,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     const go = (ev: Event) => {
       const a = (ev as CustomEvent<{ id: string; summary: string }>).detail;
       if (!messages.some((m) => m.toolEvents?.some((t) => t.executionId === a.id))) return;
-      send(`✓ Approved: ${a.summary}`, "text", a.id);
+      send(`Approved: ${a.summary}`, "text", a.id);
     };
     window.addEventListener("ultron-continue", go);
     return () => window.removeEventListener("ultron-continue", go);
@@ -428,7 +429,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
         mood={councilMood}
         level={faceLevel}
         said={lastOf("assistant") || councilLine}
-        heard={lastOf("user").startsWith("✓ Approved") ? "" : lastOf("user")}
+        heard={/^(?:\u2713 )?Approved: /.test(lastOf("user")) ? "" : lastOf("user")}
         brain={status ? (status.where === "test" ? "Test brain" : `${status.where === "local" ? "Local" : "Cloud"} brain · ${status.model}`) : ""}
         problem={hands.error ?? speakError ?? error}
         pending={messages.flatMap((m) => m.toolEvents ?? []).filter((t) => t.status === "awaiting_approval")}
@@ -436,7 +437,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
           const last = [...messages].reverse().find((m) => m.role === "assistant");
           const t = last?.toolEvents?.at(-1);
           if (!t) return null;
-          return t.status === "awaiting_approval" ? `Waiting for your approval: ${t.summary}` : t.status === "running" ? `${t.summary}…` : t.status === "succeeded" ? `✓ ${t.summary}` : null;
+          return t.status === "awaiting_approval" ? `Waiting for your approval: ${t.summary}` : t.status === "running" ? `${t.summary}…` : t.status === "succeeded" ? `Done: ${t.summary}` : null;
         })()}
         onSend={(t) => send(t, "text", undefined, true)}
         onExit={() => onExitCouncil?.()}
@@ -478,13 +479,13 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
           )}
           {messages.map((m) => (
             <article key={m.id} className={`msg msg--${m.role} msg--${m.status}`}>
-              <div className="msg__who">{m.role === "user" ? (m.inputMode === "voice" ? "You · 🎙 voice" : "You") : "ULTRON"}</div>
+              <div className="msg__who">{m.role === "user" ? (m.inputMode === "voice" ? <>You · <Icon name="mic" /> voice</> : "You") : "ULTRON"}</div>
               <div className="msg__body">
                 {m.content ? (m.role === "assistant" ? <Markdown text={m.content} /> : m.content) : m.status === "streaming" ? <span className="typing" aria-label="ULTRON is thinking"><i /><i /><i /></span> : null}
               </div>
               {m.toolEvents?.length > 0 && <ToolChips events={m.toolEvents} />}
               {m.role === "assistant" && m.id === messages.at(-1)?.id && !busy && m.status !== "streaming" && (
-                <button type="button" className="link retry" onClick={retry} title="Ask again for a different answer">↻ Try again</button>
+                <button type="button" className="link retry" onClick={retry} title="Ask again for a different answer"><Icon name="retry" /> Try again</button>
               )}
               {(m.notice || m.citations?.length || m.status === "cancelled" || m.status === "error") && (
                 <div className="msg__meta">
@@ -548,7 +549,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
         {camera && <CameraModal onClose={() => setCamera(false)} onPhoto={(p) => { photoRef.current = p; setPhoto(p); setCamera(false); inputRef.current?.focus(); }} />}
         {photo && (
           <div className="row" style={{ margin: "0 12px" }}>
-            <span className="photo-chip">📸 Photo ready: it goes with your next message (typed or spoken)</span>
+            <span className="photo-chip"><Icon name="camera" /> Photo ready: it goes with your next message (typed or spoken)</span>
             <button type="button" className="link" onClick={() => { photoRef.current = null; setPhoto(null); }}>Remove</button>
           </div>
         )}
@@ -572,7 +573,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
             }}
           />
           {busy ? (
-            <button type="button" className="btn btn--danger" onClick={stop}>■ Stop</button>
+            <button type="button" className="btn btn--danger" onClick={stop}><Icon name="stop" /> Stop</button>
           ) : (
             <button type="submit" className="btn btn--primary" disabled={!draft.trim() && !photo}>Send</button>
           )}
@@ -589,7 +590,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (ptt.state === "idle") ptt.onPointerDown(e as unknown as React.PointerEvent); } }}
             onKeyUp={(e) => { if (e.key === "Enter") ptt.onPointerUp(); }}
           >
-            🎙 {ptt.state === "listening" ? "Listening" : "Talk"}
+            <Icon name="mic" /> {ptt.state === "listening" ? "Listening" : "Talk"}
           </button>
           <button
             type="button"
@@ -598,10 +599,10 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
             title='Hands-free: keeps the microphone on and responds when you start with "Ultron". Speech recognition runs on this PC; anything not addressed to ULTRON is discarded.'
             onClick={() => (hands.on ? hands.stop() : hands.start())}
           >
-            🎧 {hands.on ? "Hands-free on" : "Hands-free"}
+            <Icon name="headphones" /> {hands.on ? "Hands-free on" : "Hands-free"}
           </button>
           <button type="button" className="btn" onClick={() => setCamera(true)} disabled={busy} aria-label="Show ULTRON something with the camera" title="Show ULTRON something: take one photo for your next message">
-            📷
+            <Icon name="camera" />
           </button>
         </form>
       </section>

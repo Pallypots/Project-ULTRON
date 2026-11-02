@@ -192,7 +192,7 @@ export async function handleUserMessage(
   };
 
   // Explicit memory commands are handled deterministically, so saving never depends on the model's mood.
-  // A "✓ Approved: …" follow-up carries text partly chosen by the model (the action summary), so it never triggers
+  // An "Approved: …" follow-up carries text partly chosen by the model (the action summary), so it never triggers
   // memory commands, instant commands, routines or a screenshot: it only goes to the brain.
   const intent: ReturnType<typeof detectIntent> = opts.continueFrom ? { type: "chat" } : detectIntent(content);
   if (intent.type === "remember_blocked") {
@@ -367,7 +367,7 @@ export async function handleUserMessage(
   async function research(topic: string) {
     const provider = resolution.ok ? resolution.provider : null;
     if (!provider) return;
-    let text = `🔬 Researching "${topic}"…\n`;
+    let text = `Researching "${topic}"…\n`;
     const say = (t: string) => {
       text += t;
       emit({ type: "delta", text: t });
@@ -593,7 +593,9 @@ export async function handleUserMessage(
       const calls: ToolCall[] = [];
       let roundText = "";
       const guard = contextEchoGuard();
-      const take = (piece: string) => {
+      const take = (raw: string) => {
+        // No emoji in ULTRON's replies, whatever the model writes (they cheapen the interface).
+        const piece = stripEmoji(raw);
         if (!piece) return;
         text += piece;
         roundText += piece;
@@ -729,6 +731,11 @@ export function stablePrefix(deps: ChatDeps): { system: string; tools: ReturnTyp
  * Small models sometimes copy the [Context …] block into their answer. This cuts the answer where such a block starts,
  * working on a stream (a marker split across chunks is held back until it's clear), so it's never shown or spoken.
  */
+/** Removes emoji (pictographs, their variation selectors and joiners); ordinary symbols like →, ©, ° and % stay. */
+export function stripEmoji(text: string): string {
+  return text.replace(/\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F|[\u200D\uFE0F]|\p{Emoji_Modifier}/gu, "").replace(/ {2,}/g, " ");
+}
+
 export function contextEchoGuard() {
   const MARKERS = ["[Context", "[End of context"];
   let held = "";

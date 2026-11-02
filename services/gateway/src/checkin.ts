@@ -77,7 +77,7 @@ export class MorningCheckIn {
       if (this.alerted.has(key)) continue;
       this.alerted.add(key);
       const inMin = Math.max(1, Math.round((e.start.getTime() - now.getTime()) / 60_000));
-      this.bus.emit({ type: "checkin", title: `📅 In ${inMin} min`, body: `${e.title}${e.location ? ` (${e.location})` : ""}`, kind: "meeting" });
+      this.bus.emit({ type: "checkin", title: `In ${inMin} min`, body: `${e.title}${e.location ? ` (${e.location})` : ""}`, kind: "meeting" });
       n++;
     }
     return n;
@@ -102,7 +102,7 @@ export class MorningCheckIn {
     this.stores.preferences.set("checkin_rain_last", now.getTime());
     const when = new Date(wet.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
     this.stores.audit.record("checkin.rain_sent", "system", null, { chance: wet.chance });
-    this.bus.emit({ type: "checkin", title: "🌧 Rain on the way", body: `${wet.chance}% chance of rain in ${r.place} around ${when}. Umbrella advised; rust is not a good look.`, kind: "weather" });
+    this.bus.emit({ type: "checkin", title: "Rain on the way", body: `${wet.chance}% chance of rain in ${r.place} around ${when}. Umbrella advised; rust is not a good look.`, kind: "weather" });
     return true;
   }
 

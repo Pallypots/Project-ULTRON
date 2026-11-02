@@ -70,7 +70,7 @@ describe("calendar heads-up", () => {
     } as never;
     const c = new MorningCheckIn(s, bus, calendar, now);
     expect(await c.meetings()).toBe(1);
-    expect(seen.at(-1)).toEqual({ type: "checkin", kind: "meeting", title: "📅 In 8 min", body: "Dentist (12 Main St)" });
+    expect(seen.at(-1)).toEqual({ type: "checkin", kind: "meeting", title: "In 8 min", body: "Dentist (12 Main St)" });
     expect(await c.meetings()).toBe(0); // once per event
     s.preferences.set("checkin", { enabled: false, evening: false, meetingAlertMinutes: 0 });
     expect(await new MorningCheckIn(s, bus, calendar, now).meetings()).toBe(0);
@@ -103,7 +103,7 @@ describe("rain heads-up", () => {
       expect(await new MorningCheckIn(s, bus, undefined, at(14, 0)).rain()).toBe(false); // already raining
       now = 0;
       expect(await new MorningCheckIn(s, bus, undefined, at(14, 0)).rain()).toBe(true);
-      expect(seen.at(-1)).toMatchObject({ type: "checkin", kind: "weather", title: "🌧 Rain on the way" });
+      expect(seen.at(-1)).toMatchObject({ type: "checkin", kind: "weather", title: "Rain on the way" });
       expect(seen.at(-1).body).toMatch(/^80% chance of rain in Leeds around 3:00/);
       expect(await new MorningCheckIn(s, bus, undefined, at(16, 0)).rain()).toBe(false); // not again within 6 hours
       s.preferences.set("checkin", { rainAlerts: false });

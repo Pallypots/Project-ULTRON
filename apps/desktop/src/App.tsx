@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "./icons.tsx";
 import { api, health, subscribeEvents, type Status } from "./api.ts";
 import { RemindersView } from "./views/Reminders.tsx";
 import { FilesView } from "./views/Files.tsx";
@@ -18,16 +19,16 @@ import { PairScreen } from "./views/Pair.tsx";
 
 export type View = "home" | "chat" | "reminders" | "files" | "connections" | "memory" | "activity" | "skills" | "settings";
 
-const NAV: { id: View; label: string; icon: string }[] = [
-  { id: "home", label: "Home", icon: "◎" },
-  { id: "chat", label: "Chat", icon: "✦" },
-  { id: "reminders", label: "Reminders", icon: "⏰" },
-  { id: "files", label: "Files", icon: "📁" },
-  { id: "connections", label: "Connections", icon: "⛓" },
-  { id: "memory", label: "Memory Vault", icon: "▣" },
-  { id: "activity", label: "Activity", icon: "≡" },
-  { id: "skills", label: "Skills", icon: "✧" },
-  { id: "settings", label: "Settings", icon: "⚙" },
+const NAV: { id: View; label: string; icon: IconName }[] = [
+  { id: "home", label: "Home", icon: "home" },
+  { id: "chat", label: "Chat", icon: "chat" },
+  { id: "reminders", label: "Reminders", icon: "reminder" },
+  { id: "files", label: "Files", icon: "folder" },
+  { id: "connections", label: "Connections", icon: "connections" },
+  { id: "memory", label: "Memory Vault", icon: "vault" },
+  { id: "activity", label: "Activity", icon: "activity" },
+  { id: "skills", label: "Skills", icon: "skills" },
+  { id: "settings", label: "Settings", icon: "settings" },
 ];
 
 export function App() {
@@ -77,7 +78,7 @@ export function App() {
     const toast = (t: Omit<Toast, "id">) => setToasts((cur) => [...cur, { ...t, id: crypto.randomUUID() }]);
     return subscribeEvents((e) => {
       if (e.type === "reminder_fired") {
-        toast({ kind: "reminder", title: "⏰ Reminder", body: e.reminder.text });
+        toast({ kind: "reminder", title: "Reminder", body: e.reminder.text });
         setRemindersKey((k) => k + 1);
         if ("Notification" in window && Notification.permission === "granted") new Notification("ULTRON reminder", { body: e.reminder.text, icon: "/ultron.svg" });
         if (loadVoicePrefs().speakMode !== "never") {
@@ -104,15 +105,15 @@ export function App() {
               speaker.current?.stop();
               const sp = new Speaker(() => s.engine, () => loadVoicePrefs().browserVoice, () => s.speed);
               sp.unlock();
-              sp.enqueue([e.kind === "weather" ? e.body.replace(/; rust.*$/, ".") : e.kind === "watch" ? `Heads up: ${e.body.replace(/\s+https?:\/\/\S+$/, "")}` : `Heads up: ${e.body}, ${e.title.replace("📅 ", "").toLowerCase()}.`]);
+              sp.enqueue([e.kind === "weather" ? e.body.replace(/; rust.*$/, ".") : e.kind === "watch" ? `Heads up: ${e.body.replace(/\s+https?:\/\/\S+$/, "")}` : `Heads up: ${e.body}, ${e.title.toLowerCase()}.`]);
               speaker.current = sp;
             }).catch(() => {});
           return;
         }
         toast(
           e.kind === "evening"
-            ? { kind: "info", title: `🌙 ${e.title}`, body: e.body, action: { label: "Talk", run: () => window.dispatchEvent(new Event("ultron-talk")) } }
-            : { kind: "info", title: `☀ ${e.title}`, body: e.body, action: { label: "Brief me", run: () => window.dispatchEvent(new CustomEvent("ultron-ask", { detail: { text: "Good morning, brief me", speak: true } })) } },
+            ? { kind: "info", title: e.title, body: e.body, action: { label: "Talk", run: () => window.dispatchEvent(new Event("ultron-talk")) } }
+            : { kind: "info", title: e.title, body: e.body, action: { label: "Brief me", run: () => window.dispatchEvent(new CustomEvent("ultron-ask", { detail: { text: "Good morning, brief me", speak: true } })) } },
         );
         if ("Notification" in window && Notification.permission === "granted") new Notification(`ULTRON: ${e.title}`, { body: e.body, icon: "/ultron.svg" });
       } else if (e.type === "connector_synced") {
@@ -167,21 +168,21 @@ export function App() {
         </div>
         {NAV.map((n) => (
           <button key={n.id} className={`nav__item ${view === n.id ? "is-active" : ""}`} aria-current={view === n.id ? "page" : undefined} onClick={() => go(n.id)}>
-            <span className="nav__icon" aria-hidden="true">{n.icon}</span>
+            <span className="nav__icon"><Icon name={n.icon} /></span>
             <span className="nav__label">{n.label}</span>
             {n.id === "activity" && (status?.pendingApprovals ?? 0) > 0 && <span className="badge" title="Actions waiting for your approval">{status!.pendingApprovals}</span>}
             {n.id === "reminders" && (status?.upcomingReminders ?? 0) > 0 && <span className="badge badge--soft">{status!.upcomingReminders}</span>}
           </button>
         ))}
         <button className="nav__item nav__item--council" onClick={enterCouncil} title="Full-screen face-to-face conversation with ULTRON">
-          <span className="nav__icon" aria-hidden="true">◉</span>
+          <span className="nav__icon"><Icon name="council" /></span>
           <span className="nav__label">Council</span>
         </button>
         <div className="nav__footer">
           <ConnectionPill online={online} status={status} />
           <div className="small muted" style={{ textAlign: "center" }} title={`Interface built ${typeof __ULTRON_BUILT__ !== "undefined" ? __ULTRON_BUILT__ : "?"}`}>ULTRON v{status?.version ?? (typeof __ULTRON_VERSION__ !== "undefined" ? __ULTRON_VERSION__ : "?")}</div>
           <button className="btn btn--danger btn--block" onClick={() => { speaker.current?.stop(); api.stopAll().then(refreshStatus).catch(() => {}); }} title="Stop every reply, voice and pending action immediately">
-            ■ Stop all
+            <Icon name="stop" /> Stop all
           </button>
         </div>
       </nav>
@@ -193,7 +194,7 @@ export function App() {
         )}
         {status?.nodeSecurity && (
           <div className="banner banner--warn" role="alert">
-            🔒 {status.nodeSecurity} <a href="https://nodejs.org/en/download" target="_blank" rel="noreferrer">Download Node.js</a>
+            <Icon name="lock" /> {status.nodeSecurity} <a href="https://nodejs.org/en/download" target="_blank" rel="noreferrer">Download Node.js</a>
           </div>
         )}
         {online === false && (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import { api, type FileHit, type FolderInfo } from "../api.ts";
 
 const size = (b: number) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : b > 1e3 ? `${Math.round(b / 1e3)} KB` : `${b} B`);
@@ -65,9 +66,9 @@ export function FilesView() {
         ) : (
           <ul className="reminders">
             {folders.map((f) => (
-              <li key={f.id} className="reminder">
-                <span className="mono">📁 {f.path}</span>
-                <span className="muted small">{f.status === "ready" ? `✓ ${f.detail}` : f.status === "error" ? `⚠ ${f.detail}` : `⏳ ${f.detail || "Waiting…"}`}</span>
+              <li key={f.id} className={`reminder folder folder--${f.status}`}>
+                <span className="mono"><Icon name="folder" /> {f.path}</span>
+                <span className="muted small"><Icon name={f.status === "ready" ? "check" : f.status === "error" ? "warning" : "pending"} /> {f.detail || (f.status === "ready" || f.status === "error" ? "" : "Waiting…")}</span>
                 <span className="row">
                   <button type="button" className="btn btn--small" disabled={f.status === "indexing"} onClick={() => api.reindexFolder(f.id).then(load)}>Re-scan</button>
                   <button type="button" className="btn btn--small btn--danger" onClick={() => { if (confirm(`Stop ULTRON seeing ${f.path}? Its index will be deleted (your files are untouched).`)) api.removeFolder(f.id).then(load); }}>Remove</button>

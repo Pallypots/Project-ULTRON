@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import { Speaker, type TtsEngineId } from "../voice/speaker.ts";
 import { loadVoicePrefs } from "../voice/prefs.ts";
 import type { Capability } from "@ultron/schemas";
@@ -201,7 +202,7 @@ export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }:
               <div className="hello" role="status">
                 <span className="hello__who">
                   ULTRON
-                  <button type="button" className="hello__play" onClick={sayHello} aria-label="Say it out loud" title="Say it out loud">🔊</button>
+                  <button type="button" className="hello__play" onClick={sayHello} aria-label="Say it out loud" title="Say it out loud"><Icon name="speaker" /></button>
                 </span>
                 <span className="hello__text">{hello}</span>
               </div>
@@ -252,7 +253,7 @@ export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }:
                 </li>
               ))}
               {hud?.reminders.map((r) => (
-                <li key={r.id} className="hud-feed__item"><span className="hud-feed__t">{hm(r.dueAt)}</span> ⏰ {r.text}</li>
+                <li key={r.id} className="hud-feed__item"><span className="hud-feed__t">{hm(r.dueAt)}</span> <Icon name="reminder" /> {r.text}</li>
               ))}
               {hud?.email?.unread.map((m, i) => (
                 <li key={`mail-${i}`} className="hud-feed__item"><span className="hud-feed__t">MAIL</span> {m.from}: {m.subject}</li>
@@ -294,10 +295,10 @@ export function HomeView({ status, core, onAsk, onTalk, onCouncil, onNavigate }:
             <button className="btn btn--primary" type="submit">Ask</button>
           </form>
           <button type="button" className="btn talk-btn" onClick={onTalk} title="Opens a conversation and listens: just speak. Say &quot;that's all&quot; when you're done.">
-            🎙 Talk to ULTRON
+            <Icon name="mic" /> Talk to ULTRON
           </button>
           <button type="button" className="btn council-btn" onClick={onCouncil} title="Full screen, face to face, always listening">
-            ◉ Council mode
+            <Icon name="council" /> Council mode
           </button>
         </div>
       </footer>

@@ -1,3 +1,5 @@
+import { Icon } from "./icons.tsx";
+
 export interface Toast {
   id: string;
   title: string;
@@ -13,6 +15,7 @@ export function Toasts({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: str
     <div className="toasts" role="region" aria-label="Notifications" aria-live="assertive">
       {toasts.map((t) => (
         <div key={t.id} className={`toast toast--${t.kind}`} role="alert">
+          <Icon name={t.kind === "reminder" ? "reminder" : t.kind === "warn" ? "warning" : "zap"} size={20} className="toast__icon" />
           <div>
             <strong>{t.title}</strong>
             <div>{t.body}</div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Icon, type IconName } from "../icons.tsx";
 import type { TtsStatusResponse } from "@ultron/schemas";
 import { api } from "../api.ts";
 import { Speaker } from "../voice/speaker.ts";
@@ -129,7 +130,7 @@ export function SpeechSettings() {
       )}
 
       <div className="row">
-        <button type="button" className="btn btn--primary" onClick={previewing ? () => speaker.current?.stop() : preview}>{previewing ? "■ Stop" : "▶ Preview voice"}</button>
+        <button type="button" className="btn btn--primary" onClick={previewing ? () => speaker.current?.stop() : preview}>{previewing ? <><Icon name="stop" /> Stop</> : <><Icon name="play" /> Preview voice</>}</button>
         {s.engine === "local" && s.state !== "ready" && (
           <button type="button" className="btn" disabled={s.state === "loading"} onClick={async () => setS(await api.prepareTts())}>
             {s.state === "loading" ? "Downloading…" : "Download voice now"}
