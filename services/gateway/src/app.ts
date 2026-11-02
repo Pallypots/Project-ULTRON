@@ -31,7 +31,7 @@ import { ConnectorService } from "./connectors/service.ts";
 import { ConnectorError } from "./connectors/types.ts";
 import { Shortcuts } from "./system/shortcuts.ts";
 import { HudService } from "./hud.ts";
-import { PerfLog } from "./perf.ts";
+import { LoopWatch, PerfLog } from "./perf.ts";
 import { diagnose, ollamaPs } from "./perf-diagnosis.ts";
 import { nodeSecurity } from "./system/node-version.ts";
 import { setHomeStatus, setMailStatus } from "./capabilities.ts";
@@ -321,12 +321,16 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     if (!perf.client(req.params.id, body)) return reply.code(404).send({ error: "not_found" });
     return { ok: true };
   });
+  // How long the service's one thread was ever blocked (a frozen thread delays every reply, sound and button).
+  const loopWatch = new LoopWatch();
+  loopWatch.start();
   app.get("/api/perf", async () => {
+    const responsiveness = loopWatch.read();
     const summary = perf.summary();
     const s = settings();
     const model = s.provider === "ollama" ? s.model : "";
     const [hw, ps] = await Promise.all([detectHardware().catch(() => null), s.provider === "ollama" ? ollamaPs(ollama.url) : Promise.resolve(null)]);
-    return { summary, recent: perf.recent(20), hardware: hw, ollama: ps, wake: { ...wakeTrial.status(persona.wakeNames), available: wake.available() }, diagnosis: s.provider === "ollama" ? diagnose(summary, hw, ps, model) : ["Measurements are most useful with the local brain."] };
+    return { summary, responsiveness, recent: perf.recent(20), hardware: hw, ollama: ps, wake: { ...wakeTrial.status(persona.wakeNames), available: wake.available() }, diagnosis: s.provider === "ollama" ? diagnose(summary, hw, ps, model) : ["Measurements are most useful with the local brain."] };
   });
 
   // ---- smart home (Home Assistant) ----
@@ -429,7 +433,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
       secretsProtection: secrets.protection,
       upcomingReminders: stores.reminders.upcoming().length,
       nodeSecurity: nodeSecurity().message,
-      counts: { conversations: stores.conversations.list().length, memories: stores.memories.list().length },
+      counts: { conversations: stores.conversations.count(), memories: stores.memories.count() },
       persona: { name: persona.name, wakeNames: persona.wakeNames, salutation: persona.ownerSalutation },
     };
   });
@@ -1018,6 +1022,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
 
   app.addHook("onClose", async () => {
     scheduler.stop();
+    loopWatch.stop();
     wake.host.stop();
     summarizer.stop();
     checkIn.stop();

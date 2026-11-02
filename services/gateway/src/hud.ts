@@ -121,7 +121,7 @@ export class HudService {
       pendingApprovals: pending,
       watchers: s.watchers.active().length,
       feed,
-      memories: s.memories.list().length,
+      memories: s.memories.count(),
       email: this.mail?.connected ? { unread: this.inbox.unread } : null,
       home: this.home?.connected
         ? (() => {

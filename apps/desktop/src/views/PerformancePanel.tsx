@@ -34,6 +34,13 @@ export function PerformancePanel() {
         <>
           <ul className="perf-findings">
             {r.diagnosis.map((d, i) => <li key={i}>{d}</li>)}
+            {r.responsiveness && r.responsiveness.sinceMs > 5000 && (
+              <li>
+                {r.responsiveness.worstMs <= 100
+                  ? `Service responsiveness: good (its longest pause in the last ${Math.round(r.responsiveness.sinceMs / 60000) || 1} min was ${r.responsiveness.worstMs} ms).`
+                  : `Service responsiveness: it froze for up to ${(r.responsiveness.worstMs / 1000).toFixed(1)} s in the last ${Math.round(r.responsiveness.sinceMs / 60000) || 1} min (typical worst ${r.responsiveness.p99Ms} ms). That delays replies and buttons; please send this screen to whoever maintains ULTRON.`}
+              </li>
+            )}
             {r.wake?.available && <li>{wakeLine(r.wake)}</li>}
           </ul>
           <table className="perf-table">

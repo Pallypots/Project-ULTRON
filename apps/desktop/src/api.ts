@@ -517,6 +517,8 @@ export interface PerfReport {
   hardware: { ramBytes: number; cpuThreads: number; gpus: { name: string; vramBytes: number; vendor: string }[]; usableGpu: { name: string } | null } | null;
   ollama: { name: string; size: number; sizeVram: number }[] | null;
   diagnosis: string[];
+  /** How long the service's thread was blocked since the last look (a blocked thread delays everything). */
+  responsiveness?: { sinceMs: number; p99Ms: number; worstMs: number };
   /** The hands-free wake-word detector's trial on this PC (see the gateway's WakeTrial). */
   wake?: { available: boolean; trusted: boolean; needed: number; named: number; caught: number; extra: number; skipped: number };
 }

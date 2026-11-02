@@ -84,6 +84,11 @@ export class MemoryStore {
     return row ? toMemory(row) : null;
   }
 
+  /** How many there are, without loading them (status is polled every few seconds). */
+  count(): number {
+    return Number((this.db.prepare("SELECT COUNT(*) AS n FROM memories").get() as { n: number }).n);
+  }
+
   list(): Memory[] {
     return (this.db.prepare("SELECT * FROM memories ORDER BY pinned DESC, updated_at DESC").all() as unknown as MemoryRow[]).map(toMemory);
   }

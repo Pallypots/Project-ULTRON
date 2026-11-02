@@ -59,6 +59,11 @@ export class ConversationStore {
     return { id, title, createdAt: ts, updatedAt: ts };
   }
 
+  /** How many there are, without loading them (status is polled every few seconds). */
+  count(): number {
+    return Number((this.db.prepare("SELECT COUNT(*) AS n FROM conversations").get() as { n: number }).n);
+  }
+
   list(): Conversation[] {
     return (this.db.prepare("SELECT * FROM conversations ORDER BY updated_at DESC").all() as any[]).map(toConversation);
   }

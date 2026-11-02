@@ -119,3 +119,36 @@ export class PerfLog {
     };
   }
 }
+
+/**
+ * Watches how long the service's thread is ever blocked: a timer that should fire every 50 ms notes how late it was.
+ * (Node's monitorEventLoopDelay misses a single long freeze, which is exactly what we need to see.)
+ */
+export class LoopWatch {
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private last = 0;
+  private lates: number[] = [];
+  private since = Date.now();
+  start(everyMs = 50) {
+    this.last = performance.now();
+    this.timer = setInterval(() => {
+      const now = performance.now();
+      this.lates.push(Math.max(0, now - this.last - everyMs));
+      if (this.lates.length > 20_000) this.lates.splice(0, 10_000);
+      this.last = now;
+    }, everyMs);
+    this.timer.unref?.();
+  }
+  stop() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+  }
+  /** The worst and typical-worst (99th percentile) blocking since the last read, then starts a new window. */
+  read(): { sinceMs: number; p99Ms: number; worstMs: number } {
+    const s = [...this.lates].sort((a, b) => a - b);
+    const out = { sinceMs: Date.now() - this.since, p99Ms: Math.round(s[Math.floor(s.length * 0.99)] ?? 0), worstMs: Math.round(s.at(-1) ?? 0) };
+    this.lates = [];
+    this.since = Date.now();
+    return out;
+  }
+}
