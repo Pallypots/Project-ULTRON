@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
-import { readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createRequire } from "node:module";
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { applyOverrides, loadPersona, matchWake, PersonaOverrides, type Persona } from "@ultron/agent-core";
@@ -961,6 +962,28 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     persona = loadEffectivePersona();
     stores.audit.record("persona.reset", "owner");
     return { persona };
+  });
+
+  // ---- Files the app's speech detector needs (served from this PC, never a CDN) ----
+  const ortDir = (() => {
+    try {
+      // (Comes with the speech models' runtime; its package doesn't export package.json, so find its folder from the entry.)
+      const entry = createRequire(import.meta.url).resolve("onnxruntime-web");
+      return entry.slice(0, entry.lastIndexOf("onnxruntime-web") + "onnxruntime-web".length);
+    } catch {
+      return null;
+    }
+  })();
+  const VENDOR: Record<string, { file: string | null; type: string }> = {
+    "ort/ort.wasm.min.mjs": { file: ortDir && join(ortDir, "dist/ort.wasm.min.mjs"), type: "text/javascript" },
+    "ort/ort-wasm-simd-threaded.mjs": { file: ortDir && join(ortDir, "dist/ort-wasm-simd-threaded.mjs"), type: "text/javascript" },
+    "ort/ort-wasm-simd-threaded.wasm": { file: ortDir && join(ortDir, "dist/ort-wasm-simd-threaded.wasm"), type: "application/wasm" },
+    "silero_vad_v6.onnx": { file: join(REPO_ROOT, "models/vad/silero_vad_v6.onnx"), type: "application/octet-stream" },
+  };
+  app.get("/vendor/*", async (req, reply) => {
+    const v = VENDOR[(req.params as { "*": string })["*"]];
+    if (!v?.file || !existsSync(v.file)) return reply.code(404).send({ error: "not_found" });
+    return reply.type(v.type).header("cache-control", "public, max-age=86400").send(createReadStream(v.file));
   });
 
   // ---- UI ----

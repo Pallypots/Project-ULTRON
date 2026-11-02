@@ -14,7 +14,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     // The gateway checks Host/Origin, so present the proxied requests as loopback.
-    proxy: { "/api": { target: gateway, changeOrigin: true, headers: { origin: gateway } } },
+    proxy: { "/api": { target: gateway, changeOrigin: true, headers: { origin: gateway } }, "/vendor": { target: gateway, changeOrigin: true } },
   },
   build: { outDir: "dist", emptyOutDir: true },
 });

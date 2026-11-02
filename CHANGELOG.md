@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased · Phase 2: better ears
+- **Hands-free hears voices, not just noise:** a small speech detector (Silero) now decides when you've started and
+  stopped talking, instead of loudness alone. Fans, keyboard clicks, music and the hum of a room no longer start
+  phrases, and it can tell you've stopped sooner (0.44 s instead of 0.7 s). It runs inside ULTRON's window from files on
+  your PC. If it can't load, hands-free falls back to the old loudness check.
+
 ## 0.27.0 · 2026-11-02 · Faster replies (Phase 0 and Phase 1 of the speed roadmap)
 - **Settings → Performance** shows where each reply's time goes on your PC: understanding your speech, the brain
   reading the conversation, first word, first sound. It also says plainly whether the brain is using your graphics

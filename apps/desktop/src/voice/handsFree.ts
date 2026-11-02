@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { concatFloat32, encodeWav, ENDS_CONVERSATION, isNoise, resample, seemsUnfinished } from "@ultron/audio";
+import { concatFloat32, encodeWav, ENDS_CONVERSATION, isNoise, isSpeech, resample, seemsUnfinished, StreamResampler, type SileroVad } from "@ultron/audio";
 import { api, transcribeWake } from "../api.ts";
 import { explainMicError } from "./recorder.ts";
 import { loadVoicePrefs } from "./prefs.ts";
+import { loadVad } from "./vad.ts";
 
 const WORKLET = `
 class Tap extends AudioWorkletProcessor {
@@ -15,7 +16,8 @@ export type HandsFreeState = "off" | "starting" | "listening" | "hearing" | "che
 
 const FRAME_SEC = 0.02;
 const START_FRAMES = 3; // 60 ms above threshold starts a phrase
-const END_FRAMES = 35; // 700 ms of quiet ends it
+const END_FRAMES = 35; // 700 ms of quiet ends it (loudness only)
+const END_FRAMES_VAD = 22; // 440 ms with the speech detector: it knows a pause from a soft word, so it can be quicker
 const PREROLL_FRAMES = 15; // keep 300 ms before speech started
 const MAX_SEC = 10;
 const MIN_SEC = 0.4;
@@ -64,6 +66,9 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     bargeAbove: 0,
     bargedUntil: 0,
     onBargeIn: undefined as (() => void) | undefined,
+    /** The Silero speech detector (null until loaded, or if it can't load: then loudness decides). */
+    vad: null as SileroVad | null,
+    resampler: null as StreamResampler | null,
   });
   const set = (s: HandsFreeState) => setState(s);
   r.current.paused = paused;
@@ -162,13 +167,17 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       for (const s of f) sum += s * s;
       const rms = Math.sqrt(sum / f.length);
       levelRef.current = Math.min(1, rms * 4);
+      // Is this speech? The speech detector hears voices, not just noise; scored in the background, ~30 ms behind.
+      if (st.vad && st.resampler) void st.vad.feed(st.resampler.push(f));
+      const voiced = (inPhrase: boolean, threshold: number) => (st.vad ? isSpeech(st.vad.probability, inPhrase) && rms > 0.002 : rms > threshold);
       const barging = Date.now() < st.bargedUntil;
       // Interrupt by voice (opt-in): while ULTRON speaks, only clearly loud, sustained speech counts, well above its own
       // echo (which the browser's echo cancellation mostly removes). Then it stops talking and listens.
       if (st.paused && !barging && st.speaking && st.bargeIn && st.onBargeIn && !st.busy && !st.inPhrase) {
         st.preroll.push(f);
         if (st.preroll.length > PREROLL_FRAMES) st.preroll.shift();
-        if (rms > Math.max(0.05, st.floor * 8)) {
+        // Loud enough to be you, not ULTRON's own echo, and (with the detector) clearly a voice.
+        if (rms > Math.max(0.05, st.floor * 8) && (!st.vad || st.vad.probability > 0.7)) {
           if (++st.bargeAbove >= BARGE_FRAMES) {
             st.bargeAbove = 0;
             st.bargedUntil = Date.now() + BARGE_GRACE_MS;
@@ -197,7 +206,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       if (!st.inPhrase) {
         st.preroll.push(f);
         if (st.preroll.length > PREROLL_FRAMES) st.preroll.shift();
-        if (rms > threshold) {
+        if (voiced(false, threshold)) {
           if (++st.above >= START_FRAMES) {
             st.inPhrase = true;
             st.below = 0;
@@ -212,8 +221,8 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
         return;
       }
       st.phrase.push(f);
-      st.below = rms > threshold ? 0 : st.below + 1;
-      if (st.below >= END_FRAMES || st.phrase.length * FRAME_SEC >= MAX_SEC) {
+      st.below = voiced(true, threshold) ? 0 : st.below + 1;
+      if (st.below >= (st.vad ? END_FRAMES_VAD : END_FRAMES) || st.phrase.length * FRAME_SEC >= MAX_SEC) {
         if (st.busy) {
           // The previous phrase is still being recognised: queue this one (the newest wins).
           st.backlog = st.phrase;
@@ -238,7 +247,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     st.stream?.getTracks().forEach((t) => t.stop());
     st.node?.disconnect();
     st.ctx?.close().catch(() => {});
-    Object.assign(st, { ctx: null, stream: null, node: null, phrase: [], preroll: [], inPhrase: false, busy: false, awakeUntil: 0 });
+    Object.assign(st, { vad: null, resampler: null, ctx: null, stream: null, node: null, phrase: [], preroll: [], inPhrase: false, busy: false, awakeUntil: 0 });
     levelRef.current = 0;
     set("off");
   }, []);
@@ -261,6 +270,13 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
         audio: { deviceId: micId ? { exact: micId } : undefined, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       st.ctx = new AudioContext();
+      st.resampler = new StreamResampler(st.ctx.sampleRate);
+      // Loudness works from the first frame; the speech detector takes over as soon as it has loaded.
+      void loadVad().then((vad) => {
+        if (!st.on || !vad) return;
+        vad.reset();
+        st.vad = vad;
+      });
       const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
       await st.ctx.audioWorklet.addModule(url);
       URL.revokeObjectURL(url);

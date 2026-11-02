@@ -351,6 +351,11 @@ try {
   await page.getByText("Say hello, ask a question").waitFor();
   await page.getByRole("button", { name: "🎧 Hands-free" }).click();
   await page.locator(".listening--hands").waitFor();
+  // Phase 2.2: the Silero speech detector loads in the real browser, from ULTRON itself (not the internet).
+  await page.waitForFunction(() => window.__ultronVad, null, { timeout: 30000 });
+  const vadKind = await page.evaluate(() => window.__ultronVad);
+  if (vadKind !== "silero") throw new Error(`the speech detector didn't load (hands-free fell back to loudness: ${vadKind})`);
+  step("Hands-free uses the Silero speech detector, loaded from ULTRON itself");
   await page.screenshot({ path: join(shots, "14-hands-free.png") });
   await page.locator(".msg--user", { hasText: "🎙 voice" }).first().waitFor({ timeout: 30000 });
   const heard = await page.locator(".msg--user .msg__body").first().innerText();
