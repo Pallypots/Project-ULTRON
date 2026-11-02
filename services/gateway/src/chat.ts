@@ -55,6 +55,28 @@ const MAX_TOOL_ROUNDS = 4;
 // Owner-only tools (e.g. locking the PC) are never offered to a model: only the owner's direct commands run them.
 const specsFor = (tools: typeof TOOLS) => tools.filter((t) => !t.ownerOnly).map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
 
+/**
+ * One-line tool descriptions for the local brain: it reads every word of them whenever it reads its instructions from
+ * scratch (start-up, after a background job), and on a CPU that's seconds. The full descriptions go to cloud brains.
+ */
+/** About 120 words: room for a full spoken answer, not for an essay read aloud. */
+const SPOKEN_MAX_TOKENS = 180;
+
+const SHORT: Record<string, string> = {
+  calculate: "Exact arithmetic. Use for any sum, percentage or price; never work maths out yourself.",
+  get_weather: "Current weather and 3-day forecast for a place (or the owner's home).",
+  create_reminder: "Remind the owner at a time or after a delay.",
+  lookup_wikipedia: "Short Wikipedia summary of a person, place, thing or event.",
+  web_search: "Search the web for anything current (news, prices, hours, recent events).",
+  open_website: "Open a web page in the owner's browser (they approve it first).",
+  save_memory: "Offer to remember a lasting fact the owner told you about themselves (they approve it).",
+  get_calendar: "The owner's calendar events for a day or the next 7 days.",
+  add_todo: "Add items to the owner's to-do list.",
+  search_conversations: "Search what you and the owner said in earlier conversations.",
+};
+const localSpecsFor = (tools: typeof TOOLS) =>
+  specsFor(tools).map((t) => ({ ...t, description: SHORT[t.name] ?? t.description.split(/(?<=[a-z0-9)][.!?])\s(?=[A-Z])/)[0]! }));
+
 async function* textOnly(it: AsyncIterable<string>): AsyncIterable<ProviderEvent> {
   for await (const text of it) yield { type: "text", text };
 }
@@ -149,7 +171,7 @@ export async function handleUserMessage(
   deps: ChatDeps,
   conversationId: string,
   content: string,
-  opts: { deviceId?: string; inputMode?: Message["inputMode"]; continueFrom?: string; /** Typed or spoken at the PC itself (not a paired phone). */ fromPc?: boolean; /** A camera photo for this message (base64 JPEG). */ image?: string; signal: AbortSignal; emit: (e: ChatEvent) => void },
+  opts: { deviceId?: string; inputMode?: Message["inputMode"]; continueFrom?: string; /** Typed or spoken at the PC itself (not a paired phone). */ fromPc?: boolean; /** A camera photo for this message (base64 JPEG). */ image?: string; /** Said within 8 s of ULTRON finishing speaking. */ replyToLast?: boolean; signal: AbortSignal; emit: (e: ChatEvent) => void },
 ): Promise<void> {
   const { stores, emit } = { ...deps, emit: opts.emit };
   const settings = readProviderSettings(stores.preferences);
@@ -434,7 +456,7 @@ export async function handleUserMessage(
   // email, news, weather…) are answered instantly without the brain.
   const recentUser = turnsSoFar.filter((t) => t.role === "user").slice(-1).map((t) => t.content);
   const toolSet = provider.id === "ollama" ? localTools(recentUser, TOOLS) : TOOLS;
-  const toolSpecs = specsFor(toolSet);
+  const toolSpecs = provider.id === "ollama" ? localSpecsFor(toolSet) : specsFor(toolSet);
   // Whether actions exist at all for this brain (fixed, so the instructions' wording never changes turn to turn)…
   const actionsPossible = Boolean(provider.streamWithTools && deps.actions);
   // …and whether this particular message gets any tools.
@@ -455,6 +477,8 @@ export async function handleUserMessage(
       room: roomInPrompt },
   });
   let turnContext = baseContext;
+  // Said straight after ULTRON finished speaking: treat it as feedback on that answer, not a fresh topic.
+  if (opts.replyToLast) turnContext += "\nThe owner said this within seconds of you finishing your last spoken answer: it's their direct reaction to it (a correction, follow-up or comment). Respond to that.";
   // Small local brains often answer from memory (and get sums wrong) even when the right tool is right there; a direct
   // nudge naming this message's tools fixes most of that. (Per message, so it costs nothing in re-reading.)
   if (provider.id === "ollama" && useTools) {
@@ -599,7 +623,10 @@ export async function handleUserMessage(
       if (trace) trace.rec.kind = "brain";
       if (round === 0) trace?.mark("llm_request");
       if (round === 0 && !cloud && !opts.continueFrom) rememberContext(userMessage.id, turnContext, roomInPrompt?.length && deps.room ? { epoch: deps.room.epoch, until: Date.now() + ROOM_MAX_AGE_MS } : undefined);
-      const req = { system: out(system), turnContext: out(turnContext), messages: turns.map((t) => ({ ...t, content: out(t.content) })) as ChatTurn[], memories, capabilities, signal: opts.signal, deep, onStats: (s: LlmStats) => trace?.llm(s) };
+      const req = {
+        // A spoken reply is a couple of sentences; a slow local brain rambling on keeps the owner waiting for the end.
+        ...(provider.id === "ollama" && opts.inputMode === "voice" && !deep ? { maxTokens: SPOKEN_MAX_TOKENS } : {}),
+        system: out(system), turnContext: out(turnContext), messages: turns.map((t) => ({ ...t, content: out(t.content) })) as ChatTurn[], memories, capabilities, signal: opts.signal, deep, onStats: (s: LlmStats) => trace?.llm(s) };
       if (round === 0 && hidden > 0) {
         const exec = stores.actions.create({ conversationId, tool: "privacy_shield", input: {}, risk: 0, requestedBy: "owner", summary: `Hid ${hidden} sensitive item${hidden > 1 ? "s" : ""} (like card numbers or passwords) before sending to the cloud brain`, status: "succeeded" });
         stores.audit.record("privacy.shielded", "system", exec.id, { provider: provider.id, hidden });
@@ -739,7 +766,7 @@ export function stablePrefix(deps: ChatDeps): { system: string; tools: ReturnTyp
   const capabilities = currentCapabilities(settings, resolution, deps.stt?.(), deps.ttsEngine?.());
   const { stable } = buildPromptParts(deps.persona(), { capabilities, toolsEnabled: actionsPossible, toolsSometimes: actionsPossible, memories: [], nowIso: "" });
   // Ordinary conversation has no tools (or, in core mode, always the same ones), so that's the prefix worth preparing.
-  return { system: stable, tools: localToolMode() === "core" ? specsFor(localTools([], TOOLS)) : [] };
+  return { system: stable, tools: localToolMode() === "core" ? localSpecsFor(localTools([], TOOLS)) : [] };
 }
 
 

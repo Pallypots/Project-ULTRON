@@ -184,3 +184,33 @@ describe("no emoji in ULTRON's replies", () => {
     expect(stripEmoji("Settings → Voice, 21°C, 15% off, © 2026, 5 × 3, café")).toBe("Settings → Voice, 21°C, 15% off, © 2026, 5 × 3, café");
   });
 });
+
+describe("a reply spoken straight after ULTRON finished talking", () => {
+  it("reaches the brain marked as a reaction to the last answer; an ordinary message isn't", async () => {
+    const g = await localGateway();
+    const id = await g.newConversation();
+    const send = (content: string, replyToLast?: boolean) =>
+      g.gw.app.inject({ method: "POST", url: `/api/conversations/${id}/messages`, headers: { authorization: `Bearer ${g.gw.token}`, host: "localhost:7477" }, payload: { content, inputMode: "voice", ...(replyToLast ? { replyToLast } : {}) } });
+    const latest = () => fake!.requests.filter((r) => r.path === "/api/chat").at(-1)!.body.messages.at(-1).content as string;
+    await send("tell me about the moon landing");
+    expect(latest()).not.toMatch(/direct reaction/);
+    await send("no, I meant the second one", true);
+    expect(latest()).toMatch(/within seconds of you finishing your last spoken answer[\s\S]*no, I meant the second one/);
+  });
+});
+
+describe("spoken replies from a local brain are capped in length", () => {
+  it("asks for at most ~120 words when spoken to; typed messages and 'think hard' have no cap", async () => {
+    const g = await localGateway();
+    const id = await g.newConversation();
+    const opts = () => fake!.requests.filter((r) => r.path === "/api/chat").at(-1)!.body.options;
+    const send = (content: string, inputMode: "voice" | "text") => g.gw.app.inject({ method: "POST", url: `/api/conversations/${id}/messages`, headers: { authorization: `Bearer ${g.gw.token}`, host: "localhost:7477" }, payload: { content, inputMode } });
+    await send("tell me about the moon landing", "voice");
+    expect(opts().num_predict).toBe(180);
+    await send("tell me about the moon landing", "text");
+    expect(opts().num_predict).toBeUndefined();
+    await send("think hard about whether I should buy or lease a car", "voice");
+    expect(opts().num_predict).toBeUndefined();
+    expect(opts().num_ctx).toBe(8192); // the cap never changes the context size (that would reload the model)
+  });
+});

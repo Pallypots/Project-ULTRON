@@ -49,7 +49,7 @@ import { SttError, SttManager } from "./stt/index.ts";
 import { TtsError, TtsManager } from "./tts/index.ts";
 import { encodeWav, toSpeakable } from "@ultron/audio";
 
-export const VERSION = "0.28.0";
+export const VERSION = "0.29.0";
 export const MAX_VOICE_SECONDS = 120;
 
 export interface Gateway {
@@ -561,7 +561,7 @@ export async function buildGateway(overrides: Partial<GatewayConfig> = {}): Prom
     try {
       greeter.cancel();
       summarizer.cancel();
-      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, continueFrom: body.continueFrom, image: body.image, fromPc: !remote.isRemote(req), signal: ctl.signal, emit });
+      await handleUserMessage(deps, req.params.id, body.content, { deviceId: body.deviceId, inputMode: body.inputMode, continueFrom: body.continueFrom, image: body.image, replyToLast: body.replyToLast, fromPc: !remote.isRemote(req), signal: ctl.signal, emit });
     } catch (err) {
       app.log.error(err);
       emit({ type: "error", code: "internal", message: "ULTRON hit an internal error. Details are in the log." });

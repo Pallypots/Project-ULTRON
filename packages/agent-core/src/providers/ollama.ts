@@ -101,7 +101,7 @@ export class OllamaProvider implements ModelProvider {
         // Stay loaded (a reload costs seconds), and always the same context size: a different size forces a reload,
         // and Ollama's small default silently cut long conversations.
         keep_alive: -1,
-        options: { num_ctx: OLLAMA_NUM_CTX },
+        options: { num_ctx: OLLAMA_NUM_CTX, ...(req.maxTokens ? { num_predict: req.maxTokens } : {}) },
         messages: toOllamaMessages(req.system, withTurnContext(req.messages, req.turnContext)),
         ...(tools?.length ? { tools: tools.map((t) => ({ type: "function", function: t })) } : {}),
         ...(think === undefined ? {} : { think }),

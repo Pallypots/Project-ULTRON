@@ -46,6 +46,37 @@ export class Speaker {
     if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
   }
 
+  /**
+   * "Got it": a short, soft two-note chime the moment ULTRON has heard you, before any thinking, so you know it got
+   * through. Synthesised here (no sound file), quiet, about 0.15 s.
+   */
+  chime() {
+    try {
+      this.unlock();
+      const ctx = this.ctx!;
+      const t = ctx.currentTime + 0.01;
+      const out = ctx.createGain();
+      out.gain.value = 0.09;
+      out.connect(ctx.destination);
+      [880, 1318.5].forEach((f, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = f;
+        const at = t + i * 0.075;
+        g.gain.setValueAtTime(0, at);
+        g.gain.linearRampToValueAtTime(1, at + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.001, at + 0.11);
+        o.connect(g).connect(out);
+        o.start(at);
+        o.stop(at + 0.12);
+      });
+      (window as unknown as { __ultronChimes?: number }).__ultronChimes = ((window as unknown as { __ultronChimes?: number }).__ultronChimes ?? 0) + 1;
+    } catch {
+      /* no audio: the on-screen "heard" line still shows */
+    }
+  }
+
   enqueue(sentences: string[]) {
     for (const s of sentences) {
       if (!s.trim()) continue;

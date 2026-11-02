@@ -95,6 +95,8 @@ export const SendMessage = z.object({
   continueFrom: z.string().max(64).optional(),
   /** One camera photo the owner just took for this message (base64 JPEG, ~2 MB max). Never stored. */
   image: z.string().max(2_800_000).regex(/^\/9j\/[A-Za-z0-9+/=]+$/, "must be a JPEG photo").optional(),
+  /** Spoken within 8 s of ULTRON finishing speaking: the owner's direct reaction to what he just said. */
+  replyToLast: z.boolean().optional(),
 });
 
 export const ProviderId = z.enum(["mock", "ollama", "anthropic", "openai"]);

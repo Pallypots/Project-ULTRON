@@ -186,6 +186,9 @@ try {
   if (secs(t) < 2 || level(t) < 0.005) throw new Error(`hold-to-talk captured no real audio: ${t}`);
   await page.locator(".msg--assistant.msg--complete").last().waitFor();
   step(`Hold-to-talk: mic audio captured and sent as a voice message (${secs(t)} s, level ${level(t)})`);
+  // "I heard you": a chime the moment a voice message goes in, before any thinking.
+  if (!((await page.evaluate(() => window.__ultronChimes)) >= 1)) throw new Error("no 'heard you' chime for a voice message");
+  step("A chime confirms ULTRON heard you, before he starts thinking");
   await page.screenshot({ path: join(shots, "07-voice-message-sent.png") });
 
   // Spoken reply to a voice message, then barge-in.

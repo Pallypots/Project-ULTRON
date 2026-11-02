@@ -45,6 +45,8 @@ export function withTurnContext(turns: ChatTurn[], context: string | undefined):
 }
 
 export interface ModelRequest {
+  /** Most words (tokens) the reply may have; a safety cap for spoken replies on slow local brains. */
+  maxTokens?: number;
   /** This turn's changing context; providers attach it to the latest owner message (see withTurnContext). */
   turnContext?: string;
   /** Called with the local model's own timings when a call finishes (diagnostics; local providers only). */

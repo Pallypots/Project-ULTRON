@@ -21,8 +21,10 @@ interface UiMessage extends Message {
   notice?: string;
 }
 
-const FILLER_AFTER_MS = 1200;
-const FILLERS = ["Hmm, let me think.", "Give me a second.", "Thinking.", "Good question. One moment.", "Let me see.", "Mm, working on it."];
+const FILLER_AFTER_MS = 1000;
+const FILLERS = ["On it.", "One moment.", "Let me see.", "Give me a second.", "Working on it.", "Hmm, let me think."];
+/** After ULTRON finishes speaking, whatever you say within this long is your reply to it (fed to the brain as such). */
+const REPLY_WINDOW_MS = 8000;
 let lastFiller = -1;
 /** A short spoken "thinking" sound, never the same one twice in a row. */
 function pickFiller(): string {
@@ -67,10 +69,14 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   const photoRef = useRef<string | null>(null);
   const [camera, setCamera] = useState(false);
   const [speakError, setSpeakError] = useState<string | null>(null);
+  const lastSpokeEnd = useRef(0);
 
   useEffect(() => {
     const sp = speaker.current!;
-    sp.onChange = setSpeaking;
+    sp.onChange = (on) => {
+      if (!on) lastSpokeEnd.current = Date.now();
+      setSpeaking(on);
+    };
     sp.onError = (m) => setSpeakError(m);
     api.ttsStatus().then((s) => (tts.current = { engine: s.engine, speed: s.speed })).catch(() => {});
     return () => sp.stop();
@@ -182,8 +188,12 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
     setError(null);
     setSpeakError(null);
     const sp = speaker.current!;
+    // Spoken within 8 s of ULTRON finishing: a direct reaction to what he just said (measured before stop() resets it).
+    const replyToLast = inputMode === "voice" && !continueFrom && Date.now() - lastSpokeEnd.current < REPLY_WINDOW_MS;
     sp.stop();
     sp.unlock();
+    // "Got it": heard you, before any thinking.
+    if (inputMode === "voice") sp.chime();
     const mode = loadVoicePrefs().speakMode;
     const splitter = mode === "always" || (mode === "voice" && (inputMode === "voice" || speakReply)) ? new SentenceSplitter() : null;
     // A camera photo the owner just took goes with this one message (never with an approval follow-up).
@@ -260,7 +270,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
             onCoreState("error");
             break;
         }
-      }, ctl.signal, inputMode, continueFrom, image);
+      }, ctl.signal, inputMode, continueFrom, image, replyToLast);
     } catch (err) {
       if ((err as Error).name !== "AbortError") setError((err as Error).message);
       else patch((m) => ({ ...m, status: "cancelled" }));
