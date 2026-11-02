@@ -90,5 +90,6 @@ describe("word error rate (used by the speech recogniser comparison)", async () 
   it("is 0 for a perfect transcript and counts substitutions, insertions and deletions", () => {
     expect(wer("Set a timer for ten minutes.", "set a timer for ten minutes")).toBe(0);
     expect(wer("set a timer for ten minutes", "set a time for minutes please")).toBeCloseTo(3 / 6);
+    expect(wer("How much is fifteen percent of eighty?", "How much is 15% of 80?")).toBe(0);
   });
 });

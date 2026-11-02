@@ -351,6 +351,14 @@ try {
   step("Activity lists actions with risk level and who asked");
 
   // ---- Hands-free wake word ----
+  // Interrupt by voice is on by default (2.6)… but this fake microphone plays speech nonstop, so it would talk over
+  // every reply. Off for these steps; the interrupt step below turns it on deliberately.
+  const voicePrefs = await page.evaluate(() => localStorage.getItem("ultron.voice"));
+  if (voicePrefs && JSON.parse(voicePrefs).bargeIn === false && JSON.parse(voicePrefs).v === 2) throw new Error(`interrupt by voice should be on by default: ${voicePrefs}`);
+  await page.evaluate(() => {
+    const p = JSON.parse(localStorage.getItem("ultron.voice") ?? "{}");
+    localStorage.setItem("ultron.voice", JSON.stringify({ ...p, bargeIn: false, v: 2 }));
+  });
   await page.getByRole("button", { name: "Chat" }).click();
   await page.getByRole("button", { name: "+ New conversation" }).click();
   await page.getByText("Say hello, ask a question").waitFor();
@@ -394,7 +402,7 @@ try {
   // Interrupt by voice (opt-in): with it on, talking while ULTRON speaks stops it and the next words are taken as the reply.
   await page.evaluate(() => {
     const p = JSON.parse(localStorage.getItem("ultron.voice") ?? "{}");
-    localStorage.setItem("ultron.voice", JSON.stringify({ ...p, bargeIn: true, speakMode: "voice" }));
+    localStorage.setItem("ultron.voice", JSON.stringify({ ...p, bargeIn: true, speakMode: "voice", v: 2 }));
   });
   const interrupted = page.waitForEvent("console", { predicate: (m) => m.text().includes("[ultron] interrupted by voice"), timeout: 45000 });
   await page.getByRole("button", { name: "Home", exact: true }).click();
@@ -404,7 +412,7 @@ try {
   await page.getByRole("button", { name: "Hands-free on" }).click();
   await page.evaluate(() => {
     const p = JSON.parse(localStorage.getItem("ultron.voice") ?? "{}");
-    localStorage.setItem("ultron.voice", JSON.stringify({ ...p, bargeIn: false }));
+    localStorage.setItem("ultron.voice", JSON.stringify({ ...p, bargeIn: false, v: 2 }));
   });
   step("Interrupt by voice: talking over ULTRON stops it and the next words are taken as the reply");
 
