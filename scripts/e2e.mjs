@@ -203,6 +203,11 @@ try {
   await page.keyboard.up("Space");
   await userVoiceMsgs.nth(1).waitFor();
   step("Hold Space: push-to-talk works from the keyboard");
+  // Phase 2.7: releasing the key hands over the audio at once (it used to wait a fixed 120 ms), and the second press
+  // reuses the audio engine instead of building a new one.
+  const stopMs = await page.evaluate(() => window.__ultronPttStopMs);
+  if (!(stopMs < 60)) throw new Error(`push-to-talk took ${stopMs} ms to hand over the audio after release`);
+  step(`Push-to-talk hands over the audio ${stopMs} ms after release (was a fixed 120 ms wait)`);
   await page.locator(".msg--assistant.msg--complete").nth(1).waitFor();
 
   // Esc while speaking stops the voice.

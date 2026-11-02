@@ -8,6 +8,8 @@
 - **Interrupt by voice is on:** in hands-free, just talk over ULTRON and it stops and listens. It only counts as you
   if it's clearly a voice and clearly louder than ULTRON's own voice coming back through the microphone. You can turn
   it off in Settings → Voice (it stays off if you do).
+- **Push-to-talk sends sooner:** your audio is handed over 17 ms after you let go (it used to wait a fixed 120 ms),
+  and the audio engine stays ready between presses instead of being rebuilt every time.
 
 ## 0.27.0 · 2026-11-02 · Faster replies (Phase 0 and Phase 1 of the speed roadmap)
 - **Settings → Performance** shows where each reply's time goes on your PC: understanding your speech, the brain

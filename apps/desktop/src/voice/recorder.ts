@@ -9,6 +9,11 @@ class Tap extends AudioWorkletProcessor {
     if (ch) this.port.postMessage(ch.slice(0));
     return true;
   }
+  constructor() {
+    super();
+    // Everything posted before this reply has already arrived: no fixed wait needed when recording stops.
+    this.port.onmessage = (e) => { if (e.data === "flush") this.port.postMessage("flushed"); };
+  }
 }
 registerProcessor("ultron-tap", Tap);
 `;
@@ -37,8 +42,33 @@ export interface Recording {
   seconds: number;
 }
 
+/**
+ * One audio engine for push-to-talk, kept between recordings (paused while idle). Creating it and loading the tap took
+ * 100–250 ms on every press; the microphone itself is still opened and released per recording.
+ */
+let shared: Promise<AudioContext> | null = null;
+function audioEngine(): Promise<AudioContext> {
+  shared ??= (async () => {
+    const ctx = new AudioContext();
+    const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
+    try {
+      await ctx.audioWorklet.addModule(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    return ctx;
+  })().catch((err) => {
+    shared = null;
+    throw err;
+  });
+  return shared;
+}
+
 export class Recorder {
   private ctx: AudioContext | null = null;
+  private source: MediaStreamAudioSourceNode | null = null;
+  /** How long the last stop() took from release to having the audio ready (diagnostics). */
+  static lastStopMs = 0;
   private stream: MediaStream | null = null;
   private node: AudioWorkletNode | null = null;
   private analyser: AnalyserNode | null = null;
@@ -68,18 +98,15 @@ export class Recorder {
       throw explainMicError(err);
     }
     this.chunks = [];
-    this.ctx = new AudioContext();
-    const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
-    try {
-      await this.ctx.audioWorklet.addModule(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    const source = this.ctx.createMediaStreamSource(this.stream);
+    this.ctx = await audioEngine();
+    if (this.ctx.state !== "running") await this.ctx.resume().catch(() => {});
+    const source = (this.source = this.ctx.createMediaStreamSource(this.stream));
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 1024;
     this.node = new AudioWorkletNode(this.ctx, "ultron-tap");
-    this.node.port.onmessage = (e: MessageEvent<Float32Array>) => this.chunks.push(e.data);
+    this.node.port.onmessage = (e: MessageEvent<Float32Array | string>) => {
+      if (typeof e.data !== "string") this.chunks.push(e.data);
+    };
     source.connect(this.analyser);
     source.connect(this.node);
     // The worklet must reach the destination to keep running; route it through a muted gain so nothing is played back.
@@ -99,9 +126,24 @@ export class Recorder {
 
   async stop(): Promise<Recording | null> {
     if (!this.ctx || !this.stream) return null;
+    const t0 = performance.now();
     const rate = this.ctx.sampleRate;
-    await new Promise((r) => setTimeout(r, 120)); // let the last worklet buffers arrive
+    // Wait for the tap to confirm everything it captured has been delivered (a fixed 120 ms wait used to be here).
+    const node = this.node;
+    if (node)
+      await new Promise<void>((resolve) => {
+        const done = setTimeout(resolve, 150); // never hang if the audio engine stalls
+        node.port.addEventListener("message", (e) => {
+          if (e.data === "flushed") {
+            clearTimeout(done);
+            resolve();
+          }
+        });
+        node.port.postMessage("flush");
+      });
     this.release();
+    Recorder.lastStopMs = Math.round(performance.now() - t0);
+    (window as unknown as { __ultronPttStopMs?: number }).__ultronPttStopMs = Recorder.lastStopMs;
     const samples = resample(concatFloat32(this.chunks), rate);
     this.chunks = [];
     return { wav: encodeWav(samples), seconds: samples.length / 16000 };
@@ -115,9 +157,12 @@ export class Recorder {
 
   private release() {
     this.stream?.getTracks().forEach((t) => t.stop());
+    this.source?.disconnect();
     this.node?.disconnect();
-    this.ctx?.close().catch(() => {});
+    // The engine stays loaded for next time, paused so it uses nothing meanwhile.
+    this.ctx?.suspend().catch(() => {});
     this.stream = null;
+    this.source = null;
     this.node = null;
     this.analyser = null;
     this.ctx = null;
