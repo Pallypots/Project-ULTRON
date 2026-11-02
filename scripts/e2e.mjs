@@ -378,8 +378,9 @@ try {
 
   // Conversation mode: after the answer, ULTRON keeps listening and the next phrase needs no wake word.
   const followUp = page.waitForRequest((r) => r.url().includes("/api/voice/transcribe") && !r.url().includes("mode=wake"), { timeout: 30000 });
-  await page.locator(".listening--followup").waitFor({ timeout: 30000 });
-  await page.screenshot({ path: join(shots, "20-conversation-mode.png") });
+  // (The "listening for your reply" state can be over in a few milliseconds when the next words follow at once, as they
+  // do from this nonstop fake microphone, so the proof is the follow-up itself: recognised without the wake word.)
+  await page.locator(".listening--followup").waitFor({ timeout: 3000 }).then(() => page.screenshot({ path: join(shots, "20-conversation-mode.png") }), () => {});
   await followUp;
   await page.locator(".msg--user", { hasText: "🎙 voice" }).nth(1).waitFor({ timeout: 30000 });
   step("Conversation mode: after answering, ULTRON listens for a reply without the wake word");
@@ -393,7 +394,6 @@ try {
   await page.getByRole("button", { name: "Home", exact: true }).click();
   const firstWords = page.waitForRequest((r) => r.url().includes("/api/voice/transcribe") && !r.url().includes("mode=wake"), { timeout: 30000 });
   await page.getByRole("button", { name: "🎙 Talk to ULTRON" }).click();
-  await page.locator(".listening--followup").waitFor();
   await firstWords;
   await page.locator(".msg--user", { hasText: "🎙 voice" }).first().waitFor({ timeout: 30000 });
   await page.getByRole("button", { name: "Hands-free on" }).click();
