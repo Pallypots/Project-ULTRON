@@ -39,6 +39,12 @@ describe("a local brain can reuse what it already read", () => {
       expect(one!.at(-1)!.content).toMatch(/first conversation/);
       expect(two!.at(-1)!.content).not.toMatch(/first conversation/);
       expect(two!.at(-1)!.content).toMatch(/\[Context[\s\S]*learning the guitar/);
+      // Only what's new is sent again (every word is re-read each turn): no repeated catch-up or empty memory list…
+      const fresh = two!.at(-1)!.content.split("[End of context")[0]!;
+      expect(fresh).not.toMatch(/last talked|first conversation|none relevant/);
+      // …but what's about this message always is.
+      expect(fresh).toMatch(/Current date\/time/);
+      expect(fresh).toMatch(/This message was SPOKEN/);
     } finally {
       await g.close();
     }

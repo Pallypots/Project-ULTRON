@@ -187,12 +187,16 @@ describe.skipIf(!enabled)(`real local brain via Ollama (${MODEL})`, () => {
       const p1b = await play(b1);
       const swapped = { ...b2, messages: b2.messages.map((m: any, i: number) => (i === b1.messages.length ? { ...m, content: p1b.reply } : m)) };
       const p2swapped = await play(swapped);
+      // Control: the same turn-2 request read from scratch (first word changed, so nothing can be reused).
+      const cold = await play({ ...b2, messages: [{ ...b2.messages[0], content: `X ${b2.messages[0].content}` }, ...b2.messages.slice(1)] });
+      // Ollama reports the whole prompt's size but only the time for the part it actually had to read.
+      ciNote("Turn 2 vs reading it all from scratch", `turn 2 took ${second!.llm[0]!.promptMs} ms to read; from scratch ${cold.ms} ms (${cold.tok} tokens)`);
+      expect(second!.llm[0]!.promptMs).toBeLessThan(cold.ms * 0.5);
       const keys = (b: any) => Object.keys(b).sort().join(",");
       ciNote(
         "Replay of ULTRON's own requests",
         `earlier messages identical=${prefixSame} keys1=${keys(b1)} keys2=${keys(b2)} think=${JSON.stringify(b2.think)} | turn1 ${p1.tok} tok/${p1.ms} ms | turn2 ${p2.tok} tok/${p2.ms} ms | turn2 again ${p2again.tok} tok/${p2again.ms} ms | turn2 after turn1, with turn1's exact new reply ${p2swapped.tok} tok/${p2swapped.ms} ms | stored reply="${b2.messages[b1.messages.length]?.content?.slice(0, 120)}" generated="${p1b.reply.slice(0, 120)}"`,
       );
     }
-    expect(second!.llm[0]!.promptMs).toBeLessThan(first!.llm[0]!.promptMs * 0.7);
   }, 900_000);
 });

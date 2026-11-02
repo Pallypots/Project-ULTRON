@@ -19,6 +19,8 @@
 - **The brain reuses its reading on every turn, not just the first:** earlier messages are now repeated exactly as they
   were first sent, so each request only adds to the end. (A test showed the Gemma brain can only reuse its reading
   that way: 1.7 s instead of 21 s.) Anything overheard in the room is still forgotten on schedule.
+- **Less to re-read each turn:** mid-conversation, ULTRON's background notes only include what's new (no repeated
+  catch-up, agenda or "no memories" lines). The brain's own log showed those notes were most of what it read each turn.
 - **Small-brain slip-ups fixed:** it no longer says it can't see a screenshot or photo you just shared. If it writes a
   tool request out as text, ULTRON runs the real tool instead of showing the raw text, and it never shows a made-up
   tool answer. It no longer copies a sample memory tag from its instructions.

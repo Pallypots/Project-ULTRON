@@ -437,6 +437,7 @@ export async function handleUserMessage(
     capabilities,
     toolsEnabled: actionsPossible,
     toolsSometimes: provider.id === "ollama" && actionsPossible,
+    earlierContexts: turnsSoFar.flatMap((t) => (t.role === "user" && t.context ? [t.context] : [])),
     localTime: new Date().toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`,
     memories,
     nowIso: new Date().toISOString(),

@@ -65,3 +65,21 @@ describe("mock provider", () => {
     expect(again).toBe(out);
   });
 });
+
+describe("per-turn context: only what's new is sent again", async () => {
+  const { buildPromptParts } = await import("../src/persona.ts");
+  const persona = loadPersona(join(import.meta.dirname, "../../../config/persona.json"));
+  const mem = (id: string, content: string) => ({ id, content, kind: "fact", createdAt: "2026-11-01T00:00:00Z" }) as never;
+  const ctx = (o: Record<string, unknown>) => buildPromptParts(persona, { capabilities: [], memories: [], nowIso: "now", ...o } as never).context;
+  it("skips repeats mid-conversation, keeps new memories, agenda changes and the per-message lines", () => {
+    const rapport = { inputMode: "voice", lastChat: "a moment ago", recentTopics: ["guitar"], agenda: ["Dentist at 3pm"] };
+    const first = ctx({ rapport, memories: [mem("aaaa1111", "Sister is Ana")] });
+    expect(first).toMatch(/last talked[\s\S]*Dentist[\s\S]*Sister is Ana/);
+    const again = ctx({ rapport, memories: [mem("aaaa1111", "Sister is Ana")], earlierContexts: [first] });
+    expect(again).not.toMatch(/last talked|Dentist|Sister is Ana|Recent conversation titles/);
+    expect(again).toMatch(/Current date\/time[\s\S]*SPOKEN/);
+    // Negative controls: something new does go.
+    const changed = ctx({ rapport: { ...rapport, agenda: ["Dentist at 4pm"] }, memories: [mem("bbbb2222", "Allergic to nuts")], earlierContexts: [first] });
+    expect(changed).toMatch(/Dentist at 4pm[\s\S]*Allergic to nuts/);
+  });
+});
