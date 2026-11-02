@@ -14,13 +14,18 @@ export interface VoicePrefs {
   ultronEffect: boolean;
   /** The Ultron voice effect while in Council mode (on by default: it's his face-to-face voice). */
   councilEffect: boolean;
+  /** Settings version: 2 switched interrupt-by-voice on once for everyone (it's safe now, with the echo guard). */
+  v?: number;
 }
 const KEY = "ultron.voice";
-const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true, bargeIn: false, ultronEffect: false, councilEffect: true };
+const DEFAULTS: VoicePrefs = { micId: "", autoSend: true, speakMode: "voice", browserVoice: "", conversation: true, bargeIn: true, ultronEffect: false, councilEffect: true, v: 2 };
 
 export function loadVoicePrefs(): VoicePrefs {
   try {
-    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<VoicePrefs>) };
+    const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<VoicePrefs>;
+    // One-time upgrade: interrupt-by-voice was experimental and off; it's on by default now. Turning it off again sticks.
+    if ((saved.v ?? 1) < 2) Object.assign(saved, { bargeIn: true, v: 2 });
+    return { ...DEFAULTS, ...saved };
   } catch {
     return { ...DEFAULTS };
   }

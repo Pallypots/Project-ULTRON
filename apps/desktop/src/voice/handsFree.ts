@@ -31,7 +31,7 @@ const BARGE_GRACE_MS = 2000; // after an interruption, keep listening while the 
  * Opt-in hands-free listening: a simple voice-activity detector cuts speech into phrases, each phrase is checked
  * for the wake word on this PC, and anything not addressed to ULTRON is discarded by the server unheard.
  */
-export function useHandsFree(onCommand: (text: string) => void, paused: boolean, opts: { speaking?: boolean; onBargeIn?: () => void } = {}) {
+export function useHandsFree(onCommand: (text: string) => void, paused: boolean, opts: { speaking?: boolean; onBargeIn?: () => void; /** How loud ULTRON's own voice is right now, 0..1 (to tell your voice from its echo). */ speakerLevel?: () => number } = {}) {
   const [state, setState] = useState<HandsFreeState>("off");
   // The microphone level changes 50 times a second: kept out of React state so it never re-renders the chat.
   const levelRef = useRef(0);
@@ -66,6 +66,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
     bargeAbove: 0,
     bargedUntil: 0,
     onBargeIn: undefined as (() => void) | undefined,
+    speakerLevel: undefined as (() => number) | undefined,
     /** The Silero speech detector (null until loaded, or if it can't load: then loudness decides). */
     vad: null as SileroVad | null,
     resampler: null as StreamResampler | null,
@@ -74,6 +75,7 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
   r.current.paused = paused;
   r.current.speaking = Boolean(opts.speaking);
   r.current.onBargeIn = opts.onBargeIn;
+  r.current.speakerLevel = opts.speakerLevel;
   // What to show while waiting: a reply window, a just-heard-"Ultron" window, or plain listening for the wake word.
   const idle = (): HandsFreeState => {
     const st = r.current;
@@ -176,8 +178,10 @@ export function useHandsFree(onCommand: (text: string) => void, paused: boolean,
       if (st.paused && !barging && st.speaking && st.bargeIn && st.onBargeIn && !st.busy && !st.inPhrase) {
         st.preroll.push(f);
         if (st.preroll.length > PREROLL_FRAMES) st.preroll.shift();
-        // Loud enough to be you, not ULTRON's own echo, and (with the detector) clearly a voice.
-        if (rms > Math.max(0.05, st.floor * 8) && (!st.vad || st.vad.probability > 0.7)) {
+        // Echo guard: loud enough to be you rather than ULTRON's own voice coming back through the microphone (the browser's
+        // echo cancellation removes most of it; what's left is well below what's playing), and clearly a voice.
+        const echo = ((st.speakerLevel?.() ?? 0) / 4) * 0.6;
+        if (rms > Math.max(0.05, st.floor * 8, echo) && (!st.vad || st.vad.probability > 0.7)) {
           if (++st.bargeAbove >= BARGE_FRAMES) {
             st.bargeAbove = 0;
             st.bargedUntil = Date.now() + BARGE_GRACE_MS;

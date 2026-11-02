@@ -305,6 +305,7 @@ export function ChatView({ onCoreState, core, seed, seedSpeak, clearSeed, talk, 
   }, [messages, send]);
   const hands = useHandsFree(onWakeCommand, busy || speaking || ptt.state !== "idle", {
     speaking,
+    speakerLevel: getSpeakLevel,
     // You talked over ULTRON: stop the voice and the reply, and listen.
     onBargeIn: () => {
       console.info("[ultron] interrupted by voice");

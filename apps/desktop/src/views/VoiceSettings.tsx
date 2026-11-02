@@ -166,7 +166,7 @@ export function VoiceSettings({ onSaved }: { onSaved: () => void }) {
       <RoomToggle />
       <label className="toggle">
         <input type="checkbox" checked={prefs.bargeIn} onChange={(e) => updatePrefs({ bargeIn: e.target.checked })} />
-        <span>Interrupt by voice (experimental): in hands-free, talking over ULTRON stops it and it listens to you. Works best with headphones; with loud speakers it may interrupt itself.</span>
+        <span>Interrupt by voice: in hands-free, talking over ULTRON stops it and it listens to you. If it ever stops itself mid-sentence (very loud speakers next to the microphone), turn this off or use headphones.</span>
       </label>
     </section>
   );
